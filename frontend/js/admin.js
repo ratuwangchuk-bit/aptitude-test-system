@@ -18,6 +18,7 @@ let selectedResultIds      = new Set();
 let selectedParticipantIds = new Set();
 let selectedQuestionIds    = new Set();
 let selectedAnswerIds      = new Set();
+let currentResultDetail    = null;
 
 /* ── Icon SVGs ─────────────────────────────────────────────── */
 // Defined first so every render function below can reference them safely.
@@ -28,7 +29,8 @@ const ICON = {
   key:    `<svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></svg>`,
   lock:   `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   unlock: `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`,
-  eye:    `<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  eye:      `<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  download: `<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
 };
 
 // Short labels used inside section pills in tables.
@@ -356,6 +358,7 @@ async function viewParticipantResult(submissionId) {
 }
 
 function showResultDetailModal(d) {
+  currentResultDetail = d;
   document.getElementById('resultDetailOverlay')?.remove();
 
   const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
@@ -415,7 +418,7 @@ function showResultDetailModal(d) {
               <th>#</th>
               <th>Section</th>
               <th>Question</th>
-              <th>Their Answer</th>
+              <th>Your Answer</th>
               <th>Correct Answer</th>
               <th>Result</th>
             </tr>
@@ -425,7 +428,10 @@ function showResultDetailModal(d) {
       </div>
       <div class="rd-footer">
         <span>Submitted: ${d.submitted_at ? formatDate(d.submitted_at) : '—'}</span>
-        <button class="btn-outline" onclick="closeResultDetail()">Close</button>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <button class="btn-icon btn-soft" title="Download result" onclick="downloadIndividualResult()">${ICON.download}</button>
+          <button class="btn-outline" onclick="closeResultDetail()">Close</button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -439,6 +445,85 @@ function showResultDetailModal(d) {
 function closeResultDetail() {
   document.getElementById('resultDetailOverlay')?.remove();
   document.body.classList.remove('modal-open');
+}
+
+function downloadIndividualResult() {
+  const d = currentResultDetail;
+  if (!d) return;
+
+  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
+  const rows = (d.answers || []).map((a, i) => {
+    const o        = opts(a);
+    const sel      = a.selected_option || '';
+    const selText  = sel && o[sel]              ? `${sel}. ${o[sel]}`              : (sel || '—');
+    const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${o[a.correct_option]}` : (a.correct_option || '—');
+    const rowCls   = a.is_correct ? 'correct-row' : (sel ? 'wrong-row' : '');
+    const status   = a.is_correct ? '<span class="status-c">✓ Correct</span>' : (sel ? '<span class="status-w">✗ Wrong</span>' : '<span class="status-s">— Skipped</span>');
+    const section  = { 'Analytical Ability': 'Analytical', 'Verbal Ability': 'Verbal', 'Quantitative Skills': 'Quantitative' }[a.section] || a.section;
+    return `<tr class="${rowCls}">
+      <td style="text-align:center;color:#94a3b8;font-weight:900">${i + 1}</td>
+      <td>${section}</td>
+      <td>${a.question_text}</td>
+      <td class="${a.is_correct ? 'ans-c' : (sel ? 'ans-w' : '')}">${selText}</td>
+      <td class="ans-c">${corrText}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+
+  const pct = Number(d.percentage || 0).toFixed(1);
+  const submittedAt = d.submitted_at ? formatDate(d.submitted_at) : '—';
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+  <title>Result — ${d.full_name}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;padding:28px;font-size:13px}
+    .header{border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:14px}
+    .org{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+    .name{font-size:20px;font-weight:900}
+    .sub{color:#64748b;font-size:11.5px;margin-top:5px}
+    .scores{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+    .si{text-align:center;min-width:82px}
+    .si .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;display:block;margin-bottom:3px}
+    .si .val{font-weight:900;font-size:16px}
+    .si.total .val{color:#3730a3}.si.ana .val{color:#c2410c}.si.ver .val{color:#1d4ed8}.si.qnt .val{color:#166534}.si.pct .val{color:#0f766e}.si.rnk .val{color:#7c3aed}
+    table{width:100%;border-collapse:collapse;font-size:11.5px}
+    th{padding:7px 9px;text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.055em;color:#475569;background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+    td{padding:6px 9px;border-top:1px solid #f1f5f9;vertical-align:top}
+    .correct-row{background:rgba(220,252,231,.45)}.wrong-row{background:rgba(254,226,226,.45)}
+    .status-c{color:#16a34a;font-weight:900}.status-w{color:#dc2626;font-weight:900}.status-s{color:#94a3b8}
+    .ans-c{color:#15803d;font-weight:700}.ans-w{color:#b91c1c;font-weight:700}
+    .footer{margin-top:14px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between}
+    @media print{body{padding:0}}
+  </style>
+  </head><body>
+  <div class="header">
+    <div class="org">Digital Aptitude Evaluation System — Individual Result</div>
+    <div class="name">${d.full_name}</div>
+    <div class="sub">CID: ${d.cid_number || '—'} &nbsp;·&nbsp; ${d.company_name || '—'} &nbsp;·&nbsp; ${d.contact_number || '—'}</div>
+  </div>
+  <div class="scores">
+    <div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}/${d.total_questions || 45}</span></div>
+    <div class="si ana"><span class="lbl">Analytical</span><span class="val">${d.analytical_score}/15</span></div>
+    <div class="si ver"><span class="lbl">Verbal</span><span class="val">${d.verbal_score}/15</span></div>
+    <div class="si qnt"><span class="lbl">Quantitative</span><span class="val">${d.quantitative_score}/15</span></div>
+    <div class="si pct"><span class="lbl">Score %</span><span class="val">${pct}%</span></div>
+    <div class="si rnk"><span class="lbl">Rank</span><span class="val">#${d.rank}</span></div>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">No per-question data available.</td></tr>'}</tbody>
+  </table>
+  <div class="footer">
+    <span>Submitted: ${submittedAt}</span>
+    <span>DAES — Confidential</span>
+  </div>
+  <script>window.onload=()=>{window.print()}<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
 }
 
 /* ── Passcodes ─────────────────────────────────────────────── */
