@@ -224,8 +224,8 @@ function renderTurnoutChart(appeared, total) {
         <circle cx="60" cy="60" r="${r}" class="donut-fill"
           stroke-dasharray="${dash} ${circ.toFixed(1)}"
           transform="rotate(-90 60 60)"/>
-        <text x="60" y="57" class="donut-pct">${pct}%</text>
-        <text x="60" y="72" class="donut-sub">turnout</text>
+        <text x="60" y="54" class="donut-pct">${pct}%</text>
+        <text x="60" y="73" class="donut-sub">turnout</text>
       </svg>
       <div class="turnout-legend">
         <div class="tleg-row"><span class="tleg-dot appeared"></span><span class="tleg-label">Appeared</span><b>${appeared}</b></div>

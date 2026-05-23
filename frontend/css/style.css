@@ -407,8 +407,8 @@ table.modern-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .turnout-donut { width: 9rem; height: 9rem; }
 .donut-track { fill: none; stroke: #e2e8f0; stroke-width: 11; }
 .donut-fill  { fill: none; stroke: url(#tGrad); stroke-width: 11; stroke-linecap: round; }
-.donut-pct   { font-size: 22px; font-weight: 900; fill: #0f172a; text-anchor: middle; }
-.donut-sub   { font-size: 8.5px; font-weight: 800; fill: #94a3b8; text-anchor: middle; letter-spacing: .06em; text-transform: uppercase; }
+.donut-pct   { font-size: 22px; font-weight: 900; fill: #0f172a; text-anchor: middle; dominant-baseline: central; }
+.donut-sub   { font-size: 8.5px; font-weight: 800; fill: #94a3b8; text-anchor: middle; dominant-baseline: central; letter-spacing: .06em; text-transform: uppercase; }
 .turnout-legend { display: flex; flex-direction: column; gap: .55rem; width: 100%; }
 .tleg-row    { display: flex; align-items: center; gap: .55rem; font-size: .82rem; font-weight: 800; color: #334155; }
 .tleg-dot    { width: .65rem; height: .65rem; border-radius: 999px; flex-shrink: 0; }
