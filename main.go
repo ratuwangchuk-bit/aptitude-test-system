@@ -23,5 +23,5 @@ func main() {
 	}
 
 	log.Println("Digital Aptitude Evaluation System running on port", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Fatal(http.ListenAndServe("0.0.0.0:"+port, r))
 }
