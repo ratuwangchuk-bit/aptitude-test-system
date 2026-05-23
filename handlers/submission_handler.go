@@ -109,6 +109,56 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var detail models.SubmissionDetail
+	err := config.DB.QueryRow(`
+		SELECT s.id, p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
+		       s.score, s.total_questions, COALESCE(s.analytical_score,0), COALESCE(s.verbal_score,0), COALESCE(s.quantitative_score,0), s.percentage,
+		       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
+		FROM submissions s JOIN participants p ON s.participant_id=p.id
+		WHERE s.id=$1`, id).Scan(
+		&detail.SubmissionID, &detail.ParticipantID, &detail.FullName, &detail.CIDNumber,
+		&detail.CompanyName, &detail.ContactNumber, &detail.Score, &detail.TotalQuestions,
+		&detail.AnalyticalScore, &detail.VerbalScore, &detail.QuantitativeScore, &detail.Percentage,
+		&detail.Rank, &detail.SubmittedAt,
+	)
+	if err != nil {
+		utils.Error(w, http.StatusNotFound, "Result not found")
+		return
+	}
+
+	rows, err := config.DB.Query(`
+		SELECT q.id, q.section, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
+		       pa.selected_option, COALESCE(a.correct_option, '') AS correct_option, pa.is_correct
+		FROM participant_answers pa
+		JOIN questions q ON pa.question_id = q.id
+		LEFT JOIN answers a ON a.question_id = q.id
+		WHERE pa.submission_id = $1
+		ORDER BY q.section, q.id`, id)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load answers")
+		return
+	}
+	defer rows.Close()
+
+	detail.Answers = []models.ParticipantAnswerDetail{}
+	for rows.Next() {
+		var ans models.ParticipantAnswerDetail
+		if err := rows.Scan(&ans.QuestionID, &ans.Section, &ans.QuestionText,
+			&ans.OptionA, &ans.OptionB, &ans.OptionC, &ans.OptionD,
+			&ans.SelectedOption, &ans.CorrectOption, &ans.IsCorrect); err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not read answers")
+			return
+		}
+		detail.Answers = append(detail.Answers, ans)
+	}
+
+	utils.JSON(w, http.StatusOK, detail)
+}
+
 func CheckSubmission(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["participantId"]
 	var submitted bool

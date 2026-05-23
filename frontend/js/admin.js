@@ -28,6 +28,7 @@ const ICON = {
   key:    `<svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></svg>`,
   lock:   `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   unlock: `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`,
+  eye:    `<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
 };
 
 // Short labels used inside section pills in tables.
@@ -258,7 +259,7 @@ function renderDistributionChart(rows) {
 
 /* ── Results table ─────────────────────────────────────────── */
 
-// Renders result rows. Super admins see a checkbox column and per-row delete button.
+// Renders result rows. All admins see a View button; super admins also see checkbox and Delete.
 function renderResults(rows) {
   const tbody = document.getElementById('results');
   if (!tbody) return;
@@ -279,9 +280,10 @@ function renderResults(rows) {
           <td><span class="rank-badge">${r.rank}</span></td>
           <td>${escapeHtml(r.company_name || '-')}</td>
           <td>${escapeHtml(r.contact_number || '-')}</td>
+          <td><button class="btn-icon btn-soft" title="View answer sheet" onclick="viewParticipantResult(${r.submission_id})">${ICON.eye}</button></td>
           ${isSuperAdmin() ? `<td><button class="btn-icon btn-danger" title="Delete" onclick="deleteResult(${r.submission_id})">${ICON.trash}</button></td>` : ''}
         </tr>`).join('')
-    : `<tr><td colspan="${9 + extra}" class="text-center text-slate-500 py-8">No results yet.</td></tr>`;
+    : `<tr><td colspan="${10 + extra}" class="text-center text-slate-500 py-8">No results yet.</td></tr>`;
 }
 
 function toggleResultSelection(id, el) {
@@ -340,6 +342,103 @@ async function deleteSelectedResults() {
     showError(err.message, 'Delete Failed');
   }
   loadDashboard(false); // reload regardless of partial failures
+}
+
+/* ── Result detail modal ───────────────────────────────────── */
+
+async function viewParticipantResult(submissionId) {
+  try {
+    const data = await api(`/api/admin/results/${submissionId}/detail`);
+    showResultDetailModal(data);
+  } catch (err) {
+    showError(err.message, 'Could Not Load Result');
+  }
+}
+
+function showResultDetailModal(d) {
+  document.getElementById('resultDetailOverlay')?.remove();
+
+  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
+  const answersHtml = (d.answers || []).map((a, i) => {
+    const o   = opts(a);
+    const sel = a.selected_option || '';
+    const selText  = sel && o[sel]           ? `${sel}. ${escapeHtml(o[sel])}`           : (sel || '—');
+    const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}` : (a.correct_option || '—');
+    const rowCls   = a.is_correct ? 'rd-row-correct' : (sel ? 'rd-row-wrong' : '');
+    const statusBadge = a.is_correct
+      ? `<span class="rd-status correct">✓</span>`
+      : (sel ? `<span class="rd-status wrong">✗</span>` : `<span class="rd-status skip">—</span>`);
+    return `
+      <tr class="${rowCls}">
+        <td class="rd-qnum">${i + 1}</td>
+        <td><span class="pill pill-teal" style="font-size:.72rem;padding:.28rem .55rem">${escapeHtml(SECTION_SHORT[a.section] || a.section || '-')}</span></td>
+        <td class="rd-qtext">${escapeHtml(a.question_text)}</td>
+        <td class="rd-ans ${a.is_correct ? 'correct' : (sel ? 'wrong' : '')}">${selText}</td>
+        <td class="rd-ans correct">${corrText}</td>
+        <td class="text-center">${statusBadge}</td>
+      </tr>`;
+  }).join('');
+
+  const noAnswers = !d.answers || d.answers.length === 0
+    ? `<tr><td colspan="6" class="text-center text-slate-500 py-8">No per-question data available for this submission.</td></tr>`
+    : answersHtml;
+
+  const pct = Number(d.percentage || 0).toFixed(1);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'resultDetailOverlay';
+  overlay.className = 'rd-overlay';
+  overlay.innerHTML = `
+    <div class="rd-backdrop" onclick="closeResultDetail()"></div>
+    <div class="rd-panel">
+      <div class="rd-header">
+        <div>
+          <h2 class="rd-name">${escapeHtml(d.full_name)}</h2>
+          <p class="rd-sub">CID: ${escapeHtml(d.cid_number || '—')} &nbsp;·&nbsp; ${escapeHtml(d.company_name || '—')} &nbsp;·&nbsp; ${escapeHtml(d.contact_number || '—')}</p>
+        </div>
+        <button class="rd-close" onclick="closeResultDetail()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="rd-scores">
+        <div class="rd-score-item total"><span>Total</span><b>${d.score}/${d.total_questions || 45}</b></div>
+        <div class="rd-score-item analytical"><span>Analytical</span><b>${d.analytical_score}/15</b></div>
+        <div class="rd-score-item verbal"><span>Verbal</span><b>${d.verbal_score}/15</b></div>
+        <div class="rd-score-item quantitative"><span>Quantitative</span><b>${d.quantitative_score}/15</b></div>
+        <div class="rd-score-item pct"><span>Score %</span><b>${pct}%</b></div>
+        <div class="rd-score-item rank"><span>Rank</span><b>#${d.rank}</b></div>
+      </div>
+      <div class="rd-table-wrap">
+        <table class="rd-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Section</th>
+              <th>Question</th>
+              <th>Their Answer</th>
+              <th>Correct Answer</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>${noAnswers}</tbody>
+        </table>
+      </div>
+      <div class="rd-footer">
+        <span>Submitted: ${d.submitted_at ? formatDate(d.submitted_at) : '—'}</span>
+        <button class="btn-outline" onclick="closeResultDetail()">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.classList.add('modal-open');
+
+  // Close on Escape key
+  const onKey = (e) => { if (e.key === 'Escape') { closeResultDetail(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+}
+
+function closeResultDetail() {
+  document.getElementById('resultDetailOverlay')?.remove();
+  document.body.classList.remove('modal-open');
 }
 
 /* ── Passcodes ─────────────────────────────────────────────── */

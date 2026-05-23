@@ -28,6 +28,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/dashboard", middleware.AdminAuth(handlers.DashboardSummary)).Methods("GET")
 	r.HandleFunc("/api/admin/results/export", middleware.AdminAuth(handlers.ExportResults)).Methods("GET")
 	r.HandleFunc("/api/admin/results", middleware.AdminAuth(handlers.GetResults)).Methods("GET")
+	r.HandleFunc("/api/admin/results/{id}/detail", middleware.AdminAuth(handlers.GetSubmissionDetail)).Methods("GET")
 	r.HandleFunc("/api/admin/questions", middleware.AdminAuth(handlers.GetAllQuestions)).Methods("GET")
 	r.HandleFunc("/api/admin/answers", middleware.AdminAuth(handlers.GetAnswers)).Methods("GET")
 	r.HandleFunc("/api/admin/participants", middleware.AdminAuth(handlers.GetAdminParticipants)).Methods("GET")
