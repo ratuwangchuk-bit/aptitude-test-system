@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify CID - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .orb {
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(72px);
+      opacity: 0.18;
+      pointer-events: none;
+    }
+    .step-bar {
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.15);
+      overflow: hidden;
+    }
+    .step-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2dd4bf, #60a5fa);
+      width: 50%; /* Step 2 of 4 */
+    }
+    #cid_number {
+      font-size: 1.15rem;
+      letter-spacing: 0.12em;
+      font-weight: 900;
+      text-align: center;
+      padding: 1rem 1rem;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-50">
+<div class="min-h-screen flex flex-col lg:flex-row">
+
+  <!-- ═══════════════════════════════════════════════════════
+       LEFT — Branding panel
+  ════════════════════════════════════════════════════════════ -->
+  <div class="relative lg:w-[46%] xl:w-[42%] flex flex-col justify-between overflow-hidden
+              px-8 py-12 sm:px-12 lg:px-14 lg:py-16"
+       style="background: linear-gradient(150deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%)">
+
+    <!-- Decorative orbs -->
+    <div class="orb w-96 h-96 -top-24 -right-24 bg-blue-400"></div>
+    <div class="orb w-80 h-80 bottom-0 -left-20 bg-teal-400"></div>
+    <div class="orb w-48 h-48 top-1/2 right-10 bg-indigo-400"></div>
+
+    <!-- Top: Logo + step indicator -->
+    <div class="relative z-10 flex flex-col items-center text-center">
+
+      <!-- Logo -->
+      <div class="flex justify-center mb-8">
+        <div class="rounded-2xl p-3 shadow-2xl" style="background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.15)">
+          <img src="assets/logo.png" alt="Digital Aptitude Evaluation System"
+               class="h-32 sm:h-36 object-contain block">
+        </div>
+      </div>
+
+      <!-- Step badge -->
+      <span class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/15"
+            style="background:rgba(255,255,255,.08)">
+        <svg class="w-3.5 h-3.5 text-teal-300" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8"  y1="2" x2="8"  y2="6"/>
+          <line x1="3"  y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="text-white/70 text-xs font-black uppercase tracking-widest">Step 2 of 4</span>
+      </span>
+
+      <!-- Step progress bar -->
+      <div class="step-bar w-48 mb-6">
+        <div class="step-bar-fill"></div>
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
+        Verify Your<br>Identity
+      </h1>
+      <p class="text-white/55 font-semibold text-base mt-3 leading-relaxed max-w-xs">
+        Enter your CID number to confirm your identity. You must be pre-registered by the administrator.
+      </p>
+    </div>
+
+    <!-- Middle: Info card -->
+    <div class="relative z-10 my-10 lg:my-0">
+      <div class="rounded-2xl p-5 space-y-4"
+           style="background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12)">
+        <p class="text-white font-black text-sm flex items-center gap-2">
+          <svg class="w-4 h-4 text-yellow-400 flex-shrink-0" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Before you continue
+        </p>
+        <ul class="space-y-2.5">
+          <li class="flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="text-white/65 text-xs font-semibold leading-relaxed">Your CID must be pre-registered by the administrator before you can access the test.</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="text-white/65 text-xs font-semibold leading-relaxed">Each CID can only be used once. If you have already submitted, you cannot retake the test.</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="text-white/65 text-xs font-semibold leading-relaxed">If your CID is not found, please contact the administrator immediately.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom: Copyright -->
+    <p class="relative z-10 text-white/25 text-xs font-semibold text-center">
+      © 2025 Digital Aptitude Evaluation System · All rights reserved
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       RIGHT — CID verification form
+  ════════════════════════════════════════════════════════════ -->
+  <div class="flex-1 flex flex-col justify-center items-center bg-white px-8 py-14 sm:px-14">
+    <div class="w-full max-w-[22rem]">
+
+      <!-- Page header -->
+      <div class="flex flex-col items-center text-center mb-8">
+        <span class="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[0.7rem]
+                     font-black uppercase tracking-widest px-3 py-1.5 rounded-full
+                     border border-teal-100 mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+          Identity Verification
+        </span>
+        <h2 class="text-3xl font-black text-slate-900 leading-tight">Enter Your CID</h2>
+        <p class="text-slate-500 font-semibold text-sm mt-2 leading-relaxed">
+          Enter your Citizenship Identity Number to proceed to the test.
+        </p>
+      </div>
+
+      <!-- CID form -->
+      <form id="cidForm" class="space-y-5">
+        <div>
+          <label class="block mb-1.5 text-sm font-extrabold text-slate-700" for="cid_number">
+            CID Number
+          </label>
+          <input id="cid_number" class="input w-full"
+                 minlength="5"
+                 autocomplete="off"
+                 required>
+        </div>
+
+        <button class="btn w-full py-4 text-base flex items-center justify-center gap-2" type="submit">
+          Verify &amp; Continue
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Inline message (success / error) -->
+      <p id="message" class="mt-4"></p>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

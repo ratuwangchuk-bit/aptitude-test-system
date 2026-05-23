@@ -1,0 +1,579 @@
+/* ============================================================
+   style.css — DAES Admin Panel — Custom component styles
+   Layout, spacing, and colour utilities are handled by Tailwind.
+   Only styles that cannot be cleanly expressed as Tailwind
+   utility classes live here.
+   ============================================================ */
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --primary:      #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent:       #14b8a6;
+  --danger:       #dc2626;
+  --success:      #16a34a;
+  --warning:      #f59e0b;
+  --ink:          #0f172a;
+  --muted:        #64748b;
+  --line:         #e2e8f0;
+  --soft:         #f8fafc;
+  --card:         rgba(255, 255, 255, 0.88);
+}
+
+/* ── Base / reset ──────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: Helvetica, "Helvetica Neue", Arial, sans-serif;
+  /* Decorative radial gradient background for participant pages */
+  background:
+    radial-gradient(circle at top left,  rgba(37, 99, 235, 0.16), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.14), transparent 30rem),
+    linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+}
+
+/* Admin pages use a flat light background with a dark gradient strip at the top */
+body.admin-body { background: #f8fafc; }
+body.admin-body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 11rem;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f766e 100%);
+  z-index: -1;
+}
+
+/* ── Cards ─────────────────────────────────────────────────── */
+/* Frosted-glass card used throughout; backdrop-filter can't be Tailwind on CDN */
+.glass-card,
+.card {
+  background: var(--card);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 1.4rem;
+  box-shadow: 0 24px 65px rgba(15, 23, 42, 0.10);
+  backdrop-filter: blur(18px);
+}
+
+.card-hover { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.14);
+  border-color: rgba(37, 99, 235, .35);
+}
+
+/* ── Branding ──────────────────────────────────────────────── */
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  border: 1px solid rgba(37, 99, 235, .18);
+  background: rgba(37, 99, 235, .08);
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: .45rem .8rem;
+  font-weight: 700;
+  font-size: .8rem;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 1rem;
+  color: white;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: 0 12px 28px rgba(37, 99, 235, .28);
+}
+
+/* Logo icon displayed in the topbar */
+.logo-icon {
+  display: inline-flex;
+  width: 3.1rem;
+  height: 3.1rem;
+  object-fit: contain;
+  border-radius: 1rem;
+  background: #fff;
+  padding: .28rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .16);
+  border: 1px solid rgba(226, 232, 240, .92);
+  flex-shrink: 0;
+}
+.admin-topbar .logo-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .16);
+}
+
+.brand-logo-large {
+  display: block;
+  width: min(420px, 100%);
+  height: auto;
+  border-radius: 1.1rem;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #fff;
+  padding: .55rem;
+}
+.brand-logo-large.compact { width: min(340px, 100%); }
+
+.brand-logo-page {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+  border-radius: 1rem;
+  background: #fff;
+  padding: .45rem;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+/* ── Form elements ─────────────────────────────────────────── */
+/* Custom focus ring and rounded radius — easier than Tailwind's ring utilities on CDN */
+.input,
+select.input,
+textarea.input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, .88);
+  border-radius: 1rem;
+  padding: .9rem 1rem;
+  outline: none;
+  color: #0f172a;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.input::placeholder { color: #94a3b8; }
+.input:focus {
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .13);
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+/* Shared base for all button variants */
+.btn,
+.btn-green,
+.btn-danger,
+.btn-soft,
+.btn-outline,
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border-radius: .95rem;
+  padding: .82rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+  line-height: 1;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+}
+.btn:hover, .btn-green:hover, .btn-danger:hover,
+.btn-soft:hover, .btn-outline:hover, .btn-warning:hover { transform: translateY(-1px); }
+.btn:active, .btn-green:active, .btn-danger:active,
+.btn-soft:active, .btn-outline:active, .btn-warning:active { transform: translateY(0); }
+
+.btn         { background: linear-gradient(135deg, var(--primary), #4f46e5); color: white; box-shadow: 0 12px 26px rgba(37, 99, 235, .25); }
+.btn:hover   { box-shadow: 0 16px 34px rgba(37, 99, 235, .32); }
+.btn-green   { background: linear-gradient(135deg, var(--success), var(--accent)); color: white; box-shadow: 0 12px 26px rgba(22, 163, 74, .22); }
+.btn-danger  { background: #fee2e2; color: #b91c1c; padding: .68rem .85rem; }
+.btn-danger:hover  { background: #fecaca; }
+.btn-warning { background: #fef3c7; color: #92400e; padding: .68rem .85rem; }
+.btn-warning:hover { background: #fde68a; }
+.btn-soft    { background: rgba(37, 99, 235, .10); color: #1d4ed8; }
+.btn-outline { background: white; border: 1px solid #cbd5e1; color: #334155; }
+
+/* Compact icon-only button — pair with a colour variant e.g. btn-icon btn-danger */
+.btn-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: .75rem;
+  padding: .42rem .75rem;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: .78rem;
+  font-weight: 900;
+  border: 1px solid #bae6fd;
+}
+.btn-small:hover { background: #bae6fd; }
+
+.btn-icon { width: 2.4rem; height: 2.4rem; padding: 0; border-radius: .75rem; }
+.btn-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* ── Navigation ────────────────────────────────────────────── */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  color: rgba(255, 255, 255, .84);
+  border-radius: .75rem;
+  padding: .45rem .65rem;
+  font-weight: 800;
+  font-size: .8rem;
+  white-space: nowrap;
+  transition: background .16s ease, color .16s ease;
+}
+.nav-link:hover,
+.nav-link.active { background: rgba(255, 255, 255, .16); color: white; }
+
+/* Logout button — gradient red to stand out in the nav */
+.logout-link {
+  background: linear-gradient(135deg, rgba(239, 68, 68, .28), rgba(249, 115, 22, .22));
+  border: 1px solid rgba(254, 202, 202, .38);
+}
+.logout-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: .55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .18);
+}
+.logout-icon svg { width: .9rem; height: .9rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Distinct styling for the main logout button */
+.unique-logout {
+  background: linear-gradient(135deg, #7f1d1d, #dc2626, #f97316) !important;
+  color: #fff !important;
+  border: 1px solid rgba(254, 202, 202, .65) !important;
+  box-shadow: 0 12px 25px rgba(220, 38, 38, .22);
+}
+.unique-logout:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 16px 35px rgba(220, 38, 38, .30); }
+.unique-logout .logout-icon { background: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22); }
+.unique-logout .logout-icon svg { stroke-width: 2.6; }
+.unique-logout svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Admin topbar ──────────────────────────────────────────── */
+.admin-topbar { margin-top: .35rem; color: white; padding: .55rem 0; }
+/* Clamp title and subtitle so they stay compact at all viewport widths */
+.admin-topbar h1 { font-size: clamp(1rem, 1.4vw + .5rem, 1.35rem); line-height: 1.25; }
+.admin-topbar p  { font-size: .73rem; }
+/* Tighten the gap between brand block and nav at all sizes */
+.admin-topbar > div { gap: .5rem !important; }
+
+/* ── Data tables ───────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; border-radius: 1rem; border: 1px solid #e2e8f0; }
+table.modern-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.modern-table thead     { background: #f8fafc; color: #475569; }
+.modern-table th        { text-align: left; padding: .9rem 1rem; font-size: .76rem; text-transform: uppercase; letter-spacing: .055em; white-space: nowrap; }
+.modern-table td        { padding: .95rem 1rem; border-top: 1px solid #e2e8f0; vertical-align: top; color: #334155; }
+.modern-table tbody tr  { transition: background .14s ease; }
+.modern-table tbody tr:hover { background: #f8fafc; }
+
+/* Result table — centred layout with colour-coded section headers */
+.result-table thead th { text-align: center; color: #575a71; font-size: .86rem; letter-spacing: .16em; border-right: 1px solid #e5e7eb; background: #ffffff; }
+.result-table thead th span { display: inline-block; color: #2563eb; font-size: .72rem; letter-spacing: .22em; margin-top: .22rem; }
+.result-table thead th:nth-child(4) span { color: #f97316; }
+.result-table thead th:nth-child(5) span { color: #3b82f6; }
+.result-table thead th:nth-child(6) span { color: #22c55e; }
+.result-table td { text-align: center; vertical-align: middle; }
+.result-table td:nth-child(2), .result-table td:nth-child(8), .result-table td:nth-child(9) { text-align: left; }
+.result-table-wrap { background: #fff; }
+
+/* ── Pills & badges ────────────────────────────────────────── */
+/* Used heavily inside JS-rendered table rows */
+.pill       { display: inline-flex; align-items: center; gap: .35rem; padding: .38rem .65rem; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 900; font-size: .78rem; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-red   { background: #fee2e2; color: #991b1b; }
+.pill-teal  { background: #ccfbf1; color: #115e59; }
+
+.serial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: .9rem;
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 900;
+}
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: #ccfbf1;
+  color: #115e59;
+  font-weight: 900;
+  font-size: .85rem;
+}
+
+/* Section-coloured score badges in the result table */
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.5rem;
+  border-radius: 999px;
+  padding: .5rem .8rem;
+  font-weight: 900;
+}
+.score-badge.total        { background: #eef2ff; color: #3730a3; }
+.score-badge.analytical   { background: #fff7ed; color: #c2410c; }
+.score-badge.verbal       { background: #eff6ff; color: #1d4ed8; }
+.score-badge.quantitative { background: #dcfce7; color: #166534; }
+
+/* ── Status indicators ─────────────────────────────────────── */
+/* Active / Revoked / Expired pill with a pulsing dot */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: 999px;
+  padding: .4rem .7rem;
+  font-size: .75rem;
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+.status-pill::before { content: ''; width: .45rem; height: .45rem; border-radius: 999px; }
+.status-pill.active  { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.status-pill.active::before  { background: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, .13); }
+.status-pill.expired { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.status-pill.expired::before { background: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, .13); }
+
+/* ── Eyebrow label ─────────────────────────────────────────── */
+/* Small uppercase tag used above section headings */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: .4rem .75rem;
+  background: #ecfeff;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+  font-size: .75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+/* ── Metric cards (dashboard) ──────────────────────────────── */
+.metric-card { position: relative; padding: 1.35rem; }
+/* Decorative quarter-circle contained within the card's top-right corner */
+.metric-card::after { content: ""; position: absolute; right: 0; top: 0; width: 5.5rem; height: 5.5rem; border-radius: 0 1.4rem 0 5.5rem; background: rgba(37, 99, 235, .08); pointer-events: none; }
+
+.metric-label { color: #64748b; font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .045em; }
+.metric-value { font-size: clamp(1.75rem, 3vw, 2.4rem); font-weight: 900; color: #0f172a; margin-top: .35rem; }
+.metric-note  { color: #94a3b8; font-size: .78rem; font-weight: 800; margin-top: .25rem; }
+
+.metric-icon { position: absolute; right: 0.7rem; top: 0.65rem; width: 2.5rem; height: 2.5rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 1rem; }
+.metric-icon.blue   { background: #dbeafe; color: #2563eb; }
+.metric-icon.teal   { background: #ccfbf1; color: #0f766e; }
+.metric-icon.amber  { background: #fef3c7; color: #92400e; }
+.metric-icon.purple { background: #ede9fe; color: #5b21b6; }
+.metric-icon.rose   { background: #ffe4e6; color: #9f1239; }
+.metric-icon svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.metric-value small { font-size: 52%; font-weight: 700; color: #94a3b8; margin-left: .1rem; }
+
+/* ── Charts ────────────────────────────────────────────────── */
+.chart-stack    { display: grid; gap: 1rem; }
+.chart-row      { padding: 1rem; border-radius: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; }
+.chart-row-head { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .65rem; color: #334155; font-weight: 900; }
+.bar-track      { height: .85rem; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.bar-fill       { display: block; height: 100%; border-radius: 999px; }
+.bar-fill.analytical   { background: linear-gradient(90deg, #f97316, #fbbf24); }
+.bar-fill.verbal       { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.bar-fill.quantitative { background: linear-gradient(90deg, #16a34a, #2dd4bf); }
+.empty-chart    { padding: 1.25rem; border-radius: 1rem; background: #f8fafc; color: #64748b; font-weight: 800; border: 1px dashed #cbd5e1; }
+
+.mini-chart  { display: grid; gap: .75rem; }
+.dist-row    { display: grid; grid-template-columns: 3.4rem 1fr 1.8rem; align-items: center; gap: .65rem; color: #334155; font-size: .82rem; font-weight: 900; }
+.dist-track  { height: .72rem; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+.dist-track i { display: block; height: 100%; background: linear-gradient(90deg, #6366f1, #14b8a6); border-radius: 999px; transition: width .7s ease; }
+
+/* Turnout donut chart */
+.turnout-wrap { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; }
+.turnout-donut { width: 9rem; height: 9rem; }
+.donut-track { fill: none; stroke: #e2e8f0; stroke-width: 11; }
+.donut-fill  { fill: none; stroke: url(#tGrad); stroke-width: 11; stroke-linecap: round; }
+.donut-pct   { font-size: 22px; font-weight: 900; fill: #0f172a; text-anchor: middle; }
+.donut-sub   { font-size: 8.5px; font-weight: 800; fill: #94a3b8; text-anchor: middle; letter-spacing: .06em; text-transform: uppercase; }
+.turnout-legend { display: flex; flex-direction: column; gap: .55rem; width: 100%; }
+.tleg-row    { display: flex; align-items: center; gap: .55rem; font-size: .82rem; font-weight: 800; color: #334155; }
+.tleg-dot    { width: .65rem; height: .65rem; border-radius: 999px; flex-shrink: 0; }
+.tleg-dot.appeared { background: linear-gradient(135deg, #2563eb, #14b8a6); }
+.tleg-dot.pending  { background: #e2e8f0; }
+.tleg-label  { flex: 1; color: #64748b; }
+
+/* ── Hero / dashboard banner ───────────────────────────────── */
+.dashboard-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  overflow: hidden;
+  position: relative;
+}
+/* Decorative glow in the top-right of the hero */
+.dashboard-hero::after {
+  content: "";
+  position: absolute;
+  right: -4rem; top: -4rem;
+  width: 14rem; height: 14rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(37, 99, 235, .16), transparent 70%);
+}
+.hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; position: relative; z-index: 1; }
+.passcode-hero { background: radial-gradient(circle at top right, rgba(59, 130, 246, .18), transparent 35%), #fff; }
+
+/* ── Passcode components ───────────────────────────────────── */
+/* Monospace code chip for displaying passcode strings */
+.passcode-code {
+  display: inline-flex;
+  align-items: center;
+  border-radius: .7rem;
+  padding: .35rem .65rem;
+  background: #0f172a;
+  color: #e0f2fe;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+/* Animated container that shows the newly generated passcode */
+#generatedPasscode {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff, #ecfeff);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .65);
+}
+.generated-code-card { display: grid; gap: .75rem; padding: 1rem; background: linear-gradient(135deg, #eff6ff, #eef2ff); border: 1px solid #bfdbfe; border-radius: 22px; color: #1e3a8a; font-weight: 900; }
+.passcode-empty { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 22px; padding: 1rem; color: #64748b; }
+.passcode-empty p { margin-top: .25rem; font-size: .88rem; font-weight: 700; }
+
+/* Generate button — wider gradient to draw attention */
+.passcode-generate-btn {
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  box-shadow: 0 16px 30px rgba(37, 99, 235, .26);
+  min-width: 260px;
+}
+
+/* ── Misc UI components ────────────────────────────────────── */
+.section-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.35rem;
+  border-radius: 1.3rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .92), rgba(239, 246, 255, .92));
+  border: 1px solid rgba(147, 197, 253, .55);
+  box-shadow: 0 14px 38px rgba(15, 23, 42, .08);
+}
+
+.progress-track { height: .55rem; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+.progress-bar   { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width .3s ease; }
+
+.message         { border-radius: .9rem; padding: .8rem 1rem; margin-top: 1rem; font-weight: 800; }
+.message.success { background: #dcfce7; color: #166534; }
+.message.error   { background: #fee2e2; color: #991b1b; }
+
+.helper-text { margin-top: .35rem; font-size: .78rem; font-weight: 700; color: #64748b; }
+
+.consent-box {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-weight: 800;
+  color: #334155;
+}
+.consent-box input { margin-top: .18rem; accent-color: var(--primary); }
+
+/* Participant test elements */
+.question-card { border-left: 5px solid #2563eb; }
+.option-tile {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  padding: .95rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  cursor: pointer;
+  background: white;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.option-tile:hover { border-color: #93c5fd; box-shadow: 0 10px 24px rgba(37, 99, 235, .08); transform: translateY(-1px); }
+.option-tile input { margin-top: .25rem; accent-color: var(--primary); }
+
+.refresh-status { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; background: #f1f5f9; color: #475569; padding: .45rem .8rem; font-size: .78rem; font-weight: 800; }
+.refresh-status::before { content: ''; width: .55rem; height: .55rem; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, .12); }
+
+/* ── Modal ─────────────────────────────────────────────────── */
+/* Replaces native alert/confirm/prompt for a consistent branded experience */
+body.modal-open { overflow: hidden; }
+.app-modal.hidden { display: none; }
+.app-modal { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 1rem; }
+.app-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(8px); }
+.app-modal-card {
+  position: relative;
+  width: min(94vw, 430px);
+  background: #fff;
+  border-radius: 28px;
+  padding: 2rem;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  text-align: center;
+  animation: modalPop .18s ease-out;
+}
+@keyframes modalPop { from { transform: translateY(16px) scale(.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.app-modal-icon { width: 58px; height: 58px; margin: 0 auto 1rem; border-radius: 20px; display: grid; place-items: center; font-weight: 900; font-size: 1.6rem; background: #eff6ff; color: #2563eb; }
+.app-modal-icon.success { background: #ecfdf5; color: #059669; }
+.app-modal-icon.error   { background: #fef2f2; color: #dc2626; }
+.app-modal-icon.warning,
+.app-modal-icon.confirm { background: #fffbeb; color: #d97706; }
+.app-modal-title   { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin-bottom: .5rem; }
+.app-modal-body    { color: #475569; font-weight: 650; line-height: 1.55; word-break: break-word; }
+.app-modal-actions { display: flex; gap: .75rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+
+/* ── Role-based visibility ─────────────────────────────────── */
+/* JS toggles .hidden on these; !important prevents Tailwind from overriding */
+.super-only.hidden,
+.management-panel.hidden { display: none !important; }
+
+/* ── Responsive overrides ──────────────────────────────────── */
+
+/* Nav scrolls horizontally on all sub-desktop widths */
+@media (max-width: 1023px) {
+  .admin-topbar .nav-area { overflow-x: auto; padding-bottom: .3rem; }
+  .admin-topbar .nav-area::-webkit-scrollbar { height: 3px; background: transparent; }
+  .admin-topbar .nav-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 999px; }
+}
+
+@media (max-width: 760px) {
+  .admin-topbar .nav-area { width: 100%; }
+  .auth-hero { display: none; }
+  .btn, .btn-green, .btn-soft, .btn-outline { width: 100%; }
+  .section-banner { flex-direction: column; align-items: flex-start; }
+  .dashboard-hero { flex-direction: column; align-items: flex-start; }
+  .hero-actions { width: 100%; }
+  .hero-actions a { width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .brand-logo-large, .brand-logo-large.compact, .brand-logo-page { width: 100%; max-width: 310px; }
+  .logo-icon { width: 2.5rem; height: 2.5rem; }
+  .passcode-generate-btn { width: 100%; min-width: 0; }
+}

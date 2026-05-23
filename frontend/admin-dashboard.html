@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body min-h-screen pb-10">
+
+  <!-- ── Top navigation bar ───────────────────────────────── -->
+  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-black">Admin Dashboard</h1>
+          <p class="text-white/70 text-sm font-semibold">Digital Aptitude Evaluation System</p>
+        </div>
+      </div>
+
+      <!-- Nav links -->
+      <nav class="nav-area flex gap-2">
+        <a class="nav-link active" href="admin-dashboard.html">Dashboard</a>
+        <a class="nav-link" href="questions.html">Questions</a>
+        <a class="nav-link" href="answers.html">Answers</a>
+        <a class="nav-link" href="participants.html">Participants</a>
+        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+        <a class="nav-link super-only" href="admins.html">Admins</a>
+        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
+          <span class="logout-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+          </span>
+          Logout
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
+
+    <!-- ── Hero banner ──────────────────────────────────────── -->
+    <section class="dashboard-hero card p-6 sm:p-8 mb-6">
+      <div>
+        <span class="eyebrow">Live assessment overview</span>
+      </div>
+      <div class="hero-actions">
+        <a href="questions.html" class="btn-soft">View Questions</a>
+        <a href="answers.html"   class="btn-outline">View Answers</a>
+      </div>
+    </section>
+
+    <!-- ── Summary metric cards (rendered by JS) ────────────── -->
+    <section id="summary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"></section>
+
+    <!-- ── Charts row: section perf + turnout donut + score distribution ── -->
+    <section class="grid lg:grid-cols-4 gap-6 mt-6">
+
+      <!-- Section bar chart -->
+      <div class="card p-5 sm:p-6 lg:col-span-2">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-xl font-black">Section Performance</h2>
+            <p class="text-sm text-slate-500 font-semibold">Average score by section based on submitted tests.</p>
+          </div>
+          <span class="pill pill-teal">Out of 15 each</span>
+        </div>
+        <div id="sectionChart" class="chart-stack"></div>
+      </div>
+
+      <!-- Participation turnout donut -->
+      <div class="card p-5 sm:p-6">
+        <div class="mb-4">
+          <h2 class="text-xl font-black">Participation Rate</h2>
+          <p class="text-sm text-slate-500 font-semibold">Registered vs Appeared Turnout</p>
+        </div>
+        <div id="turnoutChart"></div>
+      </div>
+
+      <!-- Score distribution chart -->
+      <div class="card p-5 sm:p-6">
+        <div class="mb-5">
+          <h2 class="text-xl font-black">Score Distribution</h2>
+          <p class="text-sm text-slate-500 font-semibold">Participant count by score range.</p>
+        </div>
+        <div id="distributionChart" class="mini-chart"></div>
+      </div>
+
+    </section>
+
+    <!-- ── Final result table ────────────────────────────────── -->
+    <section class="card p-5 sm:p-6 mt-6">
+      <div class="mb-5">
+        <div class="flex items-start justify-between w-full">
+          <div>
+            <h2 class="text-xl font-black">Final Result Summary</h2>
+          </div>
+          <a href="/api/admin/results/export" class="btn-icon btn-soft shrink-0" title="Export results as Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap mt-3">
+          <input id="resultSearch" class="input sm:max-w-xs" placeholder="Search participant...">
+          <button id="deleteSelectedResultsBtn" onclick="deleteSelectedResults()" class="btn-outline hidden flex items-center gap-1.5 whitespace-nowrap text-red-600 border-red-300 hover:bg-red-50" title="Delete selected results">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            <span>Delete Selected</span>
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap result-table-wrap">
+        <table class="modern-table result-table">
+          <thead>
+            <tr>
+              <th class="super-only" style="width:40px"><input type="checkbox" id="selectAllResults" title="Select all" onchange="toggleSelectAllResults(this)"></th>
+              <th>Serial No.</th>
+              <th>Name of Candidate</th>
+              <th>Total Score<br><span>Out of 45</span></th>
+              <th>Analytical<br><span>Out of 15</span></th>
+              <th>Verbal<br><span>Out of 15</span></th>
+              <th>Quantitative<br><span>Out of 15</span></th>
+              <th>Rank</th>
+              <th>Company</th>
+              <th>Contact</th>
+              <th class="super-only">Action</th>
+            </tr>
+          </thead>
+          <tbody id="results"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

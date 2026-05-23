@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aptitude Test - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .test-topbar {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f766e 100%);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 4px 28px rgba(0, 0, 0, 0.30);
+    }
+    .timer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      border-radius: 0.9rem;
+      padding: 0.55rem 1rem;
+      flex-shrink: 0;
+    }
+    /* Override global mobile btn width for the sticky header submit button */
+    #submitBtn { width: auto !important; }
+
+    /* Question focus mode */
+    .question-card {
+      transition: opacity 0.25s ease, filter 0.25s ease, transform 0.22s ease,
+                  box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+    .q-blurred {
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .q-blurred:hover {
+      transform: none !important;
+      box-shadow: 0 24px 65px rgba(15, 23, 42, 0.10) !important;
+    }
+    .q-focused {
+      border-color: rgba(37, 99, 235, 0.55) !important;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.11),
+                  0 26px 70px rgba(15, 23, 42, 0.14) !important;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-100">
+
+  <!-- ── Sticky test header ───────────────────────────────────── -->
+  <header class="test-topbar">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+        <!-- Left: logo + title + answered count -->
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon flex-shrink-0">
+          <div>
+            <h1 class="text-xl sm:text-2xl font-black text-white leading-tight">Aptitude Test</h1>
+            <p class="text-white/50 text-xs font-semibold mt-0.5">
+              45 questions &middot; Sections A, B &amp; C &middot;
+              <span id="answeredCount" class="text-teal-300 font-black">0</span> answered
+            </p>
+          </div>
+        </div>
+
+        <!-- Right: timer + submit -->
+        <div class="flex items-center gap-3">
+
+          <!-- Timer pill — JS adds animate-pulse to this element when ≤ 5 min left -->
+          <div class="timer-pill">
+            <svg class="w-3.5 h-3.5 text-red-300 flex-shrink-0" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span class="text-white/55 text-[0.65rem] font-black uppercase tracking-wider hidden sm:inline">
+              Time Left
+            </span>
+            <span id="timer" class="text-white font-black text-base tracking-wide tabular-nums">60:00</span>
+          </div>
+
+          <button id="submitBtn" disabled
+                  class="btn flex items-center gap-2 py-2.5 px-5 text-sm whitespace-nowrap
+                         opacity-40 cursor-not-allowed">
+            Submit Test
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Full-width progress bar — .progress-track / .progress-bar defined in style.css -->
+    <div class="progress-track" style="border-radius: 0; height: 5px;">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+  </header>
+
+  <!-- ── Test form body ───────────────────────────────────────── -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <form id="testForm" class="space-y-6"></form>
+    <p id="message" class="mt-4"></p>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/test.js"></script>
+</body>
+</html>

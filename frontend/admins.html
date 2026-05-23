@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Users - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body min-h-screen pb-10">
+
+  <!-- ── Top navigation bar ───────────────────────────────── -->
+  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-black">Admin User Control</h1>
+          <p class="text-white/70 text-sm font-semibold">Create admins, revoke access and reset passwords.</p>
+        </div>
+      </div>
+
+      <!-- Nav links -->
+      <nav class="nav-area flex gap-2">
+        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+        <a class="nav-link" href="questions.html">Questions</a>
+        <a class="nav-link" href="answers.html">Answers</a>
+        <a class="nav-link" href="participants.html">Participants</a>
+        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+        <a class="nav-link active super-only" href="admins.html">Admins</a>
+        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
+          <span class="logout-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+          </span>
+          Logout
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- Super admin only — general admins are redirected by JS -->
+  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6 super-only">
+
+    <section class="grid lg:grid-cols-5 gap-6">
+
+      <!-- ── Create admin form ─────────────────────────────── -->
+      <div class="card p-5 sm:p-6 lg:col-span-2">
+        <span class="eyebrow">Super Admin Only</span>
+        <h2 class="text-xl font-black mt-2">Add New Admin</h2>
+        <p class="text-sm text-slate-500 font-semibold mt-1">Create either a general result-view admin or another super admin.</p>
+
+        <form id="adminUserForm" class="mt-5 space-y-4">
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_username">Username</label>
+            <input id="new_admin_username" class="input" required placeholder="Example: resultadmin">
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_password">Password</label>
+            <input id="new_admin_password" type="password" class="input" minlength="6" required placeholder="Minimum 6 characters">
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_role">Role</label>
+            <select id="new_admin_role" class="input">
+              <option value="general_admin">General Admin - View only</option>
+              <option value="super_admin">Super Admin - Full access</option>
+            </select>
+          </div>
+          <button class="btn w-full" type="submit">Create Admin</button>
+        </form>
+      </div>
+
+      <!-- ── Admin accounts table ──────────────────────────── -->
+      <div class="card p-5 sm:p-6 lg:col-span-3">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-xl font-black">Admin Accounts</h2>
+            <p class="text-sm text-slate-500 font-semibold">Manage administrator role and access status.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminsTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Question Management - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body min-h-screen pb-10">
+
+  <!-- ── Top navigation bar ───────────────────────────────── -->
+  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-black">Question Management</h1>
+          <p class="text-white/70 text-sm font-semibold">Add, edit, delete and upload MCQ questions.</p>
+        </div>
+      </div>
+
+      <!-- Nav links -->
+      <nav class="nav-area flex gap-2">
+        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+        <a class="nav-link active" href="questions.html">Questions</a>
+        <a class="nav-link" href="answers.html">Answers</a>
+        <a class="nav-link" href="participants.html">Participants</a>
+        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+        <a class="nav-link super-only" href="admins.html">Admins</a>
+        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
+          <span class="logout-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+          </span>
+          Logout
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
+
+    <!-- ── Question form + bulk upload (super admin only) ───── -->
+    <section class="grid lg:grid-cols-5 gap-6 super-only management-panel">
+
+      <!-- Add / edit question form -->
+      <div class="card p-5 sm:p-6 lg:col-span-3">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="text-xl font-black" id="questionFormTitle">Add Question</h2>
+          </div>
+          <button id="cancelQuestionEdit" type="button" class="btn-outline hidden" onclick="resetQuestionForm()">Cancel Edit</button>
+        </div>
+
+        <form id="questionForm" class="grid sm:grid-cols-2 gap-4">
+          <input id="question_id_edit" type="hidden">
+
+          <div class="sm:col-span-2">
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="question_section">Section</label>
+            <select id="question_section" class="input" required>
+              <option value="Analytical Ability">Section A: Analytical Ability</option>
+              <option value="Verbal Ability">Section B: Verbal Ability</option>
+              <option value="Quantitative Skills">Section C: Quantitative Skills</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="question_text">Question text</label>
+            <textarea id="question_text" class="input" rows="3" placeholder="Type the question here" required></textarea>
+          </div>
+
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="option_a">Option A</label>
+            <input id="option_a" class="input" placeholder="Option A" required>
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="option_b">Option B</label>
+            <input id="option_b" class="input" placeholder="Option B" required>
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="option_c">Option C</label>
+            <input id="option_c" class="input" placeholder="Option C" required>
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="option_d">Option D</label>
+            <input id="option_d" class="input" placeholder="Option D" required>
+          </div>
+
+          <div class="sm:col-span-2 flex justify-center">
+            <button class="btn flex items-center gap-2 px-6" id="questionSubmitBtn">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Save Question</span>
+            </button>
+          </div>
+        </form>
+        <p id="message"></p>
+      </div>
+
+      <!-- Bulk upload via Excel -->
+      <div class="card p-5 sm:p-6 lg:col-span-2">
+        <div class="flex items-start justify-between mb-2">
+          <h2 class="text-xl font-black">Upload Questions Excel</h2>
+          <!-- Download the combined Q&A template (covers both questions and answers) -->
+          <a class="btn-icon btn-soft" href="templates/combined_questions_answers_template.xlsx" download title="Download Q&A Template">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
+        </div>
+        <p class="text-sm text-slate-600 mb-4">Download the combined template, fill questions and correct answers, then upload. Answers are saved automatically if included.</p>
+        <p class="text-xs text-slate-500 font-bold mb-3">Sheets included: Section A Analytical, Section B Verbal, Section C Quantitative.</p>
+        <input id="questionFile" type="file" accept=".xlsx" class="input">
+        <div class="flex justify-center mt-4">
+          <button onclick="uploadQuestions()" class="btn flex items-center gap-2 px-6">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload Excel
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── All questions table ───────────────────────────────── -->
+    <section class="card p-5 sm:p-6 mt-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <h2 class="text-xl font-black">All Questions</h2>
+          <p class="text-sm text-slate-500 font-semibold">Use edit to update existing questions.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="questionSearch" class="input sm:max-w-xs" placeholder="Search questions...">
+          <button id="deleteSelectedQuestionsBtn" onclick="deleteSelectedQuestions()" class="btn-outline hidden flex items-center gap-1.5 whitespace-nowrap text-red-600 border-red-300 hover:bg-red-50" title="Delete selected questions">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            <span>Delete Selected</span>
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th class="super-only" style="width:40px"><input type="checkbox" id="selectAllQuestions" title="Select all" onchange="toggleSelectAllQuestions(this)"></th>
+              <th>ID</th>
+              <th>Section</th>
+              <th>Question</th>
+              <th>A</th>
+              <th>B</th>
+              <th>C</th>
+              <th>D</th>
+              <th class="super-only">Action</th>
+            </tr>
+          </thead>
+          <tbody id="questionsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
