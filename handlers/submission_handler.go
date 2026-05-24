@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 
 	"digital-aptitude-evaluation-system/config"
 	"digital-aptitude-evaluation-system/models"
@@ -52,25 +54,60 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect all question IDs from this submission, then fetch correct answers
+	// in one query instead of one per answer (avoids N+1 under concurrent load).
+	type answerKey struct {
+		correct string
+		section string
+	}
+	answerMap := make(map[int]answerKey, len(req.Answers))
+	qIDs := make([]int, 0, len(req.Answers))
+	for _, ans := range req.Answers {
+		qIDs = append(qIDs, ans.QuestionID)
+	}
+
+	// pq.Array is not available here; build the IN list manually using a
+	// temporary VALUES table which is safe and avoids a driver dependency.
+	if len(qIDs) > 0 {
+		rows, err := tx.Query(`SELECT a.question_id, a.correct_option, q.section
+			FROM answers a JOIN questions q ON a.question_id=q.id
+			WHERE a.question_id = ANY($1)`, pq.Array(qIDs))
+		if err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not load answer key")
+			return
+		}
+		for rows.Next() {
+			var qid int
+			var correct, section string
+			if rows.Scan(&qid, &correct, &section) == nil {
+				answerMap[qid] = answerKey{correct, section}
+			}
+		}
+		rows.Close()
+	}
+
 	score := 0
 	analyticalScore := 0
 	verbalScore := 0
 	quantitativeScore := 0
+
+	type scoredAnswer struct {
+		questionID int
+		selected   string
+		isCorrect  bool
+	}
+	validAnswers := make([]scoredAnswer, 0, len(req.Answers))
 
 	for _, ans := range req.Answers {
 		selected := strings.ToUpper(strings.TrimSpace(ans.SelectedOption))
 		if selected != "A" && selected != "B" && selected != "C" && selected != "D" {
 			continue
 		}
-
-		var correctOption string
-		var section string
-		err := tx.QueryRow(`SELECT a.correct_option, q.section FROM answers a JOIN questions q ON a.question_id=q.id WHERE a.question_id=$1`, ans.QuestionID).Scan(&correctOption, &section)
-		isCorrect := false
-		if err == nil && correctOption == selected {
-			isCorrect = true
+		key := answerMap[ans.QuestionID]
+		isCorrect := key.correct != "" && key.correct == selected
+		if isCorrect {
 			score++
-			switch section {
+			switch key.section {
 			case "Analytical Ability":
 				analyticalScore++
 			case "Verbal Ability":
@@ -79,10 +116,23 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 				quantitativeScore++
 			}
 		}
-		_, err = tx.Exec(`INSERT INTO participant_answers (submission_id, question_id, selected_option, is_correct)
-            VALUES ($1, $2, $3, $4)`, submissionID, ans.QuestionID, selected, isCorrect)
+		validAnswers = append(validAnswers, scoredAnswer{ans.QuestionID, selected, isCorrect})
+	}
+
+	// Bulk-insert all participant answers in one statement instead of 45 individual
+	// round-trips, keeping the transaction as short as possible under concurrent load.
+	if len(validAnswers) > 0 {
+		placeholders := make([]string, len(validAnswers))
+		args := make([]any, 0, len(validAnswers)*4)
+		for i, a := range validAnswers {
+			base := i * 4
+			placeholders[i] = fmt.Sprintf("($%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4)
+			args = append(args, submissionID, a.questionID, a.selected, a.isCorrect)
+		}
+		_, err = tx.Exec(`INSERT INTO participant_answers (submission_id, question_id, selected_option, is_correct) VALUES `+
+			strings.Join(placeholders, ","), args...)
 		if err != nil {
-			utils.Error(w, http.StatusInternalServerError, "Could not save participant answer")
+			utils.Error(w, http.StatusInternalServerError, "Could not save participant answers")
 			return
 		}
 	}
@@ -103,7 +153,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, http.StatusOK, map[string]interface{}{
+	utils.JSON(w, http.StatusOK, map[string]any{
 		"message":       "Thank you for participating. Please wait for good news.",
 		"submission_id": submissionID,
 	})

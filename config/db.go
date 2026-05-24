@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -73,6 +74,10 @@ func ConnectDB() {
 		log.Println("3. If using Neon/Supabase/Render, set DATABASE_URL in .env and use sslmode=require.")
 		log.Fatal("Database ping error: ", err)
 	}
+
+	db.SetMaxOpenConns(40)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	DB = db
 	log.Println("Database connected successfully")

@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -22,6 +23,14 @@ func main() {
 		port = "8080"
 	}
 
+	srv := &http.Server{
+		Addr:         "0.0.0.0:" + port,
+		Handler:      r,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
 	log.Println("Digital Aptitude Evaluation System running on port", port)
-	log.Fatal(http.ListenAndServe("0.0.0.0:"+port, r))
+	log.Fatal(srv.ListenAndServe())
 }
