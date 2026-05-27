@@ -1,6 +1,45 @@
 let questions = [];
 let submitted = false;
 const DURATION = 60 * 60; // seconds
+
+// ── Single-tab enforcement ─────────────────────────────────────────────────
+// Only one tab per participant may hold the test open at a time.
+// BroadcastChannel is supported in all modern browsers and automatically
+// closes when the page unloads, so no manual cleanup is needed.
+const _tabChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('daes_test_tab')
+  : null;
+let _isActiveTab = false;
+
+// Respond to any tab asking "is the test already open?" while we are active.
+_tabChannel?.addEventListener('message', e => {
+  if (e.data.type === 'check' && _isActiveTab) {
+    _tabChannel.postMessage({ type: 'active' });
+  }
+});
+
+// Returns true if this tab may proceed, false if another tab is already running the test.
+function acquireTabLock() {
+  if (!_tabChannel) return Promise.resolve(true); // no BroadcastChannel — allow
+  return new Promise(resolve => {
+    let denied = false;
+    const onReply = e => {
+      if (e.data.type === 'active') {
+        denied = true;
+        _tabChannel.removeEventListener('message', onReply);
+        resolve(false);
+      }
+    };
+    _tabChannel.addEventListener('message', onReply);
+    _tabChannel.postMessage({ type: 'check' });
+    // Give other tabs 150 ms to reply; if none do, claim the lock.
+    setTimeout(() => {
+      _tabChannel.removeEventListener('message', onReply);
+      if (!denied) { _isActiveTab = true; resolve(true); }
+    }, 150);
+  });
+}
+
 const sectionOrder = ['Analytical Ability', 'Verbal Ability', 'Quantitative Skills'];
 const sectionLabels = {
   'Analytical Ability': 'Section A: Analytical Ability',
@@ -130,8 +169,11 @@ async function loadQuestions() {
 }
 
 function startTimer() {
-  // Store start time on first load; reuse the same stamp on every reload
-  if (!localStorage.getItem('test_start_time')) {
+  const stored = localStorage.getItem('test_start_time');
+  const storedMs = stored ? parseInt(stored, 10) : NaN;
+  // If no stored time, or the stored time is stale (already expired), start fresh
+  const isStale = !stored || isNaN(storedMs) || (Date.now() - storedMs) >= DURATION * 1000;
+  if (isStale) {
     localStorage.setItem('test_start_time', Date.now().toString());
   }
   const startTime = parseInt(localStorage.getItem('test_start_time'), 10);
@@ -174,6 +216,7 @@ async function submitTest(auto = false) {
       method: 'POST',
       body: JSON.stringify({ participant_id: participantId, answers }),
     });
+    _isActiveTab = false;
     localStorage.removeItem('participant_id');
     localStorage.removeItem('test_start_time');
     document.body.innerHTML = `
@@ -194,12 +237,41 @@ async function submitTest(auto = false) {
 
 document.getElementById('submitBtn')?.addEventListener('click', () => submitTest(false));
 
+// Packages current answers and fires them via sendBeacon so delivery is
+// guaranteed even while the page is being torn down.  Only fires when
+// questions have loaded — if the participant exits before the question list
+// arrives there is nothing meaningful to record.
+function autoSubmitViaBeacon() {
+  const participantId = Number(localStorage.getItem('participant_id'));
+  if (!participantId || questions.length === 0) return;
+  const answers = questions.map(q => {
+    const sel = document.querySelector(`input[name="q_${q.id}"]:checked`);
+    return { question_id: q.id, selected_option: sel ? sel.value : '' };
+  });
+  const payload = JSON.stringify({ participant_id: participantId, answers });
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/submit-test', new Blob([payload], { type: 'application/json' }));
+  } else {
+    // Fallback for browsers that don't support sendBeacon (very rare)
+    fetch('/api/submit-test', { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' }, keepalive: true });
+  }
+  localStorage.removeItem('participant_id');
+  localStorage.removeItem('test_start_time');
+}
+
 // Warn before refresh / tab-close / navigation away while the test is active
 window.addEventListener('beforeunload', e => {
   if (!submitted) {
     e.preventDefault();
     e.returnValue = '';
   }
+});
+
+// Auto-submit when the participant leaves. pagehide fires after the user has
+// confirmed the beforeunload dialog, so accidental closes get a chance to
+// cancel. On mobile browsers that skip the dialog it still fires reliably.
+window.addEventListener('pagehide', () => {
+  if (!submitted) autoSubmitViaBeacon();
 });
 
 // Block F5 / Ctrl+R / Ctrl+Shift+R keyboard shortcuts directly
@@ -238,6 +310,34 @@ document.addEventListener('keydown', e => {
     }
   } catch {
     // If the check itself fails, fall through and allow the test to load
+  }
+
+  // Block duplicate tabs — only one tab per participant may run the test.
+  const tabAllowed = await acquireTabLock();
+  if (!tabAllowed) {
+    document.getElementById('testForm').innerHTML = `
+      <div class="card p-8 text-center">
+        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
+        <h2 class="text-2xl font-black text-red-600 mt-4">Test Already Open</h2>
+        <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab or window. Please close this tab and continue in your original tab.</p>
+      </div>`;
+    document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
+    submitted = true; // disables the beforeunload guard on this blocked tab
+    return;
+  }
+
+  // Sync the timer with the server. The server records started_at on the first
+  // call and returns the same remaining seconds on every subsequent call — so
+  // all devices for the same participant always show identical remaining time.
+  try {
+    const startData = await api('/api/start-test', {
+      method: 'POST',
+      body: JSON.stringify({ participant_id: Number(participantId) }),
+    });
+    const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
+    localStorage.setItem('test_start_time', seededStart.toString());
+  } catch {
+    // Network error — fall through; startTimer() will use localStorage or start fresh
   }
 
   loadQuestions();

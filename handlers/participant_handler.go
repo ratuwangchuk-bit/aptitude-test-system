@@ -44,6 +44,37 @@ func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Passcode valid", "passcode_id": id})
 }
 
+const testDurationSeconds = 3600
+
+// StartTest records when a participant first opens the test and returns the
+// authoritative seconds_remaining so every device stays in sync.
+func StartTest(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ParticipantID int `json:"participant_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ParticipantID == 0 {
+		utils.Error(w, http.StatusBadRequest, "Participant ID is required")
+		return
+	}
+
+	// COALESCE keeps the original started_at if already set, so the clock never resets.
+	var secondsRemaining int
+	err := config.DB.QueryRow(`
+		WITH upd AS (
+			UPDATE participants
+			SET started_at = COALESCE(started_at, NOW())
+			WHERE id = $1
+			RETURNING started_at
+		)
+		SELECT GREATEST(0, $2 - FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)))::int)
+		FROM upd`, req.ParticipantID, testDurationSeconds).Scan(&secondsRemaining)
+	if err != nil {
+		utils.Error(w, http.StatusNotFound, "Participant not found")
+		return
+	}
+	utils.JSON(w, http.StatusOK, map[string]int{"seconds_remaining": secondsRemaining})
+}
+
 // ValidateCID is called on the participant-facing CID validation step.
 // It confirms the CID was pre-registered by an admin and has not yet submitted.
 func ValidateCID(w http.ResponseWriter, r *http.Request) {

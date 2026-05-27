@@ -26,6 +26,7 @@ document.getElementById('cidForm')?.addEventListener('submit', async (e) => {
       body: JSON.stringify({ cid_number: cid }),
     });
     localStorage.setItem('participant_id', data.participant_id);
+    localStorage.removeItem('test_start_time');
     window.location.href = 'instructions.html';
   } catch (err) {
     setMessage('message', err.message, true);

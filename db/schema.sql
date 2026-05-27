@@ -52,6 +52,8 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
+
 CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
     section VARCHAR(50) NOT NULL DEFAULT 'Analytical Ability' CHECK (section IN ('Analytical Ability', 'Verbal Ability', 'Quantitative Skills')),
