@@ -321,14 +321,12 @@ window.addEventListener('pagehide', () => {
   // close. If the checkpoint is present AND this is a reload, cancel the
   // auto-submission that fired on the previous pagehide and restore answers.
   const navType = performance.getEntriesByType?.('navigation')?.[0]?.type;
-  let savedAnswers = null;
   const sessionRaw = sessionStorage.getItem('_testSession');
   if (navType === 'reload' && sessionRaw) {
     try {
       const session = JSON.parse(sessionRaw);
       if (session.participantId === Number(participantId)) {
         await cancelAutoSubmit(session.participantId);
-        savedAnswers = session.answers;
       }
     } catch { /* malformed checkpoint — ignore */ }
     sessionStorage.removeItem('_testSession');
@@ -383,6 +381,6 @@ window.addEventListener('pagehide', () => {
     // Network error — fall through; startTimer() will use localStorage or start fresh
   }
 
-  loadQuestions(savedAnswers);
+  loadQuestions();
   startTimer();
 }());
