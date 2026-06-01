@@ -125,10 +125,12 @@ function initFocusMode() {
       }
     }
 
+    const visibleSet = new Set(visible);
     cards.forEach(card => {
       if (focused) {
         card.classList.toggle('q-focused', card === focused);
-        card.classList.toggle('q-blurred', card !== focused);
+        // At the bottom, don't blur cards that are still in view — only off-screen ones
+        card.classList.toggle('q-blurred', card !== focused && (!atBottom || !visibleSet.has(card)));
       } else {
         card.classList.remove('q-focused', 'q-blurred');
       }
