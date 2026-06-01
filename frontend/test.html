@@ -73,7 +73,31 @@
 
 <body class="min-h-screen bg-slate-100">
 
-  <!-- Screenshot shield — shown when screenshot keys are detected -->
+  <!-- Fullscreen prompt — shown before test starts, requires user gesture to enter fullscreen -->
+  <div id="fullscreenPrompt"
+       style="display:flex;position:fixed;inset:0;z-index:1000000;flex-direction:column;
+              align-items:center;justify-content:center;gap:1.5rem;padding:1.5rem;
+              background:linear-gradient(150deg,#0f172a 0%,#1e3a8a 55%,#0f766e 100%)">
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+    <p style="color:#f1f5f9;font-size:1.15rem;font-weight:800;text-align:center;max-width:22rem;line-height:1.5;">
+      Fullscreen mode is required to take the test.
+    </p>
+    <p style="color:#94a3b8;font-size:0.8rem;font-weight:600;text-align:center;max-width:20rem;line-height:1.6;">
+      Your screen will be blocked if you exit fullscreen at any point during the test.
+    </p>
+    <button id="enterFsBtn" class="btn" style="padding:0.85rem 2rem;font-size:0.95rem;display:flex;align-items:center;gap:0.5rem;">
+      Enter Fullscreen &amp; Start Test
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Screenshot / focus shield — visible by default, hidden only while window has focus + fullscreen -->
   <div id="screenshotShield" aria-hidden="true">
     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171"
          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -81,9 +105,14 @@
       <line x1="12" y1="9" x2="12" y2="13"/>
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
-    <p style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
+    <p id="shieldMsg" style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
       Screenshots are not permitted during the test.
     </p>
+    <button id="reenterFsBtn"
+            style="display:none;margin-top:0.5rem;padding:0.7rem 1.5rem;background:#2dd4bf;
+                   color:#0f172a;font-weight:800;border-radius:0.75rem;border:none;cursor:pointer;font-size:0.9rem;">
+      Re-enter Fullscreen
+    </button>
   </div>
 
   <!-- ── Sticky test header ───────────────────────────────────── -->
@@ -149,62 +178,84 @@
   <script src="js/test.js"></script>
 
   <script>
-    // Screenshot prevention
-    // The shield is ALWAYS rendered (display:flex by default).
-    // It is only hidden (.hidden class) while the window actively has focus.
-    // This means any focus loss — which every Mac screenshot tool causes except
-    // Cmd+Shift+3 full-screen — instantly reveals the already-painted shield with
-    // zero render lag. Cmd+Shift+3 is caught via keydown as a best-effort fallback.
     (function () {
-      const shield = document.getElementById('screenshotShield');
-      const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+      const shield      = document.getElementById('screenshotShield');
+      const shieldMsg   = document.getElementById('shieldMsg');
+      const reenterBtn  = document.getElementById('reenterFsBtn');
+      const fsPrompt    = document.getElementById('fullscreenPrompt');
+      const enterFsBtn  = document.getElementById('enterFsBtn');
+      const isMac       = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+      let testStarted   = false;
 
-      function revealContent() {
-        shield.classList.add('hidden');
-      }
-
-      function blockContent() {
+      function showShield(msg, withReenter) {
+        shieldMsg.textContent = msg || 'Screenshots are not permitted during the test.';
+        reenterBtn.style.display = withReenter ? '' : 'none';
         shield.classList.remove('hidden');
       }
 
-      // Show content only while the window has focus and is visible
-      function syncShield() {
-        if (document.hasFocus() && !document.hidden) {
-          revealContent();
-        } else {
-          blockContent();
-        }
+      function hideShield() {
+        reenterBtn.style.display = 'none';
+        shield.classList.add('hidden');
       }
 
-      window.addEventListener('focus', syncShield);
-      window.addEventListener('blur', syncShield);
-      document.addEventListener('visibilitychange', syncShield);
+      // Reveal test content only when all conditions are safe.
+      function tryReveal() {
+        const fsOk = !document.fullscreenEnabled || !!document.fullscreenElement;
+        if (testStarted && document.hasFocus() && !document.hidden && fsOk) hideShield();
+      }
 
-      // Keydown: best-effort for Cmd+Shift+3 (full-screen, no focus change on Mac)
-      // and PrintScreen on Windows — force-block synchronously then restore.
-      document.addEventListener('keydown', function (e) {
+      // ── Fullscreen prompt ──────────────────────────────────────────────────
+      enterFsBtn.addEventListener('click', async () => {
+        try {
+          await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+        } catch (_) { /* fullscreen denied or unsupported — proceed anyway */ }
+        fsPrompt.remove();
+        testStarted = true;
+        tryReveal();
+        initTest(); // defined in test.js
+      });
+
+      reenterBtn.addEventListener('click', async () => {
+        try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (_) {}
+      });
+
+      // ── Fullscreen exit ────────────────────────────────────────────────────
+      document.addEventListener('fullscreenchange', () => {
+        if (!testStarted) return;
+        if (!document.fullscreenElement) {
+          showShield('Please re-enter fullscreen to continue the test.', true);
+        } else {
+          tryReveal();
+        }
+      });
+
+      // ── Focus / visibility ─────────────────────────────────────────────────
+      window.addEventListener('blur',  () => { if (testStarted) showShield(); });
+      window.addEventListener('focus', () => { if (testStarted) tryReveal(); });
+      document.addEventListener('visibilitychange', () => {
+        if (!testStarted) return;
+        document.hidden ? showShield() : tryReveal();
+      });
+
+      // ── Keyboard intercept ─────────────────────────────────────────────────
+      document.addEventListener('keydown', e => {
         const isSS =
           e.key === 'PrintScreen' ||
-          (isMac && e.metaKey && e.shiftKey && ['3', '4', '5', '6'].includes(e.key)) ||
+          (isMac  && e.metaKey && e.shiftKey && ['3','4','5','6'].includes(e.key)) ||
           (!isMac && e.metaKey && e.shiftKey && e.key.toLowerCase() === 's');
-
-        if (isSS) {
+        if (isSS && testStarted) {
           e.preventDefault();
-          blockContent();
-          setTimeout(syncShield, 2000);
+          showShield();
+          setTimeout(tryReveal, 2000);
         }
       });
-
-      document.addEventListener('keyup', function (e) {
-        if (e.key === 'PrintScreen') {
+      document.addEventListener('keyup', e => {
+        if (e.key === 'PrintScreen' && testStarted) {
           e.preventDefault();
-          blockContent();
-          setTimeout(syncShield, 2000);
+          showShield();
+          setTimeout(tryReveal, 2000);
         }
       });
-
-      // Initialise on load
-      syncShield();
     })();
   </script>
 </body>

@@ -310,7 +310,7 @@ window.addEventListener('pagehide', () => {
   if (!submitted) autoSubmitViaBeacon();
 });
 
-(async function initTest() {
+async function initTest() {
   const participantId = localStorage.getItem('participant_id');
 
   // No participant on record — send back to home
@@ -387,4 +387,4 @@ window.addEventListener('pagehide', () => {
 
   loadQuestions();
   startTimer();
-}());
+}
