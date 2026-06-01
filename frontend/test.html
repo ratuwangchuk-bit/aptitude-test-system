@@ -54,10 +54,37 @@
       -ms-user-select: none;
       user-select: none;
     }
+
+    /* Screenshot shield overlay */
+    #screenshotShield {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0f172a;
+      z-index: 999999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+    #screenshotShield.active { display: flex; }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-100">
+
+  <!-- Screenshot shield — shown when screenshot keys are detected -->
+  <div id="screenshotShield" aria-hidden="true">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <p style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
+      Screenshots are not permitted during the test.
+    </p>
+  </div>
 
   <!-- ── Sticky test header ───────────────────────────────────── -->
   <header class="test-topbar">
@@ -120,5 +147,54 @@
 
   <script src="js/common.js"></script>
   <script src="js/test.js"></script>
+
+  <script>
+    // Screenshot prevention — blanks the screen when known shortcuts are detected.
+    // Browser JS cannot stop OS-level captures entirely, but showing the shield
+    // immediately causes the captured image to contain only the dark overlay.
+    (function () {
+      const shield = document.getElementById('screenshotShield');
+      let hideTimer = null;
+
+      function showShield() {
+        shield.classList.add('active');
+        clearTimeout(hideTimer);
+        // Keep shield visible long enough to cover the capture, then hide.
+        hideTimer = setTimeout(() => shield.classList.remove('active'), 2500);
+      }
+
+      const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+
+      document.addEventListener('keydown', function (e) {
+        // Windows / Linux: Print Screen (with or without Alt)
+        if (e.key === 'PrintScreen') {
+          e.preventDefault();
+          showShield();
+          return;
+        }
+
+        // Mac: Cmd+Shift+3/4/5/6
+        if (isMac && e.metaKey && e.shiftKey && ['3', '4', '5', '6'].includes(e.key)) {
+          e.preventDefault();
+          showShield();
+          return;
+        }
+
+        // Windows Snipping Tool shortcut: Meta+Shift+S
+        if (!isMac && e.metaKey && e.shiftKey && e.key === 's') {
+          e.preventDefault();
+          showShield();
+        }
+      });
+
+      // Some browsers only register PrintScreen on keyup
+      document.addEventListener('keyup', function (e) {
+        if (e.key === 'PrintScreen') {
+          e.preventDefault();
+          showShield();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
