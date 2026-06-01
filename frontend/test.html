@@ -55,7 +55,7 @@
       user-select: none;
     }
 
-    /* Screenshot shield — visible by default, hidden only while window has focus */
+    /* Fullscreen exit shield */
     #screenshotShield {
       display: flex;
       position: fixed;
@@ -97,19 +97,17 @@
     </button>
   </div>
 
-  <!-- Screenshot / focus shield — visible by default, hidden only while window has focus + fullscreen -->
+  <!-- Fullscreen exit shield — shown if the participant leaves fullscreen during the test -->
   <div id="screenshotShield" aria-hidden="true">
     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171"
          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/>
-      <line x1="12" y1="17" x2="12.01" y2="17"/>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
     </svg>
-    <p id="shieldMsg" style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
-      Screenshots are not permitted during the test.
+    <p style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
+      Please re-enter fullscreen to continue the test.
     </p>
     <button id="reenterFsBtn"
-            style="display:none;margin-top:0.5rem;padding:0.7rem 1.5rem;background:#2dd4bf;
+            style="margin-top:0.5rem;padding:0.7rem 1.5rem;background:#2dd4bf;
                    color:#0f172a;font-weight:800;border-radius:0.75rem;border:none;cursor:pointer;font-size:0.9rem;">
       Re-enter Fullscreen
     </button>
@@ -179,82 +177,35 @@
 
   <script>
     (function () {
-      const shield      = document.getElementById('screenshotShield');
-      const shieldMsg   = document.getElementById('shieldMsg');
-      const reenterBtn  = document.getElementById('reenterFsBtn');
-      const fsPrompt    = document.getElementById('fullscreenPrompt');
-      const enterFsBtn  = document.getElementById('enterFsBtn');
-      const isMac       = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
-      let testStarted   = false;
+      const shield     = document.getElementById('screenshotShield');
+      const reenterBtn = document.getElementById('reenterFsBtn');
+      const fsPrompt   = document.getElementById('fullscreenPrompt');
+      const enterFsBtn = document.getElementById('enterFsBtn');
+      let testStarted  = false;
 
-      function showShield(msg, withReenter) {
-        shieldMsg.textContent = msg || 'Screenshots are not permitted during the test.';
-        reenterBtn.style.display = withReenter ? '' : 'none';
-        shield.classList.remove('hidden');
-      }
+      function showShield() { shield.classList.remove('hidden'); }
+      function hideShield() { shield.classList.add('hidden'); }
 
-      function hideShield() {
-        reenterBtn.style.display = 'none';
-        shield.classList.add('hidden');
-      }
-
-      // Reveal test content only when all conditions are safe.
-      function tryReveal() {
-        const fsOk = !document.fullscreenEnabled || !!document.fullscreenElement;
-        if (testStarted && document.hasFocus() && !document.hidden && fsOk) hideShield();
-      }
-
-      // ── Fullscreen prompt ──────────────────────────────────────────────────
+      // ── Fullscreen entry prompt ────────────────────────────────────────────
       enterFsBtn.addEventListener('click', async () => {
         try {
           await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
-        } catch (_) { /* fullscreen denied or unsupported — proceed anyway */ }
+        } catch (_) { /* fullscreen unsupported — proceed anyway */ }
         fsPrompt.remove();
         testStarted = true;
-        tryReveal();
+        hideShield();
         initTest(); // defined in test.js
       });
 
+      // ── Re-enter button on the exit shield ────────────────────────────────
       reenterBtn.addEventListener('click', async () => {
         try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (_) {}
       });
 
-      // ── Fullscreen exit ────────────────────────────────────────────────────
+      // ── Block test when fullscreen is exited, restore when re-entered ──────
       document.addEventListener('fullscreenchange', () => {
         if (!testStarted) return;
-        if (!document.fullscreenElement) {
-          showShield('Please re-enter fullscreen to continue the test.', true);
-        } else {
-          tryReveal();
-        }
-      });
-
-      // ── Focus / visibility ─────────────────────────────────────────────────
-      window.addEventListener('blur',  () => { if (testStarted) showShield(); });
-      window.addEventListener('focus', () => { if (testStarted) tryReveal(); });
-      document.addEventListener('visibilitychange', () => {
-        if (!testStarted) return;
-        document.hidden ? showShield() : tryReveal();
-      });
-
-      // ── Keyboard intercept ─────────────────────────────────────────────────
-      document.addEventListener('keydown', e => {
-        const isSS =
-          e.key === 'PrintScreen' ||
-          (isMac  && e.metaKey && e.shiftKey && ['3','4','5','6'].includes(e.key)) ||
-          (!isMac && e.metaKey && e.shiftKey && e.key.toLowerCase() === 's');
-        if (isSS && testStarted) {
-          e.preventDefault();
-          showShield();
-          setTimeout(tryReveal, 2000);
-        }
-      });
-      document.addEventListener('keyup', e => {
-        if (e.key === 'PrintScreen' && testStarted) {
-          e.preventDefault();
-          showShield();
-          setTimeout(tryReveal, 2000);
-        }
+        document.fullscreenElement ? hideShield() : showShield();
       });
     })();
   </script>
