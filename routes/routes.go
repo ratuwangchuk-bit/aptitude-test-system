@@ -75,6 +75,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/users", middleware.SuperAdminOnly(handlers.CreateAdminUser)).Methods("POST")
 	r.HandleFunc("/api/admin/users/{id}", middleware.SuperAdminOnly(handlers.DeleteAdminUser)).Methods("DELETE")
 	r.HandleFunc("/api/admin/users/{id}/access", middleware.SuperAdminOnly(handlers.SetAdminActive)).Methods("PUT")
+	r.HandleFunc("/api/admin/users/{id}/role", middleware.SuperAdminOnly(handlers.ChangeAdminRole)).Methods("PUT")
 	r.HandleFunc("/api/admin/users/{id}/password", middleware.SuperAdminOnly(handlers.ChangeAdminPassword)).Methods("PUT")
 
 	// ── Static frontend files ─────────────────────────────────────────────────

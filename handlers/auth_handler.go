@@ -116,9 +116,10 @@ func AdminLogout(w http.ResponseWriter, r *http.Request) {
 // Note: this performs a second DB query after the AdminAuth middleware already
 // validated the session — the tradeoff is simplicity over an extra round-trip.
 func CheckAdminSession(w http.ResponseWriter, r *http.Request) {
-	username, role, isActive := currentAdminFromRequest(r)
+	id, username, role, isActive := currentAdminFromRequest(r)
 	utils.JSON(w, http.StatusOK, map[string]interface{}{
 		"message":   "Session active",
+		"id":        id,
 		"username":  username,
 		"role":      role,
 		"is_active": isActive,
@@ -126,25 +127,26 @@ func CheckAdminSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // currentAdminFromRequest looks up the admin linked to the current session cookie
-// and returns their username, role, and active status. Returns ("", "", false)
+// and returns their id, username, role, and active status. Returns (0, "", "", false)
 // on any error (missing cookie, expired session, DB failure).
 // This is a thin helper used by CheckAdminSession; the middleware layer handles
 // request gating and does not need to pass admin data through the context.
-func currentAdminFromRequest(r *http.Request) (string, string, bool) {
+func currentAdminFromRequest(r *http.Request) (int, string, string, bool) {
 	cookie, err := r.Cookie("admin_session")
 	if err != nil || cookie.Value == "" {
-		return "", "", false
+		return 0, "", "", false
 	}
+	var id int
 	var username, role string
 	var isActive bool
 	err = config.DB.QueryRow(`
-		SELECT a.username, COALESCE(a.role,'general_admin'), COALESCE(a.is_active,true)
+		SELECT a.id, a.username, COALESCE(a.role,'general_admin'), COALESCE(a.is_active,true)
 		FROM admin_sessions s JOIN admins a ON a.id=s.admin_id
 		WHERE s.session_token=$1 AND s.expires_at > NOW()`,
 		cookie.Value,
-	).Scan(&username, &role, &isActive)
+	).Scan(&id, &username, &role, &isActive)
 	if err != nil {
-		return "", "", false
+		return 0, "", "", false
 	}
-	return username, role, isActive
+	return id, username, role, isActive
 }

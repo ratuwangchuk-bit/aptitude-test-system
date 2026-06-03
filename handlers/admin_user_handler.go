@@ -165,6 +165,73 @@ func SetAdminActive(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Admin access updated"})
 }
 
+// ChangeAdminRole updates the role of an admin account.
+// A super admin cannot demote themselves — the frontend hides the button for
+// the logged-in user's own row, and this handler enforces it server-side too.
+func ChangeAdminRole(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	if id <= 0 {
+		utils.Error(w, http.StatusBadRequest, "Invalid admin id")
+		return
+	}
+
+	var payload struct {
+		Role string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	payload.Role = strings.TrimSpace(payload.Role)
+	if payload.Role != "general_admin" && payload.Role != "super_admin" {
+		utils.Error(w, http.StatusBadRequest, "Role must be super_admin or general_admin")
+		return
+	}
+
+	// Prevent a super admin from changing their own role via a direct API call.
+	_, _, callerRole, _ := currentAdminFromRequest(r)
+	if callerRole == "super_admin" {
+		var targetUsername string
+		err := config.DB.QueryRow("SELECT username FROM admins WHERE id=$1", id).Scan(&targetUsername)
+		if err == sql.ErrNoRows {
+			utils.Error(w, http.StatusNotFound, "Admin user not found")
+			return
+		}
+		// Resolve the caller's own id to block self-role-change.
+		var callerID int
+		if err2 := config.DB.QueryRow(`
+			SELECT a.id FROM admin_sessions s JOIN admins a ON a.id=s.admin_id
+			WHERE s.session_token=$1 AND s.expires_at > NOW()`,
+			func() string {
+				c, _ := r.Cookie("admin_session")
+				if c != nil {
+					return c.Value
+				}
+				return ""
+			}(),
+		).Scan(&callerID); err2 == nil && callerID == id {
+			utils.Error(w, http.StatusForbidden, "You cannot change your own role")
+			return
+		}
+	}
+
+	res, err := config.DB.Exec("UPDATE admins SET role=$1 WHERE id=$2", payload.Role, id)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not update role")
+		return
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		utils.Error(w, http.StatusNotFound, "Admin user not found")
+		return
+	}
+
+	// Invalidate all sessions for the affected admin so the new role takes
+	// effect on their next login rather than mid-session.
+	config.DB.Exec("DELETE FROM admin_sessions WHERE admin_id=$1", id)
+	utils.JSON(w, http.StatusOK, map[string]string{"message": "Role updated successfully"})
+}
+
 // ChangeAdminPassword replaces an admin's password hash and immediately invalidates
 // all their existing sessions, forcing a re-login with the new credentials.
 // The minimum password length (6 characters) is enforced here to match the

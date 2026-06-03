@@ -10,7 +10,7 @@ let allQuestions        = [];
 let allAnswers          = [];
 let allPasscodes        = [];
 let allParticipants     = [];
-let currentAdmin        = { role: '', username: '' };
+let currentAdmin        = { id: 0, role: '', username: '' };
 let dashboardTimer      = null;
 
 // Tracks which rows the super-admin has checked for bulk delete.
@@ -31,6 +31,7 @@ const ICON = {
   unlock: `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`,
   eye:      `<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
   download: `<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  shield:   `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
 };
 
 // Short labels used inside section pills in tables.
@@ -1302,20 +1303,27 @@ function renderAdminUsers(rows) {
   const tbody = document.getElementById('adminsTable');
   if (!tbody) return;
   tbody.innerHTML = rows.length
-    ? rows.map(a => `
+    ? rows.map(a => {
+        // Super admins cannot edit their own role (would allow accidental self-demotion).
+        const isSelf       = a.id === currentAdmin.id;
+        const roleEditBtn  = isSelf ? '' :
+          `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', '${escapeHtml(a.username)}')">${ICON.shield}</button>`;
+        return `
         <tr>
           <td><span class="pill">${a.id}</span></td>
-          <td><b>${escapeHtml(a.username)}</b></td>
+          <td><b>${escapeHtml(a.username)}</b>${isSelf ? ' <span class="text-xs text-slate-400">(you)</span>' : ''}</td>
           <td><span class="pill ${a.role === 'super_admin' ? 'pill-teal' : ''}">${a.role === 'super_admin' ? 'Super Admin' : 'General Admin'}</span></td>
           <td><span class="status-pill ${a.is_active ? 'active' : 'expired'}">${a.is_active ? 'Active' : 'Revoked'}</span></td>
           <td>
             <div class="flex gap-2 flex-wrap">
+              ${roleEditBtn}
               <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, '${escapeHtml(a.username)}')">${ICON.key}</button>
               <button class="btn-icon ${a.is_active ? 'btn-danger' : 'btn-small'}" title="${a.is_active ? 'Revoke' : 'Activate'}" onclick="setAdminAccess(${a.id}, ${!a.is_active})">${a.is_active ? ICON.lock : ICON.unlock}</button>
-              <button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${escapeHtml(a.username)}')">${ICON.trash}</button>
+              ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${escapeHtml(a.username)}')">${ICON.trash}</button>`}
             </div>
           </td>
-        </tr>`).join('')
+        </tr>`;
+      }).join('')
     : `<tr><td colspan="5" class="text-center text-slate-500 py-8">No admin users found.</td></tr>`;
 }
 
@@ -1373,6 +1381,62 @@ async function changeAdminPassword(id, username) {
   } catch (err) {
     showError(err.message, 'Password Change Failed');
   }
+}
+
+async function changeAdminRole(id, currentRole, username) {
+  const newRole = await showRoleModal(username, currentRole);
+  if (!newRole || newRole === currentRole) return;
+  const label = newRole === 'super_admin' ? 'Super Admin' : 'General Admin';
+  const ok = await showConfirm(
+    `Change role for "${username}" to ${label}? Their current session will be invalidated and they must log in again.`,
+    'Change Role', 'Confirm'
+  );
+  if (!ok) return;
+  try {
+    await api(`/api/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role: newRole }) });
+    await showSuccess(`Role updated to ${label}. The admin must log in again.`, 'Role Updated');
+    loadAdminUsers();
+  } catch (err) {
+    showError(err.message, 'Role Change Failed');
+  }
+}
+
+// Shows a modal with a role <select> dropdown. Resolves with the chosen role string,
+// or '' if the admin cancels without changing anything.
+function showRoleModal(username, currentRole) {
+  return new Promise((resolve) => {
+    const modal      = ensureAppModal();
+    const confirmBtn = document.getElementById('appModalConfirm');
+    const cancelBtn  = document.getElementById('appModalCancel');
+
+    document.getElementById('appModalIcon').className   = 'app-modal-icon info';
+    document.getElementById('appModalIcon').textContent = '🛡';
+    document.getElementById('appModalTitle').textContent = `Change Role — ${username}`;
+    document.getElementById('appModalBody').innerHTML = `
+      <label class="block text-sm font-semibold text-slate-700 mb-2">Select new role</label>
+      <select id="modalRoleSelect" class="input w-full">
+        <option value="general_admin" ${currentRole === 'general_admin' ? 'selected' : ''}>General Admin</option>
+        <option value="super_admin"   ${currentRole === 'super_admin'   ? 'selected' : ''}>Super Admin</option>
+      </select>`;
+
+    confirmBtn.textContent = 'Update Role';
+    cancelBtn.textContent  = 'Cancel';
+    cancelBtn.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+
+    const close = (val) => {
+      modal.classList.add('hidden');
+      document.body.classList.remove('modal-open');
+      confirmBtn.onclick = null;
+      cancelBtn.onclick  = null;
+      resolve(val);
+    };
+
+    confirmBtn.onclick = () => close(document.getElementById('modalRoleSelect').value);
+    cancelBtn.onclick  = () => close('');
+    setTimeout(() => document.getElementById('modalRoleSelect')?.focus(), 50);
+  });
 }
 
 async function deleteAdminUser(id, username) {
