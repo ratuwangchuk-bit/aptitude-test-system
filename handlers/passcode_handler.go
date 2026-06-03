@@ -16,6 +16,9 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
+// GeneratePasscode creates a new single-use entry passcode that expires after
+// 90 minutes. The code is formatted as "DAES-XXXXXXXX" (8 random hex characters)
+// and is guaranteed to be unique in the passcodes table by the uniquePasscode helper.
 func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	code, err := uniquePasscode()
 	if err != nil {
@@ -24,7 +27,10 @@ func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var id int
-	err = config.DB.QueryRow("INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + INTERVAL '90 minutes') RETURNING id", code).Scan(&id)
+	err = config.DB.QueryRow(
+		"INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + INTERVAL '90 minutes') RETURNING id",
+		code,
+	).Scan(&id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save passcode")
 		return
@@ -37,11 +43,15 @@ func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetPasscodes returns the most recent 100 passcodes with their computed status.
+// The Active/Expired status is calculated by the database (expires_at > NOW())
+// so it reflects the true server-side time rather than the client's clock.
 func GetPasscodes(w http.ResponseWriter, r *http.Request) {
-	rows, err := config.DB.Query(`SELECT id, code,
-		to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at,
-		to_char(expires_at, 'YYYY-MM-DD HH24:MI') AS expires_at,
-		CASE WHEN expires_at > NOW() THEN 'Active' ELSE 'Expired' END AS status
+	rows, err := config.DB.Query(`
+		SELECT id, code,
+		       to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at,
+		       to_char(expires_at, 'YYYY-MM-DD HH24:MI') AS expires_at,
+		       CASE WHEN expires_at > NOW() THEN 'Active' ELSE 'Expired' END AS status
 		FROM passcodes ORDER BY id DESC LIMIT 100`)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load passcodes")
@@ -61,6 +71,7 @@ func GetPasscodes(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, passcodes)
 }
 
+// DeletePasscode removes a passcode by its ID, whether or not it has expired.
 func DeletePasscode(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	res, err := config.DB.Exec("DELETE FROM passcodes WHERE id=$1", id)
@@ -76,6 +87,10 @@ func DeletePasscode(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Passcode deleted successfully"})
 }
 
+// uniquePasscode generates a random "DAES-XXXXXXXX" code and retries up to 10
+// times if the code happens to already exist in the table. In practice a collision
+// is astronomically unlikely (4 random bytes = ~4 billion possibilities), but the
+// retry loop is a safety net to guarantee uniqueness under any circumstances.
 func uniquePasscode() (string, error) {
 	for i := 0; i < 10; i++ {
 		raw := make([]byte, 4)
@@ -83,6 +98,8 @@ func uniquePasscode() (string, error) {
 			return "", err
 		}
 		code := "DAES-" + strings.ToUpper(hex.EncodeToString(raw))
+
+		// Check whether this code already exists. ErrNoRows means it is free to use.
 		var exists int
 		err := config.DB.QueryRow("SELECT 1 FROM passcodes WHERE code=$1", code).Scan(&exists)
 		if err == sql.ErrNoRows {
@@ -91,6 +108,7 @@ func uniquePasscode() (string, error) {
 		if err != nil {
 			return "", err
 		}
+		// Code exists — loop and generate a new one.
 	}
 	return "", errors.New("could not generate a unique passcode after 10 attempts")
 }

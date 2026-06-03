@@ -130,7 +130,7 @@
 
     <!-- Bottom: Copyright -->
     <p class="relative z-10 text-white/25 text-xs font-semibold text-center">
-      © 2025 Digital Aptitude Evaluation System · All rights reserved
+      © 2026–<span id="cpYear"></span> OCTO · All rights reserved
     </p>
   </div>
 
@@ -185,5 +185,6 @@
 
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
+<script>document.getElementById('cpYear').textContent = new Date().getFullYear();</script>
 </body>
 </html>

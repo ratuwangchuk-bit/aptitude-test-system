@@ -14,10 +14,18 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
+// passcodeRequest is the JSON body for the passcode validation endpoint.
 type passcodeRequest struct {
 	Code string `json:"code"`
 }
 
+// testDurationSeconds is the total allowed test time (60 minutes).
+// It is defined as a constant so the same value is used by both StartTest
+// (to calculate seconds_remaining) and the client-side timer.
+const testDurationSeconds = 3600
+
+// ValidatePasscode checks that the submitted passcode exists and has not expired.
+// A valid passcode is the first gate in the participant flow: passcode → CID → test.
 func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 	var req passcodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -31,7 +39,10 @@ func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var id int
-	err := config.DB.QueryRow("SELECT id FROM passcodes WHERE code=$1 AND expires_at > NOW()", req.Code).Scan(&id)
+	err := config.DB.QueryRow(
+		"SELECT id FROM passcodes WHERE code=$1 AND expires_at > NOW()",
+		req.Code,
+	).Scan(&id)
 	if err == sql.ErrNoRows {
 		utils.Error(w, http.StatusBadRequest, "Invalid or expired passcode")
 		return
@@ -44,11 +55,14 @@ func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Passcode valid", "passcode_id": id})
 }
 
-const testDurationSeconds = 3600
-
-// CancelRecentSubmission deletes a submission that was created within the last
-// 60 seconds for the given participant. Called by the test page on reload to
-// undo the automatic sendBeacon submission that fired on the previous pagehide.
+// CancelRecentSubmission deletes a submission created within the last 60 seconds
+// for the given participant. This is called by the test page on a page reload to
+// undo the automatic sendBeacon submission that fired on the previous pagehide event.
+//
+// The 60-second window is intentionally short: it only covers the race between
+// pagehide (fires the beacon) and the next page load (detects the reload and
+// cancels). A genuine tab close followed by a fresh login cannot trigger this
+// because the participant_id is wiped from localStorage on final submission.
 func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ParticipantID int `json:"participant_id"`
@@ -57,11 +71,13 @@ func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Participant ID is required")
 		return
 	}
+
 	result, err := config.DB.Exec(`
 		DELETE FROM submissions
 		WHERE participant_id = $1
 		  AND submitted_at > NOW() - INTERVAL '60 seconds'`,
-		req.ParticipantID)
+		req.ParticipantID,
+	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not cancel submission")
 		return
@@ -71,7 +87,12 @@ func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartTest records when a participant first opens the test and returns the
-// authoritative seconds_remaining so every device stays in sync.
+// authoritative number of seconds remaining.
+//
+// The COALESCE trick ensures started_at is only written once: the first call sets
+// it to NOW(); subsequent calls (e.g. after a page reload) leave it unchanged.
+// This means the clock never resets if the participant reloads, and all tabs for
+// the same participant see exactly the same remaining time.
 func StartTest(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ParticipantID int `json:"participant_id"`
@@ -81,7 +102,6 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// COALESCE keeps the original started_at if already set, so the clock never resets.
 	var secondsRemaining int
 	err := config.DB.QueryRow(`
 		WITH upd AS (
@@ -91,7 +111,9 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 			RETURNING started_at
 		)
 		SELECT GREATEST(0, $2 - FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)))::int)
-		FROM upd`, req.ParticipantID, testDurationSeconds).Scan(&secondsRemaining)
+		FROM upd`,
+		req.ParticipantID, testDurationSeconds,
+	).Scan(&secondsRemaining)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, "Participant not found")
 		return
@@ -99,8 +121,10 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]int{"seconds_remaining": secondsRemaining})
 }
 
-// ValidateCID is called on the participant-facing CID validation step.
-// It confirms the CID was pre-registered by an admin and has not yet submitted.
+// ValidateCID is the second gate in the participant flow.
+// It confirms the CID number was pre-registered by an admin and that this
+// participant has not already submitted the test. A conflict error is returned
+// instead of silently redirecting so the client can show a helpful message.
 func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CIDNumber string `json:"cid_number"`
@@ -116,7 +140,10 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var participantID int
-	err := config.DB.QueryRow("SELECT id FROM participants WHERE cid_number=$1", req.CIDNumber).Scan(&participantID)
+	err := config.DB.QueryRow(
+		"SELECT id FROM participants WHERE cid_number=$1",
+		req.CIDNumber,
+	).Scan(&participantID)
 	if err == sql.ErrNoRows {
 		utils.Error(w, http.StatusNotFound, "CID number not found. Please contact the administrator.")
 		return
@@ -126,8 +153,12 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent a participant who already submitted from starting a second attempt.
 	var submitted bool
-	config.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM submissions WHERE participant_id=$1)", participantID).Scan(&submitted)
+	config.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM submissions WHERE participant_id=$1)",
+		participantID,
+	).Scan(&submitted)
 	if submitted {
 		utils.Error(w, http.StatusConflict, "This CID has already completed the test. Please contact the administrator.")
 		return
@@ -139,8 +170,10 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ── Admin participant management ──────────────────────────────
+// ── Admin participant management ──────────────────────────────────────────────
 
+// GetAdminParticipants returns every registered participant with a computed
+// has_submitted flag so admins can see at a glance who has or hasn't taken the test.
 func GetAdminParticipants(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
@@ -157,7 +190,10 @@ func GetAdminParticipants(w http.ResponseWriter, r *http.Request) {
 	participants := []models.Participant{}
 	for rows.Next() {
 		var p models.Participant
-		if err := rows.Scan(&p.ID, &p.FullName, &p.CIDNumber, &p.CompanyName, &p.ContactNumber, &p.CreatedAt, &p.HasSubmitted); err != nil {
+		if err := rows.Scan(
+			&p.ID, &p.FullName, &p.CIDNumber, &p.CompanyName, &p.ContactNumber,
+			&p.CreatedAt, &p.HasSubmitted,
+		); err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not read participants")
 			return
 		}
@@ -166,6 +202,9 @@ func GetAdminParticipants(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, participants)
 }
 
+// AddAdminParticipant registers a single participant manually.
+// All four fields are required. A duplicate CID is rejected with a 409 Conflict
+// so the admin knows the participant is already in the system.
 func AddAdminParticipant(w http.ResponseWriter, r *http.Request) {
 	var p models.Participant
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -182,6 +221,7 @@ func AddAdminParticipant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for a duplicate CID before inserting to return a clear error message.
 	var existingID int
 	err := config.DB.QueryRow("SELECT id FROM participants WHERE cid_number=$1", p.CIDNumber).Scan(&existingID)
 	if err == nil {
@@ -194,7 +234,8 @@ func AddAdminParticipant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = config.DB.QueryRow(
-		`INSERT INTO participants (full_name, cid_number, company_name, contact_number) VALUES ($1,$2,$3,$4) RETURNING id`,
+		`INSERT INTO participants (full_name, cid_number, company_name, contact_number)
+		 VALUES ($1,$2,$3,$4) RETURNING id`,
 		p.FullName, p.CIDNumber, p.CompanyName, p.ContactNumber,
 	).Scan(&p.ID)
 	if err != nil {
@@ -208,10 +249,11 @@ func AddAdminParticipant(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DeleteAdminParticipant removes a participant and all their associated data.
+// Submissions and participant_answers are removed automatically by the
+// ON DELETE CASCADE constraints, so no separate cleanup is needed.
 func DeleteAdminParticipant(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-
-	// Submissions and participant_answers are removed automatically via ON DELETE CASCADE.
 	res, err := config.DB.Exec("DELETE FROM participants WHERE id=$1", id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not delete participant")
@@ -225,6 +267,8 @@ func DeleteAdminParticipant(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Participant deleted successfully"})
 }
 
+// ParticipantsTemplate generates and streams a blank Excel file with the correct
+// column headers so administrators have a ready-made template to fill in.
 func ParticipantsTemplate(w http.ResponseWriter, r *http.Request) {
 	f := excelize.NewFile()
 	defer f.Close()
@@ -240,6 +284,12 @@ func ParticipantsTemplate(w http.ResponseWriter, r *http.Request) {
 	f.Write(w) //nolint:errcheck
 }
 
+// UploadParticipants bulk-imports participants from an Excel file.
+// Column headers are matched case-insensitively and several aliases are accepted
+// ("company", "organisation", etc.) so files from different sources work without
+// reformatting. Rows with duplicate CID numbers are silently skipped using
+// ON CONFLICT DO NOTHING; the skip count is returned to the caller so admins
+// know how many entries were already present.
 func UploadParticipants(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -267,6 +317,8 @@ func UploadParticipants(w http.ResponseWriter, r *http.Request) {
 			if i == 0 || isEmptyExcelRow(row) {
 				continue
 			}
+
+			// Accept multiple header aliases for each field.
 			fullName := strings.TrimSpace(firstNonEmpty(
 				valueByHeader(row, headerMap, "full_name"),
 				valueByHeader(row, headerMap, "full name"),
@@ -290,6 +342,7 @@ func UploadParticipants(w http.ResponseWriter, r *http.Request) {
 				valueByHeader(row, headerMap, "contact"),
 			))
 
+			// Skip rows that are missing any required field.
 			if fullName == "" || cidNumber == "" || companyName == "" || contactNumber == "" {
 				continue
 			}
@@ -307,7 +360,7 @@ func UploadParticipants(w http.ResponseWriter, r *http.Request) {
 			if n > 0 {
 				addedCount++
 			} else {
-				skippedCount++
+				skippedCount++ // ON CONFLICT DO NOTHING — duplicate CID.
 			}
 		}
 	}

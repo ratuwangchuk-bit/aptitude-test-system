@@ -14,9 +14,13 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
+// GetAnswers returns every answer row joined with its question text and section.
+// The results are ordered by question_id so they align with the question list.
 func GetAnswers(w http.ResponseWriter, r *http.Request) {
-	rows, err := config.DB.Query(`SELECT a.id, a.question_id, q.question_text, q.section, a.correct_option
-        FROM answers a JOIN questions q ON a.question_id=q.id ORDER BY a.question_id ASC`)
+	rows, err := config.DB.Query(`
+		SELECT a.id, a.question_id, q.question_text, q.section, a.correct_option
+		FROM answers a JOIN questions q ON a.question_id=q.id
+		ORDER BY a.question_id ASC`)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load answers")
 		return
@@ -35,6 +39,10 @@ func GetAnswers(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, answers)
 }
 
+// AddAnswer creates a new answer or updates an existing one for the same question.
+// The ON CONFLICT upsert means this endpoint is idempotent — calling it twice
+// with the same question_id simply updates the correct option rather than creating
+// a duplicate row.
 func AddAnswer(w http.ResponseWriter, r *http.Request) {
 	var a models.Answer
 	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
@@ -46,9 +54,13 @@ func AddAnswer(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
 		return
 	}
-	err := config.DB.QueryRow(`INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
-        ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option RETURNING id`,
-		a.QuestionID, a.CorrectOption).Scan(&a.ID)
+
+	err := config.DB.QueryRow(`
+		INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
+		ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option
+		RETURNING id`,
+		a.QuestionID, a.CorrectOption,
+	).Scan(&a.ID)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save answer")
 		return
@@ -56,6 +68,8 @@ func AddAnswer(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusCreated, a)
 }
 
+// UpdateAnswer modifies the question_id and correct_option for an existing answer row.
+// The correct_option is validated to be A, B, C, or D before the update.
 func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var a models.Answer
@@ -64,7 +78,15 @@ func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.CorrectOption = strings.ToUpper(a.CorrectOption)
-	res, err := config.DB.Exec("UPDATE answers SET question_id=$1, correct_option=$2 WHERE id=$3", a.QuestionID, a.CorrectOption, id)
+	if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
+		utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
+		return
+	}
+
+	res, err := config.DB.Exec(
+		"UPDATE answers SET question_id=$1, correct_option=$2 WHERE id=$3",
+		a.QuestionID, a.CorrectOption, id,
+	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not update answer")
 		return
@@ -77,6 +99,7 @@ func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Answer updated"})
 }
 
+// DeleteAnswer removes a single answer row by its ID.
 func DeleteAnswer(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	res, err := config.DB.Exec("DELETE FROM answers WHERE id=$1", id)
@@ -92,6 +115,12 @@ func DeleteAnswer(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Answer deleted"})
 }
 
+// UploadAnswers bulk-imports correct answers from an Excel file.
+// The file should have columns: question_id, correct_option (A/B/C/D).
+// A backward-compatible fallback reads the first two columns by position if
+// no recognised headers are found, so older template files still work.
+// Rows with invalid question IDs or unrecognised options are silently skipped;
+// the response returns the count of successfully processed rows.
 func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -118,6 +147,8 @@ func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 			if i == 0 || isEmptyExcelRow(row) {
 				continue
 			}
+
+			// Try named headers first, then fall back to positional columns.
 			questionIDText := firstNonEmpty(
 				valueByHeader(row, headerMap, "question_id"),
 				valueByHeader(row, headerMap, "question id"),
@@ -131,7 +162,8 @@ func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 				valueByHeader(row, headerMap, "answer"),
 			))
 
-			// Backward-compatible fallback for old files: question_id, correct_option.
+			// Backward-compatible fallback: old files only have question_id in col 0
+			// and correct_option in col 1 with no header row or positional parsing.
 			if questionIDText == "" && len(row) >= 2 {
 				questionIDText = row[0]
 				correct = strings.ToUpper(row[1])
@@ -139,13 +171,19 @@ func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 
 			qid, err := strconv.Atoi(strings.TrimSpace(questionIDText))
 			if err != nil {
-				continue
+				continue // Not a valid integer — skip row.
 			}
 			if correct != "A" && correct != "B" && correct != "C" && correct != "D" {
 				continue
 			}
-			_, err = config.DB.Exec(`INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
-				ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option`, qid, correct)
+
+			// Upsert so re-uploading an answer file updates existing rows rather
+			// than failing with a unique-constraint error.
+			_, err = config.DB.Exec(`
+				INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
+				ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option`,
+				qid, correct,
+			)
 			if err == nil {
 				count++
 			}

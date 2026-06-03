@@ -459,7 +459,7 @@ function downloadIndividualResult() {
     const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${o[a.correct_option]}` : (a.correct_option || '—');
     const rowCls   = a.is_correct ? 'correct-row' : (sel ? 'wrong-row' : '');
     const status   = a.is_correct ? '<span class="status-c">✓ Correct</span>' : (sel ? '<span class="status-w">✗ Wrong</span>' : '<span class="status-s">— Skipped</span>');
-    const section  = { 'Analytical Ability': 'Analytical', 'Verbal Ability': 'Verbal', 'Quantitative Skills': 'Quantitative' }[a.section] || a.section;
+    const section  = SECTION_SHORT[a.section] || a.section;
     return `<tr class="${rowCls}">
       <td style="text-align:center;color:#94a3b8;font-weight:900">${i + 1}</td>
       <td>${section}</td>
@@ -581,7 +581,6 @@ function printAllResults() {
     padding: 0 14mm;
     border-bottom: 3px solid #2dd4bf;
   }
-  .pg-header .hl { }
   .pg-header .hl .org-name {
     font-size: 8.5px; font-weight: 800; text-transform: uppercase;
     letter-spacing: .14em; color: #2dd4bf; margin-bottom: 4px;

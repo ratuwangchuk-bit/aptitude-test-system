@@ -15,14 +15,19 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GetQuestions returns 15 random questions per section for the participant-facing test.
+// GetQuestions returns exactly 15 random questions per section for the participant test.
+// The three UNION ALL sub-selects each draw from a single section so the mix is
+// always balanced regardless of how many questions exist per section in the database.
 func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions WHERE section='Analytical Ability' ORDER BY random() LIMIT 15)
+		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
+		 FROM questions WHERE section='Analytical Ability'  ORDER BY random() LIMIT 15)
 		UNION ALL
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions WHERE section='Verbal Ability' ORDER BY random() LIMIT 15)
+		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
+		 FROM questions WHERE section='Verbal Ability'      ORDER BY random() LIMIT 15)
 		UNION ALL
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions WHERE section='Quantitative Skills' ORDER BY random() LIMIT 15)`)
+		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
+		 FROM questions WHERE section='Quantitative Skills' ORDER BY random() LIMIT 15)`)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
 		return
@@ -36,9 +41,12 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
-// GetAllQuestions returns every question ordered by id — used by the admin panel.
+// GetAllQuestions returns every question in insertion order for the admin panel.
+// Unlike GetQuestions, this returns the full bank without randomisation or limits.
 func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
-	rows, err := config.DB.Query("SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions ORDER BY id ASC")
+	rows, err := config.DB.Query(
+		"SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions ORDER BY id ASC",
+	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
 		return
@@ -52,6 +60,9 @@ func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
+// scanQuestions iterates over a *sql.Rows result and converts each row into a
+// Question struct. It is a shared helper used by both GetQuestions and GetAllQuestions
+// to avoid duplicating the scan logic.
 func scanQuestions(rows *sql.Rows) ([]models.Question, error) {
 	qs := []models.Question{}
 	for rows.Next() {
@@ -64,6 +75,8 @@ func scanQuestions(rows *sql.Rows) ([]models.Question, error) {
 	return qs, nil
 }
 
+// AddQuestion inserts a new question after normalising its section name to one of
+// the three canonical values ("Analytical Ability", "Verbal Ability", "Quantitative Skills").
 func AddQuestion(w http.ResponseWriter, r *http.Request) {
 	var q models.Question
 	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
@@ -71,9 +84,11 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeSection(&q.Section)
-	err := config.DB.QueryRow(`INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD).Scan(&q.ID)
+	err := config.DB.QueryRow(`
+		INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
+		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD,
+	).Scan(&q.ID)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not add question")
 		return
@@ -81,6 +96,8 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusCreated, q)
 }
 
+// UpdateQuestion replaces all fields of an existing question.
+// Returns 404 if no row with the given ID exists.
 func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var q models.Question
@@ -89,15 +106,29 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeSection(&q.Section)
-	_, err := config.DB.Exec(`UPDATE questions SET section=$1, question_text=$2, option_a=$3, option_b=$4, option_c=$5, option_d=$6 WHERE id=$7`,
-		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD, id)
+	res, err := config.DB.Exec(`
+		UPDATE questions
+		SET section=$1, question_text=$2, option_a=$3, option_b=$4, option_c=$5, option_d=$6
+		WHERE id=$7`,
+		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD, id,
+	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not update question")
+		return
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		utils.Error(w, http.StatusNotFound, "Question not found")
 		return
 	}
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question updated"})
 }
 
+// DeleteQuestion removes a question by ID. Its linked answer row is deleted
+// automatically by the ON DELETE CASCADE on answers.question_id.
+// After deletion, if the questions table is now empty the sequence is reset to 1
+// so the next inserted question gets ID 1 rather than continuing from wherever
+// the old sequence left off.
 func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	res, err := config.DB.Exec("DELETE FROM questions WHERE id=$1", id)
@@ -110,12 +141,23 @@ func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusNotFound, "Question not found")
 		return
 	}
-	// Single atomic statement: resets the sequence only when the table is empty.
-	// setval(..., 1, false) → next nextval() returns 1.
+	// setval(..., 1, false) sets the sequence so nextval() will return 1 next time.
+	// The WHERE NOT EXISTS guard makes the entire expression a no-op when the table
+	// still has rows, so it is safe to run after every delete.
 	config.DB.Exec("SELECT setval('questions_id_seq', 1, false) WHERE NOT EXISTS (SELECT 1 FROM questions)")
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question deleted"})
 }
 
+// UploadQuestions bulk-imports questions (and optionally their correct answers)
+// from an Excel file. Each sheet is processed independently and the sheet name
+// is used as a fallback section when no "section" column is present.
+//
+// Backward compatibility: old templates that have columns in positional order
+// rather than named headers are detected and parsed correctly. A row whose first
+// cell looks like a section label (e.g. "Section A") is treated as having the
+// section in column 0 and the question in column 1; otherwise column 0 is the
+// question text. If a correct_option is present in the row it is also inserted
+// into the answers table.
 func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -138,13 +180,16 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 		if err != nil || len(rows) < 2 {
 			continue
 		}
+		// Use the sheet name as the default section when the row has no section column.
 		sheetSection := sectionFromSheet(sheet)
 		headerMap := excelHeaderMap(rows[0])
+
 		for i, row := range rows {
 			if i == 0 || isEmptyExcelRow(row) {
 				continue
 			}
 
+			// Named section column overrides the sheet-name default.
 			section := valueByHeader(row, headerMap, "section")
 			if section == "" {
 				section = sheetSection
@@ -168,7 +213,11 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				valueByHeader(row, headerMap, "answer"),
 			))
 
-			// Backward-compatible fallback for old templates without proper headers.
+			// Positional fallback for old templates with no header row.
+			// If col 0 looks like a section label, treat the row as:
+			//   [section, question, A, B, C, D, correct_option?]
+			// Otherwise treat it as:
+			//   [question, A, B, C, D, correct_option?]
 			if questionText == "" && len(row) >= 5 {
 				if len(row) >= 6 && looksLikeSection(row[0]) {
 					section = row[0]
@@ -185,27 +234,39 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			// Skip rows that are missing any required question field.
 			if questionText == "" || optionA == "" || optionB == "" || optionC == "" || optionD == "" {
 				continue
 			}
 
 			var questionID int
-			err := config.DB.QueryRow(`INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
+			err := config.DB.QueryRow(`
+				INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
 				VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-				section, questionText, optionA, optionB, optionC, optionD).Scan(&questionID)
+				section, questionText, optionA, optionB, optionC, optionD,
+			).Scan(&questionID)
 			if err != nil {
 				continue
 			}
 			questionCount++
 
+			// Insert the answer in the same pass if a valid correct option was found,
+			// saving the admin from uploading a separate answers file.
 			if correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D" {
-				_, err = config.DB.Exec(`INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
-					ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option`, questionID, correctOption)
+				_, err = config.DB.Exec(`
+					INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
+					ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option`,
+					questionID, correctOption,
+				)
 				if err == nil {
 					answerCount++
 				}
 			}
 		}
 	}
-	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Questions uploaded", "questions": questionCount, "answers": answerCount})
+	utils.JSON(w, http.StatusOK, map[string]interface{}{
+		"message":   "Questions uploaded",
+		"questions": questionCount,
+		"answers":   answerCount,
+	})
 }

@@ -1,26 +1,34 @@
 let questions = [];
 let submitted = false;
-const DURATION = 60 * 60; // seconds
+const DURATION = 60 * 60; // Total test duration in seconds (60 minutes).
 
-// ── Single-tab enforcement ─────────────────────────────────────────────────
-// Only one tab per participant may hold the test open at a time.
-// BroadcastChannel is supported in all modern browsers and automatically
-// closes when the page unloads, so no manual cleanup is needed.
+// ── Single-tab enforcement ─────────────────────────────────────────────────────
+// Only one browser tab per participant may hold the test open at a time.
+// A BroadcastChannel allows tabs on the same origin to message each other.
+// When a new tab opens it broadcasts a "check" message; if an existing active tab
+// responds with "active", the new tab knows it is a duplicate and blocks itself.
+// BroadcastChannel closes automatically on page unload so no manual cleanup is needed.
 const _tabChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('daes_test_tab')
   : null;
 let _isActiveTab = false;
 
-// Respond to any tab asking "is the test already open?" while we are active.
+// Answer any incoming "check" broadcast while this tab is the active one.
 _tabChannel?.addEventListener('message', e => {
   if (e.data.type === 'check' && _isActiveTab) {
     _tabChannel.postMessage({ type: 'active' });
   }
 });
 
-// Returns true if this tab may proceed, false if another tab is already running the test.
+/**
+ * Attempts to claim the single-tab lock for this participant.
+ * Returns a Promise that resolves to true if no other tab is running the test,
+ * or false if another tab already responded "active" within 150 ms.
+ * The 150 ms window is long enough for a same-device tab to reply but short
+ * enough that a normal page load does not feel sluggish.
+ */
 function acquireTabLock() {
-  if (!_tabChannel) return Promise.resolve(true); // no BroadcastChannel — allow
+  if (!_tabChannel) return Promise.resolve(true); // No BroadcastChannel — allow.
   return new Promise(resolve => {
     let denied = false;
     const onReply = e => {
@@ -32,7 +40,7 @@ function acquireTabLock() {
     };
     _tabChannel.addEventListener('message', onReply);
     _tabChannel.postMessage({ type: 'check' });
-    // Give other tabs 150 ms to reply; if none do, claim the lock.
+    // If no active tab replies within 150 ms, this tab wins the lock.
     setTimeout(() => {
       _tabChannel.removeEventListener('message', onReply);
       if (!denied) { _isActiveTab = true; resolve(true); }
@@ -40,31 +48,45 @@ function acquireTabLock() {
   });
 }
 
+// Canonical order of sections as they appear on the test form.
 const sectionOrder = ['Analytical Ability', 'Verbal Ability', 'Quantitative Skills'];
+
+// Human-readable labels shown in the section banner inside the test form.
 const sectionLabels = {
-  'Analytical Ability': 'Section A: Analytical Ability',
-  'Verbal Ability': 'Section B: Verbal Ability',
-  'Quantitative Skills': 'Section C: Quantitative Skills'
+  'Analytical Ability':  'Section A: Analytical Ability',
+  'Verbal Ability':      'Section B: Verbal Ability',
+  'Quantitative Skills': 'Section C: Quantitative Skills',
 };
 
+/**
+ * Counts how many questions have a selected answer and updates the progress bar,
+ * the "X/45 answered" counter, and the submit button's enabled/disabled state.
+ * Called whenever a radio button changes.
+ */
 function updateAnsweredProgress() {
   const answered = questions.filter(q => document.querySelector(`input[name="q_${q.id}"]:checked`)).length;
-  const total = questions.length;
+  const total    = questions.length;
+
   const answeredCount = document.getElementById('answeredCount');
-  const progressBar = document.getElementById('progressBar');
-  const submitBtn = document.getElementById('submitBtn');
+  const progressBar   = document.getElementById('progressBar');
+  const submitBtn     = document.getElementById('submitBtn');
 
   if (answeredCount) answeredCount.textContent = `${answered}/${total}`;
-  if (progressBar) progressBar.style.width = total ? `${(answered / total) * 100}%` : '0%';
+  if (progressBar)   progressBar.style.width = total ? `${(answered / total) * 100}%` : '0%';
 
   if (submitBtn) {
     const allDone = total > 0 && answered === total;
     submitBtn.disabled = !allDone;
-    submitBtn.classList.toggle('opacity-40', !allDone);
+    submitBtn.classList.toggle('opacity-40',       !allDone);
     submitBtn.classList.toggle('cursor-not-allowed', !allDone);
   }
 }
 
+/**
+ * Renders the HTML for one section of the test form.
+ * Questions are numbered globally (startIndex + localIndex + 1) so numbering
+ * is continuous across sections (Q1–Q15, Q16–Q30, Q31–Q45).
+ */
 function renderSection(section, sectionQuestions, startIndex) {
   if (!sectionQuestions.length) return '';
   return `
@@ -95,30 +117,42 @@ function renderSection(section, sectionQuestions, startIndex) {
     </section>`;
 }
 
+/**
+ * Focus mode: blurs all question cards except the one nearest the viewport
+ * midpoint, so the participant can concentrate on the current question.
+ *
+ * Special case at the page bottom: the last card can never scroll to the
+ * vertical midpoint of the viewport, so we relax the rule — any card still
+ * visible on screen is un-blurred so the second-to-last question never stays
+ * blurred when the participant is viewing the end of the test.
+ */
 function initFocusMode() {
   const form = document.getElementById('testForm');
-  const mid = () => window.innerHeight / 2;
+  const mid  = () => window.innerHeight / 2;
 
   function applyScrollFocus() {
-    const cards = Array.from(form.querySelectorAll('.question-card'));
+    const cards   = Array.from(form.querySelectorAll('.question-card'));
     const viewMid = mid();
+    // "At bottom" threshold: within 80 px of the page's furthest scrollable point.
     const atBottom = document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 80;
 
+    // Collect cards that are at least partially in the viewport.
     const visible = cards.filter(card => {
       const r = card.getBoundingClientRect();
       return r.top < window.innerHeight && r.bottom > 0;
     });
 
     let focused = null;
-
     if (visible.length) {
       if (atBottom) {
-        // At the bottom the last card can never reach midpoint — just pick the last visible one
+        // At the bottom the last visible card is focused because it cannot
+        // reach the midpoint by scrolling.
         focused = visible[visible.length - 1];
       } else {
+        // Pick the visible card whose centre is closest to the viewport midpoint.
         let minDist = Infinity;
         visible.forEach(card => {
-          const r = card.getBoundingClientRect();
+          const r    = card.getBoundingClientRect();
           const dist = Math.abs((r.top + r.bottom) / 2 - viewMid);
           if (dist < minDist) { minDist = dist; focused = card; }
         });
@@ -129,7 +163,8 @@ function initFocusMode() {
     cards.forEach(card => {
       if (focused) {
         card.classList.toggle('q-focused', card === focused);
-        // At the bottom, don't blur cards that are still in view — only off-screen ones
+        // At the bottom edge, visible-but-not-focused cards are kept unblurred
+        // so participants can still see adjacent questions clearly.
         card.classList.toggle('q-blurred', card !== focused && (!atBottom || !visibleSet.has(card)));
       } else {
         card.classList.remove('q-focused', 'q-blurred');
@@ -137,6 +172,8 @@ function initFocusMode() {
     });
   }
 
+  // Throttle the scroll handler with requestAnimationFrame to avoid layout
+  // thrashing on every pixel scrolled.
   let ticking = false;
   window.addEventListener('scroll', () => {
     if (!ticking) {
@@ -145,9 +182,14 @@ function initFocusMode() {
     }
   }, { passive: true });
 
-  applyScrollFocus();
+  applyScrollFocus(); // Apply once on load before any scrolling happens.
 }
 
+/**
+ * Fetches the question list from the API and renders the test form.
+ * If savedAnswers are provided (from a reload-recovery session), the matching
+ * radio buttons are re-checked so the participant does not lose their progress.
+ */
 async function loadQuestions(savedAnswers = null) {
   try {
     questions = (await api('/api/questions')) || [];
@@ -156,6 +198,9 @@ async function loadQuestions(savedAnswers = null) {
       form.innerHTML = `<div class="card p-8 text-center"><h2 class="text-xl font-black">No questions available</h2><p class="text-slate-500 mt-2">Please contact the administrator.</p></div>`;
       return;
     }
+
+    // Render each section in canonical order, then append any "Other" questions
+    // that do not belong to a known section.
     let startIndex = 0;
     form.innerHTML = sectionOrder.map(section => {
       const sectionQuestions = questions.filter(q => q.section === section);
@@ -163,7 +208,8 @@ async function loadQuestions(savedAnswers = null) {
       startIndex += sectionQuestions.length;
       return html;
     }).join('') + renderSection('Other Questions', questions.filter(q => !sectionOrder.includes(q.section)), startIndex);
-    // Restore answers saved before a page reload
+
+    // Restore previously selected answers after a page reload.
     if (savedAnswers) {
       savedAnswers.forEach(a => {
         if (!a.selected_option) return;
@@ -171,6 +217,7 @@ async function loadQuestions(savedAnswers = null) {
         if (input) input.checked = true;
       });
     }
+
     updateAnsweredProgress();
     initFocusMode();
   } catch (err) {
@@ -178,43 +225,57 @@ async function loadQuestions(savedAnswers = null) {
   }
 }
 
+/**
+ * Starts the countdown timer.
+ * The server's authoritative start time is stored in localStorage so the clock
+ * survives page reloads without resetting. If the stored time is stale
+ * (the duration has already elapsed) a fresh start time is written instead.
+ */
 function startTimer() {
-  const stored = localStorage.getItem('test_start_time');
+  const stored   = localStorage.getItem('test_start_time');
   const storedMs = stored ? parseInt(stored, 10) : NaN;
-  // If no stored time, or the stored time is stale (already expired), start fresh
-  const isStale = !stored || isNaN(storedMs) || (Date.now() - storedMs) >= DURATION * 1000;
+  const isStale  = !stored || isNaN(storedMs) || (Date.now() - storedMs) >= DURATION * 1000;
   if (isStale) {
     localStorage.setItem('test_start_time', Date.now().toString());
   }
   const startTime = parseInt(localStorage.getItem('test_start_time'), 10);
 
   function tick() {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const elapsed   = Math.floor((Date.now() - startTime) / 1000);
     const remaining = Math.max(0, DURATION - elapsed);
-    const minutes = Math.floor(remaining / 60);
-    const seconds = remaining % 60;
-    const timer = document.getElementById('timer');
+    const minutes   = Math.floor(remaining / 60);
+    const seconds   = remaining % 60;
+    const timer     = document.getElementById('timer');
     if (timer) {
       timer.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      // Add a pulse animation when 5 minutes or fewer remain to draw attention.
       if (remaining <= 300) timer.parentElement.classList.add('animate-pulse');
     }
     if (remaining <= 0) {
       clearInterval(interval);
-      submitTest(true);
+      submitTest(true); // Auto-submit when time runs out.
     }
   }
 
-  tick(); // paint correct time immediately on load / reload
+  tick(); // Paint the correct time immediately without waiting for the first interval tick.
   const interval = setInterval(tick, 1000);
 }
 
+/**
+ * Submits the test.
+ * When auto=true the submission happens silently (no confirmation dialog).
+ * When auto=false the participant must confirm before answers are sent.
+ * After a successful submission the test form is replaced with a thank-you message
+ * and localStorage is cleaned up so the participant cannot resume.
+ */
 async function submitTest(auto = false) {
-  if (submitted) return;
+  if (submitted) return; // Guard against double-submission (e.g. timer and manual click).
   if (!auto) {
     const confirmSubmit = await showConfirm('Submit your test now? You cannot change answers after submission.', 'Submit Test', 'Submit');
     if (!confirmSubmit) return;
   }
   submitted = true;
+
   const participantId = Number(localStorage.getItem('participant_id'));
   const answers = questions.map(q => {
     const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
@@ -226,9 +287,13 @@ async function submitTest(auto = false) {
       method: 'POST',
       body: JSON.stringify({ participant_id: participantId, answers }),
     });
-    _isActiveTab = false;
+
+    _isActiveTab = false; // Release the single-tab lock so other tabs are not blocked.
     localStorage.removeItem('participant_id');
     localStorage.removeItem('test_start_time');
+
+    // Replace the entire page body with a thank-you screen so the participant
+    // cannot scroll back to the questions.
     document.body.innerHTML = `
       <div class="min-h-screen flex items-center justify-center p-6">
         <div class="glass-card p-8 max-w-lg text-center">
@@ -240,64 +305,76 @@ async function submitTest(auto = false) {
         </div>
       </div>`;
   } catch (err) {
-    submitted = false;
+    submitted = false; // Allow retry if the network request failed.
     setMessage('message', err.message, true);
   }
 }
 
 document.getElementById('submitBtn')?.addEventListener('click', () => submitTest(false));
 
-// Prevent copying question content
-document.addEventListener('copy', e => { e.preventDefault(); });
+// Prevent participants from copying question or answer text.
+document.addEventListener('copy',        e => { e.preventDefault(); });
 document.addEventListener('contextmenu', e => { e.preventDefault(); });
 
-// Packages current answers and fires them via sendBeacon so delivery is
-// guaranteed even while the page is being torn down. Only fires when questions
-// have loaded — if the participant exits before the question list arrives there
-// is nothing meaningful to record.
-//
-// A sessionStorage checkpoint is saved BEFORE the beacon so that a reload can
-// detect what happened and cancel the submission via /api/cancel-submission.
-// sessionStorage survives reloads but is cleared on tab close, which is how
-// the reload vs. close distinction is made on the next page load.
-// localStorage is intentionally NOT cleared here — cleanup happens either at
-// the final explicit submit or when initTest detects a submitted status.
+/**
+ * Packages the current answers and fires them via navigator.sendBeacon so they
+ * are delivered reliably even while the page is being torn down (tab close, refresh,
+ * navigation away). sendBeacon queues the request at the OS level; the browser
+ * completes it in the background after the page is gone.
+ *
+ * A sessionStorage checkpoint is saved BEFORE the beacon so that on the next
+ * page load (a reload, not a close) the app can detect what happened and cancel
+ * the submission via /api/cancel-submission. sessionStorage survives reloads
+ * within the same tab but is wiped on a true close — that asymmetry is how
+ * reload vs. close is distinguished.
+ */
 function autoSubmitViaBeacon() {
   const participantId = Number(localStorage.getItem('participant_id'));
   if (!participantId || questions.length === 0) return;
+
   const answers = questions.map(q => {
     const sel = document.querySelector(`input[name="q_${q.id}"]:checked`);
     return { question_id: q.id, selected_option: sel ? sel.value : '' };
   });
+
+  // Write the checkpoint before the beacon so the cancel handler can read it
+  // even if the beacon arrives at the server before the reload finishes.
   sessionStorage.setItem('_testSession', JSON.stringify({ participantId, answers }));
+
   const payload = JSON.stringify({ participant_id: participantId, answers });
   if (navigator.sendBeacon) {
     navigator.sendBeacon('/api/submit-test', new Blob([payload], { type: 'application/json' }));
   } else {
+    // Fallback for browsers that do not support sendBeacon (very rare in 2024+).
     fetch('/api/submit-test', { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' }, keepalive: true });
   }
 }
 
-// Cancels an auto-submission made in the last 60 seconds. Retries up to 3 times
-// with a 400 ms gap to survive the race between the sendBeacon and this call.
+/**
+ * Cancels an auto-submission made within the last 60 seconds.
+ * Called on page reload to undo the beacon that fired on the previous pagehide.
+ * Retries up to 3 times with 400 ms gaps to survive the race between the
+ * sendBeacon arriving at the server and this cancellation request.
+ */
 async function cancelAutoSubmit(participantId) {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 400));
     try {
-      const res = await fetch('/api/cancel-submission', {
-        method: 'DELETE',
-        body: JSON.stringify({ participant_id: participantId }),
-        headers: { 'Content-Type': 'application/json' },
+      const res  = await fetch('/api/cancel-submission', {
+        method:      'DELETE',
+        body:        JSON.stringify({ participant_id: participantId }),
+        headers:     { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
       if (data.cancelled) return true;
-    } catch { /* network error — retry */ }
+    } catch { /* Network error — retry. */ }
   }
   return false;
 }
 
-// Warn before refresh / tab-close / navigation away while the test is active
+// Show the browser's native "leave page?" dialog while the test is active.
+// This gives the participant a chance to cancel accidental closes.
 window.addEventListener('beforeunload', e => {
   if (!submitted) {
     e.preventDefault();
@@ -305,17 +382,23 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
-// Auto-submit when the participant leaves. pagehide fires after the user has
-// confirmed the beforeunload dialog, so accidental closes get a chance to
-// cancel. On mobile browsers that skip the dialog it still fires reliably.
+// Auto-submit when the participant leaves. pagehide fires after the participant
+// confirms (or ignores) the beforeunload dialog, so the beacon is sent even if
+// the participant clicks "Leave". On mobile browsers that skip the dialog it
+// fires immediately and is the only submission mechanism.
 window.addEventListener('pagehide', () => {
   if (!submitted) autoSubmitViaBeacon();
 });
 
+/**
+ * Entry point — called by the fullscreen prompt button in test.html after the
+ * participant enters fullscreen. Defined as a plain async function (not a
+ * self-invoking IIFE) so the fullscreen gate can call it at the right moment.
+ */
 async function initTest() {
   const participantId = localStorage.getItem('participant_id');
 
-  // No participant on record — send back to home
+  // No participant in storage — redirect to the start of the flow.
   if (!participantId) {
     window.location.href = 'index.html';
     return;
@@ -326,7 +409,7 @@ async function initTest() {
   // sessionStorage: it survives a reload within the same tab but is wiped on
   // close. If the checkpoint is present AND this is a reload, cancel the
   // auto-submission that fired on the previous pagehide and restore answers.
-  const navType = performance.getEntriesByType?.('navigation')?.[0]?.type;
+  const navType    = performance.getEntriesByType?.('navigation')?.[0]?.type;
   const sessionRaw = sessionStorage.getItem('_testSession');
   if (navType === 'reload' && sessionRaw) {
     try {
@@ -334,11 +417,11 @@ async function initTest() {
       if (session.participantId === Number(participantId)) {
         await cancelAutoSubmit(session.participantId);
       }
-    } catch { /* malformed checkpoint — ignore */ }
+    } catch { /* Malformed checkpoint — ignore. */ }
     sessionStorage.removeItem('_testSession');
   }
 
-  // Check whether this participant has already submitted
+  // Block the test if this participant has already submitted.
   try {
     const status = await api(`/api/submission-status/${participantId}`);
     if (status.submitted) {
@@ -352,11 +435,12 @@ async function initTest() {
           <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
         </div>`;
       document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
-      submitted = true; // disables the beforeunload guard
+      submitted = true; // Disables the beforeunload guard for a clean exit.
       return;
     }
   } catch {
-    // If the check itself fails, fall through and allow the test to load
+    // If the status check fails, fall through and allow the test to load.
+    // This prevents a network blip from locking the participant out.
   }
 
   // Block duplicate tabs — only one tab per participant may run the test.
@@ -369,22 +453,25 @@ async function initTest() {
         <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab or window. Please close this tab and continue in your original tab.</p>
       </div>`;
     document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
-    submitted = true; // disables the beforeunload guard on this blocked tab
+    submitted = true; // Disables the beforeunload guard on this blocked tab.
     return;
   }
 
-  // Sync the timer with the server. The server records started_at on the first
-  // call and returns the same remaining seconds on every subsequent call — so
-  // all devices for the same participant always show identical remaining time.
+  // Synchronise the timer with the server.
+  // The server records started_at on the first call and returns the same
+  // seconds_remaining on every subsequent call, so all tabs and reloads
+  // for the same participant always show identical remaining time.
   try {
     const startData = await api('/api/start-test', {
       method: 'POST',
-      body: JSON.stringify({ participant_id: Number(participantId) }),
+      body:   JSON.stringify({ participant_id: Number(participantId) }),
     });
+    // Back-calculate the local start time from the server's remaining seconds
+    // so the local timer stays in sync even across network delays.
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
     localStorage.setItem('test_start_time', seededStart.toString());
   } catch {
-    // Network error — fall through; startTimer() will use localStorage or start fresh
+    // Network error — fall through and use the localStorage value or start fresh.
   }
 
   loadQuestions();

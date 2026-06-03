@@ -11,11 +11,17 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
+// loginRequest is the expected JSON body for the admin login endpoint.
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// AdminLogin authenticates an admin by username and password.
+// On success it creates a session row in admin_sessions that expires in 1 hour
+// and sets an HttpOnly cookie containing the opaque session token.
+// HttpOnly prevents JavaScript from reading the cookie, which mitigates XSS-based
+// session hijacking.
 func AdminLogin(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -30,14 +36,20 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var adminID int
-	var passwordHash string
-	var role string
+	var passwordHash, role string
 	var isActive bool
-	err := config.DB.QueryRow("SELECT id, password_hash, COALESCE(role,'general_admin'), COALESCE(is_active,true) FROM admins WHERE username=$1", req.Username).Scan(&adminID, &passwordHash, &role, &isActive)
+	err := config.DB.QueryRow(
+		"SELECT id, password_hash, COALESCE(role,'general_admin'), COALESCE(is_active,true) FROM admins WHERE username=$1",
+		req.Username,
+	).Scan(&adminID, &passwordHash, &role, &isActive)
+
+	// Handle both "user not found" and a real DB error separately.
 	if err != nil && err != sql.ErrNoRows {
 		utils.Error(w, http.StatusInternalServerError, "Login failed")
 		return
 	}
+	// Use the same error message for "user not found" and "wrong password" to
+	// prevent username enumeration attacks.
 	if err == sql.ErrNoRows || !utils.CheckPassword(req.Password, passwordHash) {
 		utils.Error(w, http.StatusUnauthorized, "Invalid username or password")
 		return
@@ -53,8 +65,13 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sessions expire after 1 hour. The expiry is enforced both in the DB
+	// (expires_at > NOW() in queries) and via the cookie's Expires attribute.
 	expiresAt := time.Now().Add(1 * time.Hour)
-	_, err = config.DB.Exec("INSERT INTO admin_sessions (admin_id, session_token, expires_at) VALUES ($1, $2, $3)", adminID, token, expiresAt)
+	_, err = config.DB.Exec(
+		"INSERT INTO admin_sessions (admin_id, session_token, expires_at) VALUES ($1, $2, $3)",
+		adminID, token, expiresAt,
+	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save session")
 		return
@@ -64,21 +81,25 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "admin_session",
 		Value:    token,
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   utils.SessionSecure(),
-		SameSite: http.SameSiteLaxMode,
+		HttpOnly: true,                // Not readable by JavaScript.
+		Secure:   utils.SessionSecure(), // True in production (HTTPS only).
+		SameSite: http.SameSiteLaxMode,  // Protects against cross-site request forgery.
 		Expires:  expiresAt,
 	})
 
 	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Login successful", "role": role})
 }
 
+// AdminLogout deletes the session token from the database and immediately expires
+// the cookie on the client. The response is always 200 so the frontend can
+// redirect reliably even if the cookie was already gone.
 func AdminLogout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("admin_session")
 	if err == nil {
 		config.DB.Exec("DELETE FROM admin_sessions WHERE session_token=$1", cookie.Value)
 	}
 
+	// MaxAge: -1 tells the browser to delete the cookie immediately.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "admin_session",
 		Value:    "",
@@ -89,11 +110,26 @@ func AdminLogout(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Logout successful"})
 }
 
+// CheckAdminSession returns the currently logged-in admin's username, role, and
+// active status. It is called by the frontend on every page load to populate the
+// UI and decide which elements to show or hide based on role.
+// Note: this performs a second DB query after the AdminAuth middleware already
+// validated the session — the tradeoff is simplicity over an extra round-trip.
 func CheckAdminSession(w http.ResponseWriter, r *http.Request) {
 	username, role, isActive := currentAdminFromRequest(r)
-	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Session active", "username": username, "role": role, "is_active": isActive})
+	utils.JSON(w, http.StatusOK, map[string]interface{}{
+		"message":   "Session active",
+		"username":  username,
+		"role":      role,
+		"is_active": isActive,
+	})
 }
 
+// currentAdminFromRequest looks up the admin linked to the current session cookie
+// and returns their username, role, and active status. Returns ("", "", false)
+// on any error (missing cookie, expired session, DB failure).
+// This is a thin helper used by CheckAdminSession; the middleware layer handles
+// request gating and does not need to pass admin data through the context.
 func currentAdminFromRequest(r *http.Request) (string, string, bool) {
 	cookie, err := r.Cookie("admin_session")
 	if err != nil || cookie.Value == "" {
@@ -101,9 +137,12 @@ func currentAdminFromRequest(r *http.Request) (string, string, bool) {
 	}
 	var username, role string
 	var isActive bool
-	err = config.DB.QueryRow(`SELECT a.username, COALESCE(a.role,'general_admin'), COALESCE(a.is_active,true)
+	err = config.DB.QueryRow(`
+		SELECT a.username, COALESCE(a.role,'general_admin'), COALESCE(a.is_active,true)
 		FROM admin_sessions s JOIN admins a ON a.id=s.admin_id
-		WHERE s.session_token=$1 AND s.expires_at > NOW()`, cookie.Value).Scan(&username, &role, &isActive)
+		WHERE s.session_token=$1 AND s.expires_at > NOW()`,
+		cookie.Value,
+	).Scan(&username, &role, &isActive)
 	if err != nil {
 		return "", "", false
 	}

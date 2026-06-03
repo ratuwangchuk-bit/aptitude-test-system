@@ -120,7 +120,7 @@
         </p>
       </div>
       <p class="text-white/20 text-xs font-semibold mt-4">
-        © 2025 Digital Aptitude Evaluation System
+        © 2026–<span id="cpYear"></span> OCTO
       </p>
     </div>
   </div>
@@ -220,5 +220,6 @@
 
 <script src="js/common.js"></script>
 <script src="js/admin.js"></script>
+<script>document.getElementById('cpYear').textContent = new Date().getFullYear();</script>
 </body>
 </html>
