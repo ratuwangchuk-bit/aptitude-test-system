@@ -1302,29 +1302,41 @@ async function deleteSelectedParticipants() {
 function renderAdminUsers(rows) {
   const tbody = document.getElementById('adminsTable');
   if (!tbody) return;
-  tbody.innerHTML = rows.length
-    ? rows.map(a => {
-        // Super admins cannot edit their own role (would allow accidental self-demotion).
-        const isSelf       = a.id === currentAdmin.id;
-        const roleEditBtn  = isSelf ? '' :
-          `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', '${escapeHtml(a.username)}')">${ICON.shield}</button>`;
-        return `
-        <tr>
-          <td><span class="pill">${a.id}</span></td>
-          <td><b>${escapeHtml(a.username)}</b>${isSelf ? ' <span class="text-xs text-slate-400">(you)</span>' : ''}</td>
-          <td><span class="pill ${a.role === 'super_admin' ? 'pill-teal' : ''}">${a.role === 'super_admin' ? 'Super Admin' : 'General Admin'}</span></td>
-          <td><span class="status-pill ${a.is_active ? 'active' : 'expired'}">${a.is_active ? 'Active' : 'Revoked'}</span></td>
-          <td>
-            <div class="flex gap-2 flex-wrap">
-              ${roleEditBtn}
-              <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, '${escapeHtml(a.username)}')">${ICON.key}</button>
-              <button class="btn-icon ${a.is_active ? 'btn-danger' : 'btn-small'}" title="${a.is_active ? 'Revoke' : 'Activate'}" onclick="setAdminAccess(${a.id}, ${!a.is_active})">${a.is_active ? ICON.lock : ICON.unlock}</button>
-              ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${escapeHtml(a.username)}')">${ICON.trash}</button>`}
-            </div>
-          </td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="5" class="text-center text-slate-500 py-8">No admin users found.</td></tr>`;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-slate-500 py-8">No admin users found.</td></tr>`;
+    return;
+  }
+
+  // Current logged-in admin always appears first; rest retain their original order.
+  const sorted = [
+    ...rows.filter(a => a.id === currentAdmin.id),
+    ...rows.filter(a => a.id !== currentAdmin.id),
+  ];
+
+  tbody.innerHTML = sorted.map((a, idx) => {
+    // Super admins cannot edit their own role (would allow accidental self-demotion).
+    const isSelf      = a.id === currentAdmin.id;
+    const roleEditBtn = isSelf ? '' :
+      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', '${escapeHtml(a.username)}')">${ICON.shield}</button>`;
+    return `
+      <tr>
+        <td><span class="pill">${idx + 1}</span></td>
+        <td>
+          <b>${escapeHtml(a.username)}</b>
+          ${isSelf ? '<br><span class="text-xs text-slate-400 font-semibold">(you)</span>' : ''}
+        </td>
+        <td><span class="pill ${a.role === 'super_admin' ? 'pill-teal' : ''}">${a.role === 'super_admin' ? 'Super Admin' : 'General Admin'}</span></td>
+        <td><span class="status-pill ${a.is_active ? 'active' : 'expired'}">${a.is_active ? 'Active' : 'Revoked'}</span></td>
+        <td>
+          <div class="flex gap-2 flex-wrap">
+            ${roleEditBtn}
+            <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, '${escapeHtml(a.username)}')">${ICON.key}</button>
+            <button class="btn-icon ${a.is_active ? 'btn-danger' : 'btn-small'}" title="${a.is_active ? 'Revoke' : 'Activate'}" onclick="setAdminAccess(${a.id}, ${!a.is_active})">${a.is_active ? ICON.lock : ICON.unlock}</button>
+            ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${escapeHtml(a.username)}')">${ICON.trash}</button>`}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
 }
 
 async function loadAdminUsers() {
