@@ -125,9 +125,12 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 // It confirms the CID number was pre-registered by an admin and that this
 // participant has not already submitted the test. A conflict error is returned
 // instead of silently redirecting so the client can show a helpful message.
+// The passcode_id from the entry gate is stored on the participant so the test
+// page can poll /api/passcode-status/{id} and auto-submit if it expires mid-test.
 func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		CIDNumber string `json:"cid_number"`
+		CIDNumber  string `json:"cid_number"`
+		PasscodeID int    `json:"passcode_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
@@ -162,6 +165,14 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	if submitted {
 		utils.Error(w, http.StatusConflict, "This CID has already completed the test. Please contact the administrator.")
 		return
+	}
+
+	// Link the passcode to the participant so the test page can watch for expiry.
+	if req.PasscodeID > 0 {
+		config.DB.Exec(
+			"UPDATE participants SET passcode_id=$1 WHERE id=$2",
+			req.PasscodeID, participantID,
+		)
 	}
 
 	utils.JSON(w, http.StatusOK, map[string]interface{}{

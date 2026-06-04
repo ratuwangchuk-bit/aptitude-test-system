@@ -290,6 +290,42 @@ async function loadQuestions(savedAnswers = null) {
   }
 }
 
+/* ── Passcode expiry watcher ───────────────────────────────────────────────── */
+
+/**
+ * Polls /api/passcode-status every 30 seconds. If the passcode is deleted or
+ * expires while the participant is mid-test, shows a warning banner and
+ * auto-submits after a 3-second grace period so answers are not lost.
+ */
+function startPasscodeWatcher() {
+  const passcodeId = Number(localStorage.getItem('passcode_id'));
+  if (!passcodeId) return;
+
+  const interval = setInterval(async () => {
+    if (submitted) { clearInterval(interval); return; }
+    try {
+      const res  = await fetch(`/api/passcode-status/${passcodeId}`);
+      const data = await res.json().catch(() => ({}));
+      if (!data.valid) {
+        clearInterval(interval);
+
+        // Show a prominent warning banner above the question panel.
+        const banner = document.createElement('div');
+        banner.style.cssText = [
+          'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
+          'background:#7f1d1d', 'border-bottom:2px solid #ef4444',
+          'color:#fca5a5', 'font-weight:800', 'font-size:0.9rem',
+          'padding:0.9rem 1.5rem', 'text-align:center',
+        ].join(';');
+        banner.textContent = '⚠  The session passcode has expired. Your answers are being submitted automatically…';
+        document.body.prepend(banner);
+
+        setTimeout(() => submitTest(true), 3000);
+      }
+    } catch { /* Network error — wait for next tick. */ }
+  }, 30000);
+}
+
 /* ── Timer ─────────────────────────────────────────────────────────────────── */
 
 /**
@@ -522,4 +558,5 @@ async function initTest() {
 
   loadQuestions(savedAnswersForRestore);
   startTimer();
+  startPasscodeWatcher();
 }

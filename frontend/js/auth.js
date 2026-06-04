@@ -38,7 +38,7 @@ document.getElementById('cidForm')?.addEventListener('submit', async (e) => {
 
     const data = await api('/api/validate-cid', {
       method: 'POST',
-      body: JSON.stringify({ cid_number: cid }),
+      body: JSON.stringify({ cid_number: cid, passcode_id: Number(passcodeId) }),
     });
 
     localStorage.setItem('participant_id', data.participant_id);

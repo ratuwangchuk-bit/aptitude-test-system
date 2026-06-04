@@ -71,6 +71,23 @@ func GetPasscodes(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, passcodes)
 }
 
+// CheckPasscodeStatus returns whether a passcode is still valid (exists and not expired).
+// This is a public endpoint polled by the test page every 30 seconds so the server
+// can revoke a session mid-test by deleting or letting the passcode expire.
+func CheckPasscodeStatus(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	if id <= 0 {
+		utils.JSON(w, http.StatusOK, map[string]bool{"valid": false})
+		return
+	}
+	var valid bool
+	config.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM passcodes WHERE id=$1 AND expires_at > NOW())",
+		id,
+	).Scan(&valid)
+	utils.JSON(w, http.StatusOK, map[string]bool{"valid": valid})
+}
+
 // DeletePasscode removes a passcode by its ID, whether or not it has expired.
 func DeletePasscode(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])

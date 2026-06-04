@@ -23,6 +23,7 @@ func RegisterRoutes(r *mux.Router) {
 	// session. Passcode and CID validation are the only two "gates" before
 	// a participant can reach the test form.
 	r.HandleFunc("/api/validate-passcode", handlers.ValidatePasscode).Methods("POST")
+	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
 	r.HandleFunc("/api/validate-cid", handlers.ValidateCID).Methods("POST")
 	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
 	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
