@@ -843,6 +843,21 @@ function renderQuestions(rows) {
   if (!tbody) return;
   const selectAll = document.getElementById('selectAllQuestions');
   if (selectAll) selectAll.checked = false;
+
+  // Update per-section bank counts in the summary cards.
+  const countA = rows.filter(q => q.section === 'Analytical Ability').length;
+  const countB = rows.filter(q => q.section === 'Verbal Ability').length;
+  const countC = rows.filter(q => q.section === 'Quantitative Skills').length;
+  const elA = document.getElementById('bankCountA');
+  const elB = document.getElementById('bankCountB');
+  const elC = document.getElementById('bankCountC');
+  const warn = (el, count) => {
+    if (!el) return;
+    el.textContent = count;
+    el.style.color = count < 15 ? '#dc2626' : '';
+    el.title = count < 15 ? 'Warning: fewer than 15 questions — participants will see all of them' : '';
+  };
+  warn(elA, countA); warn(elB, countB); warn(elC, countC);
   tbody.innerHTML = rows.length
     ? rows.map(q => `
         <tr>

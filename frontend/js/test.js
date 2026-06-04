@@ -160,6 +160,74 @@ function updateSectionTabs() {
   });
 }
 
+/* ── Markdown table renderer ───────────────────────────────────────────────── */
+
+/**
+ * Converts pipe-delimited markdown tables embedded in question text to HTML.
+ * Non-table lines are wrapped in <p> tags. All cell content is passed through
+ * escapeHtml so no user-supplied markup can reach the DOM.
+ *
+ * Supports:
+ *   | Header | Header |       ← thead
+ *   |--------|--------|       ← separator (detected, not rendered)
+ *   | Cell   | Cell   |       ← tbody
+ *
+ * Tables without a separator row are treated as body-only (no <thead>).
+ * Mixed text + table questions work correctly — text renders above/below the table.
+ */
+function renderQuestionText(raw) {
+  const lines = raw.split('\n');
+  const parts = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    // A table block is a run of consecutive lines that contain a pipe character.
+    if (lines[i].includes('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].includes('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+
+      // Parse each line: strip leading/trailing pipes, split on |, trim cells.
+      const rows = tableLines.map(l =>
+        l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim())
+      );
+
+      // A separator row contains only dashes, colons, and spaces in every cell.
+      const isSep = r => r.every(c => /^[-:\s]+$/.test(c));
+      const sepIdx = rows.findIndex(isSep);
+
+      const headerRows = sepIdx > 0 ? rows.slice(0, sepIdx) : [];
+      const dataRows   = sepIdx >= 0 ? rows.slice(sepIdx + 1) : rows;
+
+      let html = '<table class="q-table">';
+      if (headerRows.length) {
+        html += '<thead>' +
+          headerRows.map(r =>
+            '<tr>' + r.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>'
+          ).join('') +
+          '</thead>';
+      }
+      if (dataRows.length) {
+        html += '<tbody>' +
+          dataRows.map(r =>
+            '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>'
+          ).join('') +
+          '</tbody>';
+      }
+      html += '</table>';
+      parts.push(html);
+    } else {
+      const text = escapeHtml(lines[i]);
+      parts.push(text.trim() ? `<p class="q-text-para">${text}</p>` : '');
+      i++;
+    }
+  }
+
+  return parts.join('');
+}
+
 /* ── Question display ──────────────────────────────────────────────────────── */
 
 /**
@@ -193,7 +261,7 @@ function showQuestion(idx) {
       <span class="sep">|</span>
       <span>Overall ${idx + 1} of ${questions.length}</span>
     </p>
-    <div class="q-text-card">${escapeHtml(q.question_text)}</div>
+    <div class="q-text-card">${renderQuestionText(q.question_text)}</div>
     <div class="q-options">
       ${['A','B','C','D'].map(opt => {
         const text   = q['option_' + opt.toLowerCase()];
@@ -273,6 +341,9 @@ async function loadQuestions(savedAnswers = null) {
         </div>`;
       return;
     }
+
+    const totalEl = document.getElementById('questionTotal');
+    if (totalEl) totalEl.textContent = questions.length;
 
     buildSidebarAndTabs();
 

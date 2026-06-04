@@ -205,6 +205,30 @@
       background: rgba(249,115,22,0.2); color: #fff; border-color: rgba(249,115,22,0.5);
     }
 
+    /* Markdown table rendered inside a question card */
+    .q-table {
+      width: 100%; border-collapse: collapse;
+      margin: 0.75rem 0; font-size: 0.88rem;
+      border-radius: 0.5rem; overflow: hidden;
+    }
+    .q-table th, .q-table td {
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.55rem 0.85rem; text-align: left;
+      vertical-align: top; line-height: 1.5;
+    }
+    .q-table th {
+      background: rgba(249,115,22,0.15);
+      color: #fb923c; font-weight: 900;
+      font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .q-table td { color: #e2e8f0; }
+    .q-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+    .q-table tbody tr:hover td { background: rgba(255,255,255,0.06); }
+
+    /* Paragraph lines mixed with a table block */
+    .q-text-para { margin: 0 0 0.5rem; }
+    .q-text-para:last-child { margin-bottom: 0; }
+
     /* Disable all text selection inside the form */
     #testForm { -webkit-user-select: none; user-select: none; }
 
@@ -271,7 +295,7 @@
           <div>
             <h1 class="text-xl sm:text-2xl font-black text-white leading-tight">Aptitude Test</h1>
             <p class="text-white/50 text-xs font-semibold mt-0.5">
-              45 questions &middot; Sections A, B &amp; C &middot;
+              <span id="questionTotal">–</span> questions &middot; Sections A, B &amp; C &middot;
               <span id="answeredCount" class="text-teal-300 font-black">0/0</span> answered
             </p>
           </div>
