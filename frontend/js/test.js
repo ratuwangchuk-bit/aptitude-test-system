@@ -115,7 +115,7 @@ function buildSidebarAndTabs() {
         <span class="tab-score" id="tabScore_${letter}">0/${sq.length}</span>
       </button>`;
 
-    sideHtml += `<p class="sb-label">Section ${letter}</p><div class="sb-grid">`;
+    sideHtml += `<div class="sb-section-header"><span class="sb-dot"></span>Section ${letter}</div><div class="sb-grid">`;
     sq.forEach((q, li) => {
       sideHtml += `<button class="sb-q" id="sbq_${globalIdx}" onclick="goToQuestion(${globalIdx})">${li + 1}</button>`;
       globalIdx++;

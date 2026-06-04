@@ -31,149 +31,179 @@
     /* ── Section tab bar ──────────────────────────────────── */
     .test-section-bar {
       display: flex; flex-shrink: 0;
-      background: #06090f;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
+      background: #07101f;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
     }
     .tab-btn {
       flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 0.1rem;
-      padding: 0.6rem 0.5rem;
-      border: none; border-bottom: 3px solid transparent;
+      align-items: center; justify-content: center; gap: 0.2rem;
+      padding: 0.75rem 0.5rem;
+      border: none; border-bottom: 2px solid transparent;
       background: transparent;
-      color: rgba(255,255,255,0.38);
-      font-size: 0.65rem; font-weight: 900;
-      letter-spacing: 0.09em; text-transform: uppercase;
-      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+      color: rgba(255,255,255,0.3);
+      font-size: 0.6rem; font-weight: 900;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.18s;
     }
-    .tab-btn + .tab-btn { border-left: 1px solid rgba(255,255,255,0.06); }
-    .tab-btn.tab-active { color: #f97316; border-bottom-color: #f97316; }
+    .tab-btn + .tab-btn { border-left: 1px solid rgba(255,255,255,0.05); }
+    .tab-btn:hover { color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.03); }
+    .tab-btn.tab-active {
+      color: #f97316; border-bottom-color: #f97316;
+      background: rgba(249,115,22,0.05);
+    }
     .tab-score {
-      font-size: 0.8rem; font-weight: 900; letter-spacing: 0.02em;
-      color: rgba(255,255,255,0.22);
+      font-size: 0.82rem; font-weight: 900; letter-spacing: 0.02em;
+      color: rgba(255,255,255,0.18);
     }
-    .tab-btn.tab-active .tab-score { color: rgba(255,255,255,0.65); }
+    .tab-btn.tab-active .tab-score { color: rgba(255,255,255,0.7); }
 
     /* ── Main flex body (sidebar + question panel) ────────── */
     .test-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
     /* ── Sidebar ─────────────────────────────────────────── */
     .test-sidebar {
-      width: 185px; flex-shrink: 0;
-      background: #06090f;
-      border-right: 1px solid rgba(255,255,255,0.06);
-      overflow-y: auto; padding: 0.6rem 0.6rem 1.5rem;
+      width: 196px; flex-shrink: 0;
+      background: #060d1a;
+      border-left: 1px solid rgba(255,255,255,0.05);
+      overflow-y: auto; padding: 0.9rem 0.75rem 2rem;
     }
     .test-sidebar::-webkit-scrollbar { width: 3px; }
-    .test-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
-    .sb-label {
-      font-size: 0.6rem; font-weight: 900;
-      letter-spacing: 0.18em; text-transform: uppercase;
-      color: rgba(255,255,255,0.25);
-      padding: 0.6rem 0.2rem 0.3rem;
+    .test-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+    .sb-section-header {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.57rem; font-weight: 900;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(255,255,255,0.22);
+      padding: 0.8rem 0.2rem 0.45rem;
     }
-    .sb-label:not(:first-child) { margin-top: 0.5rem; }
-    .sb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem; }
+    .sb-section-header:not(:first-child) { margin-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; }
+    .sb-dot { width: 0.38rem; height: 0.38rem; border-radius: 999px; background: #f97316; flex-shrink: 0; }
+    .sb-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.28rem; }
     .sb-q {
-      aspect-ratio: 1; border-radius: 0.4rem;
-      border: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.04);
-      color: rgba(255,255,255,0.4);
-      font-size: 0.68rem; font-weight: 800;
+      aspect-ratio: 1; border-radius: 0.38rem;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      color: rgba(255,255,255,0.32);
+      font-size: 0.64rem; font-weight: 800;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background 0.11s, color 0.11s, border-color 0.11s;
+      transition: all 0.12s;
     }
-    .sb-q:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .sb-q:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.15); }
     .sb-q.sq-answered {
-      background: rgba(37,99,235,0.2); border-color: rgba(37,99,235,0.45);
+      background: rgba(37,99,235,0.16); border-color: rgba(37,99,235,0.38);
       color: #93c5fd;
     }
     .sb-q.sq-current {
       background: #f97316; border-color: #f97316; color: #fff;
-      box-shadow: 0 0 0 3px rgba(249,115,22,0.22);
+      box-shadow: 0 0 0 2px rgba(249,115,22,0.28);
     }
 
-    /* ── Question panel ─────────────────────────────────── */
-    .test-q-panel { flex: 1; overflow-y: auto; background: #0f172a; }
+    /* ── Question panel — vertically centred ─────────────── */
+    .test-q-panel {
+      flex: 1; overflow-y: auto; background: #0b1322;
+      display: flex; flex-direction: column; align-items: center;
+    }
     .test-q-panel::-webkit-scrollbar { width: 5px; }
-    .test-q-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
-    .q-panel-inner { max-width: 840px; margin: 0 auto; padding: 1.75rem 2rem 3rem; }
+    .test-q-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+
+    /* margin:auto on flex child → centres when content is shorter than the panel */
+    .q-panel-inner {
+      width: 100%; max-width: 680px;
+      margin: auto;
+      padding: 2.25rem 2rem;
+    }
 
     /* Section badge */
     .q-section-badge {
-      display: inline-flex; align-items: center; gap: 0.45rem;
-      border: 1px solid rgba(255,255,255,0.11);
-      border-radius: 999px; padding: 0.28rem 0.8rem;
-      font-size: 0.62rem; font-weight: 900;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      color: rgba(255,255,255,0.45);
-      background: rgba(255,255,255,0.04);
-      margin-bottom: 0.55rem;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      border: 1px solid rgba(249,115,22,0.28);
+      border-radius: 999px; padding: 0.26rem 0.9rem;
+      font-size: 0.59rem; font-weight: 900;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: #fb923c;
+      background: rgba(249,115,22,0.08);
+      margin-bottom: 0.6rem;
     }
-    .q-badge-dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; background: #f97316; flex-shrink: 0; }
+    .q-badge-dot { width: 0.35rem; height: 0.35rem; border-radius: 999px; background: #f97316; flex-shrink: 0; }
 
     /* Question meta line */
     .q-meta {
-      font-size: 0.74rem; font-weight: 700;
-      color: rgba(255,255,255,0.28);
-      margin-bottom: 1.15rem;
+      font-size: 0.71rem; font-weight: 700;
+      color: rgba(255,255,255,0.22);
+      margin-bottom: 1.3rem;
       display: flex; align-items: center; gap: 0.5rem;
     }
-    .q-meta .sep { color: rgba(255,255,255,0.12); }
+    .q-meta .sep { color: rgba(255,255,255,0.1); }
 
     /* Question text card */
     .q-text-card {
-      background: rgba(15,23,42,0.85);
+      background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 1rem; padding: 1.4rem 1.65rem;
-      color: #f1f5f9; font-size: 1rem; font-weight: 700;
-      line-height: 1.75; margin-bottom: 1.25rem;
+      border-left: 3px solid rgba(249,115,22,0.6);
+      border-radius: 0.9rem; padding: 1.4rem 1.6rem;
+      color: #e2e8f0; font-size: 1rem; font-weight: 600;
+      line-height: 1.8; margin-bottom: 1.35rem;
     }
 
     /* Option tiles */
-    .q-options { display: flex; flex-direction: column; gap: 0.6rem; }
+    .q-options { display: flex; flex-direction: column; gap: 0.5rem; }
     .q-opt {
-      display: flex; align-items: center; gap: 0.85rem;
-      padding: 0.85rem 1.1rem;
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 0.875rem;
-      cursor: pointer; background: rgba(255,255,255,0.025);
-      transition: border-color 0.14s, background 0.14s;
-      color: rgba(255,255,255,0.72); font-weight: 700; font-size: 0.92rem;
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.95rem 1.15rem;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 0.825rem;
+      cursor: pointer; background: rgba(255,255,255,0.02);
+      transition: all 0.15s;
+      color: rgba(255,255,255,0.6); font-weight: 600; font-size: 0.9rem;
       -webkit-user-select: none; user-select: none;
     }
-    .q-opt:hover { border-color: rgba(37,99,235,0.45); background: rgba(37,99,235,0.07); }
-    .q-opt.q-selected { border-color: #2563eb; background: rgba(37,99,235,0.14); color: #fff; }
+    .q-opt:hover {
+      border-color: rgba(249,115,22,0.3);
+      background: rgba(249,115,22,0.04);
+      color: rgba(255,255,255,0.9);
+    }
+    .q-opt.q-selected {
+      border-color: #2563eb;
+      background: rgba(37,99,235,0.12);
+      color: #fff;
+    }
     .q-opt-badge {
       width: 1.85rem; height: 1.85rem; flex-shrink: 0;
       border-radius: 0.4rem;
-      border: 1px solid rgba(255,255,255,0.11);
-      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.04);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.72rem; font-weight: 900; color: rgba(255,255,255,0.45);
-      transition: background 0.14s, color 0.14s, border-color 0.14s;
+      font-size: 0.7rem; font-weight: 900; color: rgba(255,255,255,0.38);
+      transition: all 0.15s;
     }
+    .q-opt:hover .q-opt-badge { border-color: rgba(249,115,22,0.4); color: #fb923c; }
     .q-opt.q-selected .q-opt-badge { background: #2563eb; border-color: #2563eb; color: #fff; }
 
     /* Prev / Next navigation */
     .q-nav {
       display: flex; align-items: center; justify-content: space-between;
-      margin-top: 1.5rem; padding-top: 1.2rem;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      margin-top: 1.75rem; padding-top: 1.25rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
     }
     .q-nav-btn {
       display: inline-flex; align-items: center; gap: 0.45rem;
-      padding: 0.55rem 1.15rem; border-radius: 0.7rem;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.6); font-weight: 800; font-size: 0.78rem;
-      cursor: pointer; transition: background 0.12s, color 0.12s;
+      padding: 0.6rem 1.25rem; border-radius: 0.6rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.5); font-weight: 800; font-size: 0.79rem;
+      cursor: pointer; transition: all 0.14s;
     }
-    .q-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: #fff; }
-    .q-nav-btn:disabled { opacity: 0.22; cursor: not-allowed; }
+    .q-nav-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,0.09); color: #fff;
+      border-color: rgba(255,255,255,0.18);
+    }
+    .q-nav-btn:disabled { opacity: 0.18; cursor: not-allowed; }
     .q-nav-btn.q-next {
-      background: rgba(249,115,22,0.11); border-color: rgba(249,115,22,0.3); color: #fb923c;
+      background: rgba(249,115,22,0.1); border-color: rgba(249,115,22,0.28); color: #fb923c;
     }
-    .q-nav-btn.q-next:hover:not(:disabled) { background: rgba(249,115,22,0.22); color: #fff; }
+    .q-nav-btn.q-next:hover:not(:disabled) {
+      background: rgba(249,115,22,0.2); color: #fff; border-color: rgba(249,115,22,0.5);
+    }
 
     /* Disable all text selection inside the form */
     #testForm { -webkit-user-select: none; user-select: none; }
@@ -284,21 +314,21 @@
     <!-- Filled by buildSidebarAndTabs() in test.js -->
   </div>
 
-  <!-- ── Main layout: sidebar + question panel ────────────────── -->
+  <!-- ── Main layout: question panel + sidebar ────────────────── -->
   <div class="test-body">
 
-    <!-- Left sidebar: question number nav -->
-    <aside id="testSidebar" class="test-sidebar">
-      <!-- Filled by buildSidebarAndTabs() in test.js -->
-    </aside>
-
-    <!-- Right: single-question display -->
+    <!-- Left: single-question display -->
     <div class="test-q-panel">
       <div class="q-panel-inner">
         <div id="testForm"></div>
         <p id="message" class="mt-4"></p>
       </div>
     </div>
+
+    <!-- Right sidebar: question number nav -->
+    <aside id="testSidebar" class="test-sidebar">
+      <!-- Filled by buildSidebarAndTabs() in test.js -->
+    </aside>
 
   </div>
 
