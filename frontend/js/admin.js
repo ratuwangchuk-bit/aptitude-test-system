@@ -126,15 +126,15 @@ async function loadDashboard(showErrors = true) {
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon amber"><svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
-        <p class="metric-label">Highest Score</p><p class="metric-value">${s.highest_score || 0}<small>/45</small></p><p class="metric-note">Top performer</p>
+        <p class="metric-label">Highest Score</p><p class="metric-value">${s.highest_score || 0}<small>/48</small></p><p class="metric-note">Top performer</p>
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon purple"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
-        <p class="metric-label">Average Score</p><p class="metric-value">${Number(s.average_score || 0).toFixed(1)}<small>/45</small></p><p class="metric-note">Overall average</p>
+        <p class="metric-label">Average Score</p><p class="metric-value">${Number(s.average_score || 0).toFixed(1)}<small>/48</small></p><p class="metric-note">Overall average</p>
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon rose"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
-        <p class="metric-label">Lowest Score</p><p class="metric-value">${s.lowest_score || 0}<small>/45</small></p><p class="metric-note">Minimum score</p>
+        <p class="metric-label">Lowest Score</p><p class="metric-value">${s.lowest_score || 0}<small>/48</small></p><p class="metric-note">Minimum score</p>
       </div>`;
 
     allResults = await api('/api/admin/results');
@@ -246,10 +246,10 @@ function renderDistributionChart(rows) {
   }
   const buckets = [
     { label: '0–9',   min: 0,  max: 9  },
-    { label: '10–18', min: 10, max: 18 },
-    { label: '19–27', min: 19, max: 27 },
-    { label: '28–36', min: 28, max: 36 },
-    { label: '37–45', min: 37, max: 45 },
+    { label: '10–19', min: 10, max: 19 },
+    { label: '20–29', min: 20, max: 29 },
+    { label: '30–39', min: 30, max: 39 },
+    { label: '40–48', min: 40, max: 48 },
   ].map(b => ({ ...b, count: rows.filter(r => Number(r.score || 0) >= b.min && Number(r.score || 0) <= b.max).length }));
   const max = Math.max(1, ...buckets.map(b => b.count));
   el.innerHTML = buckets.map(b => `
@@ -276,7 +276,7 @@ function renderResults(rows) {
           ${isSuperAdmin() ? `<td class="text-center"><input type="checkbox" class="result-checkbox" data-id="${r.submission_id}" ${selectedResultIds.has(r.submission_id) ? 'checked' : ''} onchange="toggleResultSelection(${r.submission_id}, this)"></td>` : ''}
           <td class="text-center"><span class="serial-badge">${i + 1}</span></td>
           <td><b>${escapeHtml(r.full_name)}</b><div class="text-xs text-slate-500 mt-1">CID: ${escapeHtml(r.cid_number || '-')}</div></td>
-          <td><span class="score-badge total">${r.score}/${r.total_questions || 45}</span></td>
+          <td><span class="score-badge total">${r.score}/${r.total_questions || 48}</span></td>
           <td><span class="score-badge analytical">${r.analytical_score}/15</span></td>
           <td><span class="score-badge verbal">${r.verbal_score}/15</span></td>
           <td><span class="score-badge quantitative">${r.quantitative_score}/15</span></td>
@@ -405,7 +405,7 @@ function showResultDetailModal(d) {
         </button>
       </div>
       <div class="rd-scores">
-        <div class="rd-score-item total"><span>Total</span><b>${d.score}/${d.total_questions || 45}</b></div>
+        <div class="rd-score-item total"><span>Total</span><b>${d.score}/${d.total_questions || 48}</b></div>
         <div class="rd-score-item analytical"><span>Analytical</span><b>${d.analytical_score}/15</b></div>
         <div class="rd-score-item verbal"><span>Verbal</span><b>${d.verbal_score}/15</b></div>
         <div class="rd-score-item quantitative"><span>Quantitative</span><b>${d.quantitative_score}/15</b></div>
@@ -504,7 +504,7 @@ function downloadIndividualResult() {
     <div class="sub">CID: ${d.cid_number || '—'} &nbsp;·&nbsp; ${d.company_name || '—'} &nbsp;·&nbsp; ${d.contact_number || '—'}</div>
   </div>
   <div class="scores">
-    <div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}/${d.total_questions || 45}</span></div>
+    <div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}/${d.total_questions || 48}</span></div>
     <div class="si ana"><span class="lbl">Analytical</span><span class="val">${d.analytical_score}/15</span></div>
     <div class="si ver"><span class="lbl">Verbal</span><span class="val">${d.verbal_score}/15</span></div>
     <div class="si qnt"><span class="lbl">Quantitative</span><span class="val">${d.quantitative_score}/15</span></div>
@@ -540,7 +540,7 @@ function printAllResults() {
     : '—';
 
   const rows = results.map((r, i) => {
-    const total = r.total_questions || 45;
+    const total = r.total_questions || 48;
     const pct   = ((r.score / total) * 100).toFixed(1);
     const pctN  = parseFloat(pct);
     const scoreCol = pctN >= 70 ? '#15803d' : pctN >= 50 ? '#1d4ed8' : '#b91c1c';
@@ -708,12 +708,12 @@ function printAllResults() {
       <div class="doc-title">Final Result Summary &mdash; All Participants</div>
       <div class="doc-sub">
         Sections: Analytical Ability &nbsp;&middot;&nbsp; Verbal Ability &nbsp;&middot;&nbsp; Quantitative Skills<br>
-        45 Questions &nbsp;&middot;&nbsp; 1 Mark Per Question &nbsp;&middot;&nbsp; No Negative Marking &nbsp;&middot;&nbsp; Ranked by Total Score
+        48 Questions &nbsp;&middot;&nbsp; 1 Mark Per Question &nbsp;&middot;&nbsp; No Negative Marking &nbsp;&middot;&nbsp; Ranked by Total Score
       </div>
     </div>
     <div class="intro-stats">
       <div class="istat"><span class="lbl">Participants</span><span class="val">${results.length}</span></div>
-      <div class="istat"><span class="lbl">Max Score</span><span class="val">45</span></div>
+      <div class="istat"><span class="lbl">Max Score</span><span class="val">48</span></div>
       <div class="istat"><span class="lbl">Top Score</span><span class="val">${topScore}</span></div>
       <div class="istat"><span class="lbl">Avg Score</span><span class="val">${avgScore}</span></div>
     </div>
@@ -725,7 +725,7 @@ function printAllResults() {
       <tr>
         <th colspan="9" class="tbl-caption">
           <span class="tbl-caption-title">Participant Results &mdash; Ranked by Total Score</span>
-          <span class="tbl-caption-sub">45 Questions &nbsp;&middot;&nbsp; Sections: Analytical / Verbal / Quantitative &nbsp;&middot;&nbsp; 1 Mark Each &nbsp;&middot;&nbsp; No Negative Marking</span>
+          <span class="tbl-caption-sub">48 Questions &nbsp;&middot;&nbsp; Sections: Analytical / Verbal / Quantitative &nbsp;&middot;&nbsp; 1 Mark Each &nbsp;&middot;&nbsp; No Negative Marking</span>
         </th>
       </tr>
       <tr>
@@ -733,7 +733,7 @@ function printAllResults() {
         <th>Name &amp; CID</th>
         <th>Company</th>
         <th>Contact</th>
-        <th class="c">Total<br>/45</th>
+        <th class="c">Total<br>/48</th>
         <th class="c">Analytical<br>/15</th>
         <th class="c">Verbal<br>/15</th>
         <th class="c">Quantitative<br>/15</th>
@@ -860,8 +860,8 @@ function renderQuestions(rows) {
   const warn = (el, count) => {
     if (!el) return;
     el.textContent = count;
-    el.style.color = count < 15 ? '#dc2626' : '';
-    el.title = count < 15 ? 'Warning: fewer than 15 questions — participants will see all of them' : '';
+    el.style.color = count < 16 ? '#dc2626' : '';
+    el.title = count < 16 ? 'Warning: fewer than 16 questions — participants will see all of them' : '';
   };
   warn(elA, countA); warn(elB, countB); warn(elC, countC);
 
@@ -890,7 +890,7 @@ function renderQuestions(rows) {
     html += `<tr class="q-section-header">
       <td colspan="${cols}">
         ${label}
-        <span>&nbsp;—&nbsp; ${qs.length} question${qs.length !== 1 ? 's' : ''} in bank &nbsp;·&nbsp; 15 randomly shown per participant</span>
+        <span>&nbsp;—&nbsp; ${qs.length} question${qs.length !== 1 ? 's' : ''} in bank &nbsp;·&nbsp; 16 randomly shown per participant</span>
       </td>
     </tr>`;
 

@@ -21,13 +21,13 @@ import (
 func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Analytical Ability'  ORDER BY random() LIMIT 15)
+		 FROM questions WHERE section='Analytical Ability'  ORDER BY random() LIMIT 16)
 		UNION ALL
 		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Verbal Ability'      ORDER BY random() LIMIT 15)
+		 FROM questions WHERE section='Verbal Ability'      ORDER BY random() LIMIT 16)
 		UNION ALL
 		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Quantitative Skills' ORDER BY random() LIMIT 15)`)
+		 FROM questions WHERE section='Quantitative Skills' ORDER BY random() LIMIT 16)`)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
 		return
