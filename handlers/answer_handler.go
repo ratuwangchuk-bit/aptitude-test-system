@@ -14,13 +14,17 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GetAnswers returns every answer row joined with its question text and section.
-// The results are ordered by question_id so they align with the question list.
+// GetAnswers returns all questions with their correct answer (if one exists).
+// A LEFT JOIN from questions ensures every question appears — those without an
+// answer show id=0 and correct_option="" so the admin can see what still needs
+// to be configured.
 func GetAnswers(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
-		SELECT a.id, a.question_id, q.question_text, q.section, a.correct_option
-		FROM answers a JOIN questions q ON a.question_id=q.id
-		ORDER BY a.question_id ASC`)
+		SELECT COALESCE(a.id, 0), q.id, q.question_text, q.section,
+		       COALESCE(a.correct_option, '') AS correct_option
+		FROM questions q
+		LEFT JOIN answers a ON a.question_id = q.id
+		ORDER BY q.id ASC`)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load answers")
 		return

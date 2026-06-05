@@ -1087,19 +1087,38 @@ function renderAnswers(rows) {
   const selectAll = document.getElementById('selectAllAnswers');
   if (selectAll) selectAll.checked = false;
   tbody.innerHTML = rows.length
-    ? rows.map(a => `
+    ? rows.map(a => {
+        const hasAnswer = a.correct_option && a.correct_option !== '';
+        const optionBadge = hasAnswer
+          ? `<span class="pill pill-green">Option ${escapeHtml(a.correct_option)}</span>`
+          : `<span class="pill" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Not Set</span>`;
+        const actionCell = isSuperAdmin() ? `<td><div class="flex gap-2">
+            ${hasAnswer
+              ? `<button class="btn-icon btn-warning" title="Edit"   onclick="editAnswer(${a.id})">${ICON.edit}</button>
+                 <button class="btn-icon btn-danger"  title="Delete" onclick="deleteAnswer(${a.id})">${ICON.trash}</button>`
+              : `<button class="btn-icon btn-soft" title="Set Answer" onclick="prefillAnswerForm(${a.question_id})" style="font-size:0.7rem;padding:0.25rem 0.5rem;width:auto">Set</button>`
+            }
+          </div></td>` : '';
+        return `
         <tr>
-          ${isSuperAdmin() ? `<td class="text-center"><input type="checkbox" class="answer-checkbox" data-id="${a.id}" ${selectedAnswerIds.has(a.id) ? 'checked' : ''} onchange="toggleAnswerSelection(${a.id}, this)"></td>` : ''}
+          ${isSuperAdmin() ? `<td class="text-center">${hasAnswer ? `<input type="checkbox" class="answer-checkbox" data-id="${a.id}" ${selectedAnswerIds.has(a.id) ? 'checked' : ''} onchange="toggleAnswerSelection(${a.id}, this)">` : ''}</td>` : ''}
           <td>${a.question_id}</td>
           <td><span class="pill pill-teal">${escapeHtml(SECTION_SHORT[a.section] || a.section || '-')}</span></td>
           <td class="min-w-[300px]">${escapeHtml(a.question_text)}</td>
-          <td><span class="pill pill-green">Option ${escapeHtml(a.correct_option)}</span></td>
-          ${isSuperAdmin() ? `<td><div class="flex gap-2">
-            <button class="btn-icon btn-warning" title="Edit"   onclick="editAnswer(${a.id})">${ICON.edit}</button>
-            <button class="btn-icon btn-danger"  title="Delete" onclick="deleteAnswer(${a.id})">${ICON.trash}</button>
-          </div></td>` : ''}
-        </tr>`).join('')
-    : `<tr><td colspan="${isSuperAdmin() ? 6 : 4}" class="text-center text-slate-500 py-8">No answers found.</td></tr>`;
+          <td>${optionBadge}</td>
+          ${actionCell}
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="${isSuperAdmin() ? 6 : 4}" class="text-center text-slate-500 py-8">No questions found.</td></tr>`;
+}
+
+function prefillAnswerForm(questionId) {
+  document.getElementById('answer_id_edit').value = '';
+  document.getElementById('question_id').value = questionId;
+  document.getElementById('answerFormTitle').textContent = 'Add Correct Answer';
+  document.getElementById('cancelAnswerEdit').classList.add('hidden');
+  document.querySelector('.management-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('correct_option').focus();
 }
 
 function toggleAnswerSelection(id, el) {
