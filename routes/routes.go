@@ -53,6 +53,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/passcodes/{id}", middleware.SuperAdminOnly(handlers.DeletePasscode)).Methods("DELETE")
 
 	// /upload and collection POST must come before /{id} so gorilla/mux matches them first.
+	r.HandleFunc("/api/admin/questions/template", middleware.AdminAuth(handlers.QuestionsTemplate)).Methods("GET")
 	r.HandleFunc("/api/admin/questions/upload", middleware.SuperAdminOnly(handlers.UploadQuestions)).Methods("POST")
 	r.HandleFunc("/api/admin/questions", middleware.SuperAdminOnly(handlers.AddQuestion)).Methods("POST")
 	r.HandleFunc("/api/admin/questions/{id}/image", middleware.SuperAdminOnly(handlers.UploadQuestionImage)).Methods("POST")
@@ -60,6 +61,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.UpdateQuestion)).Methods("PUT")
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.DeleteQuestion)).Methods("DELETE")
 
+	r.HandleFunc("/api/admin/answers/template", middleware.AdminAuth(handlers.AnswersTemplate)).Methods("GET")
 	r.HandleFunc("/api/admin/answers/upload", middleware.SuperAdminOnly(handlers.UploadAnswers)).Methods("POST")
 	r.HandleFunc("/api/admin/answers", middleware.SuperAdminOnly(handlers.AddAnswer)).Methods("POST")
 	r.HandleFunc("/api/admin/answers/{id}", middleware.SuperAdminOnly(handlers.UpdateAnswer)).Methods("PUT")

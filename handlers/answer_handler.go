@@ -215,3 +215,38 @@ func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.JSON(w, http.StatusOK, map[string]interface{}{"message": "Answers uploaded", "count": count})
 }
+
+// AnswersTemplate generates a blank Excel upload template for answers with one
+// sheet per active section, so the template always matches the current DB setup.
+func AnswersTemplate(w http.ResponseWriter, r *http.Request) {
+	sections, err := loadActiveSections()
+	if err != nil || len(sections) == 0 {
+		utils.Error(w, http.StatusInternalServerError, "No active sections found")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	first := true
+	for _, sec := range sections {
+		sheetName := sec.Name
+		if first {
+			f.SetSheetName("Sheet1", sheetName)
+			first = false
+		} else {
+			f.NewSheet(sheetName)
+		}
+		for col, h := range []string{"question_id", "correct_option"} {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+			f.SetCellValue(sheetName, cell, h)
+		}
+		// Example row.
+		f.SetCellValue(sheetName, "A2", "1")
+		f.SetCellValue(sheetName, "B2", "A")
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="answers_template.xlsx"`)
+	f.Write(w) //nolint:errcheck
+}

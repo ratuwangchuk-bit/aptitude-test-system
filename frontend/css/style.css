@@ -298,9 +298,6 @@ table.modern-table {
   display: inline-block; color: #2563eb; font-size: .7rem;
   letter-spacing: .2em; margin-top: .2rem;
 }
-.result-table thead th:nth-child(4) span { color: #ea580c; }
-.result-table thead th:nth-child(5) span { color: #2563eb; }
-.result-table thead th:nth-child(6) span { color: #16a34a; }
 .result-table td { text-align: center; vertical-align: middle; }
 .result-table td:nth-child(2), .result-table td:nth-child(8), .result-table td:nth-child(9) { text-align: left; }
 .result-table-wrap { background: #fff; }

@@ -608,8 +608,11 @@ function renderResultsTableHeader() {
   if (!header) return;
   const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0) || 48;
   const sectionHeaders = allSections.length
-    ? allSections.map(s => `<th>${escapeHtml(s.label || s.name)}<br><span>Out of ${s.questions_per_test}</span></th>`).join('')
-    : `<th>Analytical<br><span>Out of 16</span></th><th>Verbal<br><span>Out of 16</span></th><th>Quantitative<br><span>Out of 16</span></th>`;
+    ? allSections.map(s => {
+        const [, bg, color] = sectionPalette(s.name);
+        return `<th>${escapeHtml(s.label || s.name)}<br><span style="color:${color}">${s.questions_per_test} questions</span></th>`;
+      }).join('')
+    : '';
   header.innerHTML = `
     ${isSuperAdmin() ? '<th style="width:40px"><input type="checkbox" id="selectAllResults" title="Select all" onchange="toggleSelectAllResults(this)"></th>' : ''}
     <th>Serial No.</th>
@@ -918,7 +921,7 @@ function printAllResults() {
 
   const sectionHeaders = allSections.length
     ? allSections.map(s => `<th class="c">${escapeHtml(s.label || s.name)}<br>/${s.questions_per_test}</th>`).join('')
-    : `<th class="c">Analytical<br>/16</th><th class="c">Verbal<br>/16</th><th class="c">Quantitative<br>/16</th>`;
+    : '';
 
   const rows = results.map((r, i) => {
     const pct    = ((r.score / totalQ) * 100).toFixed(1);

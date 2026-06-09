@@ -365,3 +365,47 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 		"answers":   answerCount,
 	})
 }
+
+// QuestionsTemplate generates a blank Excel upload template with one sheet per
+// active section so admins always get a template that matches the current DB setup.
+func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
+	sections, err := loadActiveSections()
+	if err != nil || len(sections) == 0 {
+		utils.Error(w, http.StatusInternalServerError, "No active sections found")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	headers := []string{
+		"section", "question_text", "question_type",
+		"option_a", "option_b", "option_c", "option_d",
+		"correct_option",
+	}
+
+	first := true
+	for _, sec := range sections {
+		sheetName := sec.Name
+		if first {
+			f.SetSheetName("Sheet1", sheetName)
+			first = false
+		} else {
+			f.NewSheet(sheetName)
+		}
+		for col, h := range headers {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+			f.SetCellValue(sheetName, cell, h)
+		}
+		// Example row so admins know the format.
+		example := []string{sec.Name, "Enter question text here", "mcq", "Option A text", "Option B text", "Option C text", "Option D text", "A"}
+		for col, v := range example {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 2)
+			f.SetCellValue(sheetName, cell, v)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="questions_template.xlsx"`)
+	f.Write(w) //nolint:errcheck
+}
