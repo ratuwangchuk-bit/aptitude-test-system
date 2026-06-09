@@ -8,95 +8,91 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="admin-body min-h-screen pb-10">
+<body class="admin-body min-h-screen pb-12">
 
-  <!-- ── Top navigation bar ───────────────────────────────── -->
-  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-      <!-- Brand -->
-      <div class="flex items-center gap-3">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black">Participants</h1>
-          <p class="text-white/70 text-sm font-semibold">Pre-register participants before the test session.</p>
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Participants</h1>
+            <p class="text-white/60 text-xs font-semibold">Pre-register participants to allow CID verification.</p>
+          </div>
         </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link" href="answers.html">Answers</a>
+          <a class="nav-link active" href="participants.html">Participants</a>
+          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
       </div>
+    </header>
+  </div>
 
-      <!-- Nav links -->
-      <nav class="nav-area flex gap-2">
-        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
-        <a class="nav-link" href="questions.html">Questions</a>
-        <a class="nav-link" href="answers.html">Answers</a>
-        <a class="nav-link active" href="participants.html">Participants</a>
-        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
-        <a class="nav-link super-only" href="admins.html">Admins</a>
-        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
-          <span class="logout-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
-          </span>
-          Logout
-        </button>
-      </nav>
-
-    </div>
-  </header>
-
-  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
     <!-- ── Add form + bulk upload (super admin only) ──────────── -->
-    <section class="grid lg:grid-cols-5 gap-6 super-only management-panel">
+    <section class="grid lg:grid-cols-5 gap-5 super-only management-panel">
 
       <!-- Add participant form -->
-      <div class="card p-5 sm:p-6 lg:col-span-3">
-        <div class="flex items-center justify-between mb-5">
-          <div>
-            <h2 class="text-xl font-black" id="participantFormTitle">Add Participant</h2>
-            <p class="text-sm text-slate-500 font-semibold">Pre-register a participant so they can verify their CID and take the test.</p>
-          </div>
+      <div class="card p-6 lg:col-span-3">
+        <div class="mb-5">
+          <h2 class="text-lg font-black text-slate-800" id="participantFormTitle">Add Participant</h2>
+          <p class="text-sm text-slate-500 font-semibold">Register a participant so they can verify their CID and sit the test.</p>
         </div>
 
         <form id="participantForm" class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="p_full_name">Full Name</label>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_full_name">Full Name</label>
             <input id="p_full_name" class="input" placeholder="Full name" required>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="p_cid_number">CID Number</label>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_cid_number">CID Number</label>
             <input id="p_cid_number" class="input" placeholder="e.g. 11512000000" minlength="5" required>
-            <p class="mt-1 text-xs text-slate-400 font-semibold">Must be unique across all participants.</p>
+            <p class="mt-1.5 text-xs text-slate-400 font-semibold">Must be unique across all participants.</p>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="p_company_name">Company / Organisation</label>
-            <input id="p_company_name" class="input" placeholder="Company or organisation name" required>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_company_name">Company / Organisation</label>
+            <input id="p_company_name" class="input" placeholder="Company or organisation" required>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="p_contact_number">Contact Number</label>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_contact_number">Contact Number</label>
             <input id="p_contact_number" class="input" placeholder="e.g. +975 17000000" minlength="5" required>
           </div>
-
-          <div class="sm:col-span-2 flex justify-center">
+          <div class="sm:col-span-2 flex justify-end">
             <button id="participantSubmitBtn" class="btn flex items-center gap-2 px-6" type="submit">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
               </svg>
-              <span>Add Participant</span>
+              Add Participant
             </button>
           </div>
         </form>
-
-        <p id="message" class="mt-4"></p>
+        <p id="message" class="mt-2"></p>
       </div>
 
-      <!-- Bulk upload via Excel -->
-      <div class="card p-5 sm:p-6 lg:col-span-2">
-        <div class="flex items-start justify-between mb-2">
-          <h2 class="text-xl font-black">Upload Participants in Bulk</h2>
-          <!-- Download template -->
-          <a class="btn-icon btn-soft" href="/api/admin/participants/template" download title="Download Participants Template">
+      <!-- Bulk upload -->
+      <div class="card p-6 lg:col-span-2 flex flex-col">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
+            <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import participants from a spreadsheet.</p>
+          </div>
+          <a class="btn-icon btn-soft shrink-0" href="/api/admin/participants/template"
+             download title="Download participants template">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -104,39 +100,37 @@
             </svg>
           </a>
         </div>
-        <p class="text-sm text-slate-600 mb-4">Download the template, fill in participant details, then upload. Duplicate CID numbers are skipped automatically.</p>
-        <p class="text-xs text-slate-500 font-bold mb-3">Columns: Full Name, CID Number, Company Name, Contact Number.</p>
-        <input id="participantFile" type="file" accept=".xlsx" class="input">
-        <div class="flex justify-center mt-4">
-          <button onclick="uploadParticipants()" class="btn flex items-center gap-2 px-6">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            Upload Excel
-          </button>
-        </div>
+        <p class="text-sm text-slate-500 font-semibold mb-2">Download the template and fill in: <strong>Full Name, CID Number, Company, Contact Number</strong>. Duplicate CIDs are skipped automatically.</p>
+        <input id="participantFile" type="file" accept=".xlsx" class="input text-sm mb-4 mt-2">
+        <button onclick="uploadParticipants()" class="btn flex items-center gap-2 justify-center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
+        </button>
       </div>
 
     </section>
 
     <!-- ── All participants table ─────────────────────────────── -->
-    <section class="card p-5 sm:p-6 mt-6">
+    <section class="card p-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h2 class="text-xl font-black">Registered Participants</h2>
-          <p class="text-sm text-slate-500 font-semibold">Participants who can verify their CID and take the test.</p>
+          <h2 class="text-lg font-black text-slate-800">Registered Participants</h2>
+          <p class="text-sm text-slate-500 font-semibold">All pre-registered participants who can verify their CID.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-          <input id="participantSearch" class="input sm:max-w-xs" placeholder="Search participant...">
-          <button id="deleteSelectedParticipantsBtn" onclick="deleteSelectedParticipants()" class="btn-outline hidden flex items-center gap-1.5 whitespace-nowrap text-red-600 border-red-300 hover:bg-red-50" title="Delete selected participants">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <input id="participantSearch" class="input sm:max-w-xs text-sm" placeholder="Search by name or CID…">
+          <button id="deleteSelectedParticipantsBtn" onclick="deleteSelectedParticipants()"
+                  class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/>
               <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
-            <span>Delete Selected</span>
+            Delete Selected
           </button>
         </div>
       </div>
@@ -144,13 +138,15 @@
         <table class="modern-table">
           <thead>
             <tr>
-              <th class="super-only" style="width:40px"><input type="checkbox" id="selectAllParticipants" title="Select all" onchange="toggleSelectAllParticipants(this)"></th>
+              <th class="super-only" style="width:40px">
+                <input type="checkbox" id="selectAllParticipants" title="Select all" onchange="toggleSelectAllParticipants(this)">
+              </th>
               <th>Full Name</th>
-              <th>CID Number</th>
+              <th style="width:10rem">CID Number</th>
               <th>Company</th>
-              <th>Contact</th>
-              <th>Status</th>
-              <th class="super-only">Action</th>
+              <th style="width:10rem">Contact</th>
+              <th style="width:7rem">Status</th>
+              <th class="super-only" style="width:6rem">Action</th>
             </tr>
           </thead>
           <tbody id="participantsTable"></tbody>

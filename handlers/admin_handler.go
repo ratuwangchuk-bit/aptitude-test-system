@@ -14,15 +14,11 @@ import (
 )
 
 // DashboardSummary returns aggregate statistics used by the admin dashboard cards.
-// Each stat is a separate query; errors are silently ignored and default to zero
-// because these are non-critical read-only counts — a transient failure should
-// not break the whole dashboard render.
 func DashboardSummary(w http.ResponseWriter, r *http.Request) {
 	var totalParticipants, appearedParticipants, highestScore, lowestScore int
 	var averageScore float64
 
 	config.DB.QueryRow("SELECT COUNT(*) FROM participants").Scan(&totalParticipants)
-	// DISTINCT avoids double-counting if a participant somehow has multiple submissions.
 	config.DB.QueryRow("SELECT COUNT(DISTINCT participant_id) FROM submissions").Scan(&appearedParticipants)
 	config.DB.QueryRow("SELECT COALESCE(MAX(score),0) FROM submissions").Scan(&highestScore)
 	config.DB.QueryRow("SELECT COALESCE(AVG(score),0) FROM submissions").Scan(&averageScore)
@@ -37,19 +33,17 @@ func DashboardSummary(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ExportResults generates and streams an Excel (.xlsx) file containing all
-// submission results ranked by score. Timestamps are converted to BST (UTC+6)
-// before being written so the spreadsheet shows local Bhutan time.
+// ExportResults generates and streams an Excel file with all results.
+// Section columns are built dynamically from the active test_sections configuration.
 func ExportResults(w http.ResponseWriter, r *http.Request) {
-	// DENSE_RANK handles ties: two participants with the same score share the same
-	// rank and the next rank is not skipped (unlike ROW_NUMBER).
+	sections, _ := loadActiveSections()
+
 	rows, err := config.DB.Query(`
 		SELECT p.full_name, p.cid_number, p.company_name, p.contact_number,
-		       s.score, s.total_questions,
-		       COALESCE(s.analytical_score,0), COALESCE(s.verbal_score,0), COALESCE(s.quantitative_score,0),
-		       s.percentage,
+		       s.score, s.total_questions, s.percentage,
 		       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
-		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
+		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at,
+		       s.id AS submission_id
 		FROM submissions s
 		JOIN participants p ON s.participant_id = p.id
 		ORDER BY rank ASC`)
@@ -59,62 +53,72 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	// Collect all submissions first so we can look up section scores.
+	type row struct {
+		fullName, cidNumber, companyName, contactNumber string
+		score, totalQuestions                           int
+		percentage                                      float64
+		rank                                            int
+		submittedAt                                     string
+		submissionID                                    int
+	}
+	var allRows []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(
+			&r.fullName, &r.cidNumber, &r.companyName, &r.contactNumber,
+			&r.score, &r.totalQuestions, &r.percentage, &r.rank, &r.submittedAt, &r.submissionID,
+		); err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not read results")
+			return
+		}
+		allRows = append(allRows, r)
+	}
+
 	f := excelize.NewFile()
 	defer f.Close()
-
 	sheet := "Results"
 	f.SetSheetName("Sheet1", sheet)
 
-	headers := []string{
-		"Rank", "Full Name", "CID Number", "Company", "Contact Number",
-		"Total Score (/48)", "Analytical (/16)", "Verbal (/16)", "Quantitative (/16)",
-		"Percentage (%)", "Submitted At (BST)",
+	// Build dynamic headers.
+	headers := []string{"Rank", "Full Name", "CID Number", "Company", "Contact Number",
+		fmt.Sprintf("Total Score (/%d)", totalQuestionsFromSections(sections))}
+	for _, sec := range sections {
+		headers = append(headers, fmt.Sprintf("%s (/%d)", sec.Label, sec.QuestionsPerTest))
 	}
+	headers = append(headers, "Percentage (%)", "Submitted At (BST)")
+
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 
-	// Bhutan Standard Time is UTC+6. The DB stores timestamps in UTC; we convert
-	// here so the exported file shows familiar local times for the administrators.
 	bst := time.FixedZone("BST", 6*60*60)
-	rowNum := 2
-	for rows.Next() {
-		var (
-			fullName, cidNumber, companyName, contactNumber string
-			score, totalQuestions                           int
-			analyticalScore, verbalScore, quantitativeScore int
-			percentage                                      float64
-			rank                                            int
-			submittedAt                                     string
-		)
-		if err := rows.Scan(
-			&fullName, &cidNumber, &companyName, &contactNumber,
-			&score, &totalQuestions, &analyticalScore, &verbalScore, &quantitativeScore,
-			&percentage, &rank, &submittedAt,
-		); err != nil {
-			utils.Error(w, http.StatusInternalServerError, "Could not read results")
-			return
+	for rowNum, r := range allRows {
+		sectionScores := loadSectionScores(r.submissionID)
+		scoreBySection := make(map[string]int)
+		for _, ss := range sectionScores {
+			scoreBySection[ss.SectionName] = ss.Score
 		}
 
-		// Parse the UTC timestamp from the DB and convert to BST for display.
 		submittedAtBST := "-"
-		if t, parseErr := time.Parse("2006-01-02 15:04", submittedAt); parseErr == nil {
+		if t, parseErr := time.Parse("2006-01-02 15:04", r.submittedAt); parseErr == nil {
 			submittedAtBST = t.In(bst).Format("Jan 2, 2006, 3:04 PM")
 		}
 
 		values := []interface{}{
-			rank, fullName, cidNumber, companyName, contactNumber,
-			fmt.Sprintf("%d/%d", score, totalQuestions),
-			analyticalScore, verbalScore, quantitativeScore,
-			fmt.Sprintf("%.1f%%", percentage),
-			submittedAtBST,
+			r.rank, r.fullName, r.cidNumber, r.companyName, r.contactNumber,
+			fmt.Sprintf("%d/%d", r.score, r.totalQuestions),
 		}
+		for _, sec := range sections {
+			values = append(values, scoreBySection[sec.Name])
+		}
+		values = append(values, fmt.Sprintf("%.1f%%", r.percentage), submittedAtBST)
+
 		for i, v := range values {
-			cell, _ := excelize.CoordinatesToCellName(i+1, rowNum)
+			cell, _ := excelize.CoordinatesToCellName(i+1, rowNum+2)
 			f.SetCellValue(sheet, cell, v)
 		}
-		rowNum++
 	}
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -122,10 +126,15 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 	f.Write(w) //nolint:errcheck
 }
 
+func totalQuestionsFromSections(sections []models.TestSection) int {
+	total := 0
+	for _, s := range sections {
+		total += s.QuestionsPerTest
+	}
+	return total
+}
+
 // DeleteResult removes a single submission by its ID.
-// The participant's individual answers are removed automatically by the
-// ON DELETE CASCADE constraint on participant_answers.submission_id.
-// After deletion the participant can retake the test.
 func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	res, err := config.DB.Exec("DELETE FROM submissions WHERE id=$1", id)
@@ -141,9 +150,7 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted successfully"})
 }
 
-// GetResults returns all submissions with their computed rank, ordered from
-// highest to lowest score. The result set is used to render the Final Result
-// Summary table on the admin dashboard.
+// GetResults returns all submissions with computed rank and per-section scores.
 func GetResults(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT s.id, p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
@@ -173,6 +180,7 @@ func GetResults(w http.ResponseWriter, r *http.Request) {
 			utils.Error(w, http.StatusInternalServerError, "Could not read results")
 			return
 		}
+		res.SectionScores = loadSectionScores(res.SubmissionID)
 		results = append(results, res)
 	}
 	utils.JSON(w, http.StatusOK, results)

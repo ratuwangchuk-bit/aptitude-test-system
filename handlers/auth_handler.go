@@ -18,8 +18,8 @@ type loginRequest struct {
 }
 
 // AdminLogin authenticates an admin by username and password.
-// On success it creates a session row in admin_sessions that expires in 1 hour
-// and sets an HttpOnly cookie containing the opaque session token.
+// On success it creates a session row in admin_sessions (1 hour for super_admin,
+// 30 minutes for general_admin) and sets an HttpOnly cookie containing the token.
 // HttpOnly prevents JavaScript from reading the cookie, which mitigates XSS-based
 // session hijacking.
 func AdminLogin(w http.ResponseWriter, r *http.Request) {
@@ -65,9 +65,12 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sessions expire after 1 hour. The expiry is enforced both in the DB
-	// (expires_at > NOW() in queries) and via the cookie's Expires attribute.
-	expiresAt := time.Now().Add(1 * time.Hour)
+	// Super admins get a 1-hour session; general admins get 30 minutes.
+	sessionDuration := 30 * time.Minute
+	if role == "super_admin" {
+		sessionDuration = 1 * time.Hour
+	}
+	expiresAt := time.Now().Add(sessionDuration)
 	_, err = config.DB.Exec(
 		"INSERT INTO admin_sessions (admin_id, session_token, expires_at) VALUES ($1, $2, $3)",
 		adminID, token, expiresAt,

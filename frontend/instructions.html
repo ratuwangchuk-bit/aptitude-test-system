@@ -9,34 +9,14 @@
   <link rel="stylesheet" href="css/style.css">
   <style>
     .orb {
-      position: absolute;
-      border-radius: 9999px;
-      filter: blur(72px);
-      opacity: 0.18;
-      pointer-events: none;
+      position: absolute; border-radius: 9999px;
+      filter: blur(80px); opacity: 0.16; pointer-events: none;
     }
-    .step-bar {
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.15);
-      overflow: hidden;
-    }
+    .step-bar { height: 3px; border-radius: 999px; background: rgba(255,255,255,.14); overflow: hidden; }
     .step-bar-fill {
-      height: 100%;
-      border-radius: 999px;
+      height: 100%; border-radius: 999px;
       background: linear-gradient(90deg, #2dd4bf, #60a5fa);
-      width: 75%; /* Step 3 of 4 */
-    }
-    .info-card {
-      border-radius: 1rem;
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      padding: 1.1rem 1.25rem;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .info-card:hover {
-      border-color: #99f6e4;
-      box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.08);
+      width: 75%;
     }
   </style>
 </head>
@@ -44,122 +24,99 @@
 <body class="min-h-screen bg-slate-50">
 <div class="min-h-screen flex flex-col lg:flex-row">
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════════
        LEFT — Branding panel
-  ════════════════════════════════════════════════════════════ -->
-  <div class="relative lg:w-[46%] xl:w-[42%] flex flex-col justify-between overflow-hidden
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="relative lg:w-[44%] xl:w-[40%] flex flex-col justify-between overflow-hidden
               px-8 py-12 sm:px-12 lg:px-14 lg:py-16"
-       style="background: linear-gradient(150deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%)">
+       style="background: linear-gradient(150deg,#0b1220 0%,#1a2e6e 55%,#0a5c54 100%)">
 
-    <!-- Decorative orbs -->
     <div class="orb w-96 h-96 -top-24 -right-24 bg-blue-400"></div>
     <div class="orb w-80 h-80 bottom-0 -left-20 bg-teal-400"></div>
     <div class="orb w-48 h-48 top-1/2 right-10 bg-indigo-400"></div>
 
-    <!-- Top: Logo + step indicator -->
+    <!-- Top: Logo + step -->
     <div class="relative z-10 flex flex-col items-center text-center">
-
-      <!-- Logo -->
       <div class="flex justify-center mb-8">
-        <div class="rounded-2xl p-3 shadow-2xl" style="background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.15)">
-          <img src="assets/logo.png" alt="Digital Aptitude Evaluation System"
-               class="h-32 sm:h-36 object-contain block">
+        <div class="rounded-2xl p-3 shadow-2xl" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14)">
+          <img src="assets/logo.png" alt="DAES" class="h-32 sm:h-36 object-contain block">
         </div>
       </div>
 
-      <!-- Step badge -->
-      <span class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/15"
+      <span class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/14"
             style="background:rgba(255,255,255,.08)">
-        <svg class="w-3.5 h-3.5 text-teal-300" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="w-3.5 h-3.5 text-teal-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
         <span class="text-white/70 text-xs font-black uppercase tracking-widest">Step 3 of 4</span>
       </span>
 
-      <!-- Step progress bar -->
-      <div class="step-bar w-48 mb-6">
+      <div class="step-bar w-44 mb-6">
         <div class="step-bar-fill"></div>
       </div>
 
       <h1 class="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
         Almost There —<br>Read First
       </h1>
-      <p class="text-white/55 font-semibold text-base mt-3 leading-relaxed max-w-xs">
-        Understanding the rules will help you perform your best. Take a moment before you start.
+      <p class="text-white/55 font-semibold text-sm mt-3 leading-relaxed max-w-xs">
+        A few moments here will help you perform your best. Read the rules carefully before starting.
       </p>
     </div>
 
     <!-- Middle: Warning card -->
     <div class="relative z-10 my-10 lg:my-0">
-      <div class="rounded-2xl p-5 space-y-4"
-           style="background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12)">
+      <div class="rounded-2xl p-5 space-y-3.5"
+           style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11)">
         <p class="text-white font-black text-sm flex items-center gap-2">
-          <svg class="w-4 h-4 text-yellow-400 flex-shrink-0" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-4 h-4 text-yellow-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           Important Reminders
         </p>
         <ul class="space-y-2.5">
           <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+            <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             <span class="text-white/65 text-xs font-semibold leading-relaxed">Do not refresh or close the browser tab during the test.</span>
           </li>
           <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+            <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             <span class="text-white/65 text-xs font-semibold leading-relaxed">Answers cannot be changed once the test is submitted.</span>
           </li>
           <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span class="text-white/65 text-xs font-semibold leading-relaxed">The timer starts immediately after clicking Start Test — there is no pause.</span>
+            <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="text-white/65 text-xs font-semibold leading-relaxed">Timer starts the moment you click Start Test — no pause.</span>
           </li>
           <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span class="text-white/65 text-xs font-semibold leading-relaxed">Closing the tab before submission will automatically submit your current answers.</span>
+            <svg class="w-3.5 h-3.5 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="text-white/65 text-xs font-semibold leading-relaxed">Closing the tab early will auto-submit your current answers.</span>
           </li>
         </ul>
       </div>
     </div>
 
-    <!-- Bottom: Copyright -->
     <p class="relative z-10 text-white/25 text-xs font-semibold text-center">
-      © 2026–<span id="cpYear"></span> OCTO · All rights reserved
+      © <span id="cpYear"></span> OCTO · All rights reserved
     </p>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════════
        RIGHT — Instructions panel
-  ════════════════════════════════════════════════════════════ -->
-  <div class="flex-1 flex flex-col justify-center items-center bg-white px-8 py-14 sm:px-14">
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="flex-1 flex flex-col justify-center items-center bg-white px-8 py-12 sm:px-14">
     <div class="w-full max-w-[30rem]">
 
-      <!-- Page header -->
-      <div class="flex flex-col items-center text-center mb-8">
-        <span class="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[0.7rem]
-                     font-black uppercase tracking-widest px-3 py-1.5 rounded-full
-                     border border-teal-100 mb-6">
+      <!-- Header -->
+      <div class="flex flex-col items-center text-center mb-7">
+        <span class="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[0.68rem]
+                     font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-teal-100 mb-5">
           <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
           Test Instructions
         </span>
         <h2 class="text-3xl font-black text-slate-900 leading-tight">Before You Begin</h2>
         <p class="text-slate-500 font-semibold text-sm mt-2 leading-relaxed">
-          Please read all instructions carefully before starting your assessment.
+          Read all instructions carefully before starting your assessment.
         </p>
       </div>
 
@@ -167,39 +124,36 @@
       <div class="flex justify-center mb-6">
         <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700
                      text-sm font-black px-4 py-2 rounded-full border border-blue-100">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          Duration: 60 Minutes
+          Duration: <span id="instrDuration">60</span> Minutes
         </span>
       </div>
 
-      <!-- Instruction cards grid -->
+      <!-- Info cards -->
       <div class="grid sm:grid-cols-2 gap-3 mb-6">
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <span class="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
                 <rect x="9" y="3" width="6" height="4" rx="1"/>
               </svg>
             </span>
-            <p class="font-extrabold text-slate-800 text-sm">48 Questions</p>
+            <p class="font-extrabold text-slate-800 text-sm"><span id="instrTotalQ">–</span> Questions</p>
           </div>
-          <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            There will be a total of 48 questions for today's test.
+          <p class="text-xs text-slate-500 font-semibold leading-relaxed" id="instrTotalQDesc">
+            Loading test configuration…
           </p>
         </div>
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
@@ -207,100 +161,88 @@
             <p class="font-extrabold text-slate-800 text-sm">Timer Starts Immediately</p>
           </div>
           <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            The countdown begins the moment you click Start Test. No pause available.
+            Countdown begins the moment you click Start Test. No pause available.
           </p>
         </div>
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8"  y1="6"  x2="21" y2="6"/>
-                <line x1="8"  y1="12" x2="21" y2="12"/>
-                <line x1="8"  y1="18" x2="21" y2="18"/>
-                <line x1="3"  y1="6"  x2="3.01" y2="6"/>
-                <line x1="3"  y1="12" x2="3.01" y2="12"/>
-                <line x1="3"  y1="18" x2="3.01" y2="18"/>
+            <span class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
               </svg>
             </span>
-            <p class="font-extrabold text-slate-800 text-sm">Three Sections</p>
+            <p class="font-extrabold text-slate-800 text-sm"><span id="instrSectionCount">–</span> Sections</p>
           </div>
-          <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            Section A: Analytical · Section B: Verbal · Section C: Quantitative Skills.
-          </p>
+          <p class="text-xs text-slate-500 font-semibold leading-relaxed" id="instrSectionNames">Loading…</p>
         </div>
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <span class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </span>
             <p class="font-extrabold text-slate-800 text-sm">Auto Submission</p>
           </div>
           <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            The system automatically submits your answers when the time expires.
+            System auto-submits when time expires.
           </p>
         </div>
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <span class="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
             </span>
             <p class="font-extrabold text-slate-800 text-sm">Scoring</p>
           </div>
           <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            1 mark per question with no negative marking.
+            1 mark per question. No negative marking.
           </p>
         </div>
 
         <div class="info-card">
           <div class="flex items-center gap-2 mb-2">
-            <span class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <span class="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-3.5 h-3.5 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                 <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
               </svg>
             </span>
-            <p class="font-extrabold text-slate-800 text-sm">16 Questions Per Section</p>
+            <p class="font-extrabold text-slate-800 text-sm" id="instrPerSectionTitle">Questions Per Section</p>
           </div>
-          <p class="text-xs text-slate-500 font-semibold leading-relaxed">
-            Each section contains 16 questions — Analytical, Verbal, and Quantitative Skills.
-          </p>
+          <p class="text-xs text-slate-500 font-semibold leading-relaxed" id="instrPerSectionDesc">Loading…</p>
         </div>
 
       </div>
 
-      <!-- Important note -->
+      <!-- Review note -->
       <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 mb-7">
         <p class="text-blue-800 font-extrabold text-sm flex items-center gap-2 mb-1">
-          <svg class="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8"  x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           Review Before Submitting
         </p>
         <p class="text-blue-700 text-xs font-semibold leading-relaxed">
-          Once submitted, answers cannot be changed. Use the navigation within the test to review your selections before final submission.
+          Once submitted, answers cannot be changed. Use the section tabs and sidebar navigation inside the test to review your selections before final submission.
         </p>
       </div>
 
-      <!-- Start Test button -->
+      <!-- Start Test -->
       <button onclick="window.location.href='test.html'"
               class="btn w-full py-4 text-base flex items-center justify-center gap-2">
         Start Test
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="5 3 19 12 5 21 5 3"/>
         </svg>
       </button>
@@ -309,6 +251,47 @@
   </div>
 
 </div>
-<script>document.getElementById('cpYear').textContent = new Date().getFullYear();</script>
+
+<script>
+document.getElementById('cpYear').textContent = new Date().getFullYear();
+
+(async () => {
+  try {
+    const info = await fetch('/api/test-info').then(r => r.json());
+
+    if (info.duration_minutes) {
+      document.getElementById('instrDuration').textContent = info.duration_minutes;
+    }
+
+    if (info.total_questions != null) {
+      document.getElementById('instrTotalQ').textContent = info.total_questions;
+      document.getElementById('instrTotalQDesc').textContent =
+        `There will be a total of ${info.total_questions} questions for today's test.`;
+    }
+
+    const sections = Array.isArray(info.sections) ? info.sections : [];
+    if (sections.length) {
+      const words = ['','One','Two','Three','Four','Five','Six','Seven','Eight'];
+      document.getElementById('instrSectionCount').textContent =
+        words[sections.length] || sections.length;
+
+      document.getElementById('instrSectionNames').textContent =
+        sections.map(s => (s.label ? s.label + ': ' : '') + s.name).join(' · ');
+
+      const allSame = sections.every(s => s.questions_per_test === sections[0].questions_per_test);
+      if (allSame) {
+        const n = sections[0].questions_per_test;
+        document.getElementById('instrPerSectionTitle').textContent = `${n} Questions Per Section`;
+        document.getElementById('instrPerSectionDesc').textContent =
+          `Each section contains ${n} questions drawn randomly from the question bank.`;
+      } else {
+        document.getElementById('instrPerSectionTitle').textContent = 'Questions Per Section';
+        document.getElementById('instrPerSectionDesc').textContent =
+          sections.map(s => `${s.label || s.name}: ${s.questions_per_test}`).join(', ');
+      }
+    }
+  } catch { /* Keep placeholder text */ }
+})();
+</script>
 </body>
 </html>

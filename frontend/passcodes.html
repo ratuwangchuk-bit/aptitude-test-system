@@ -8,84 +8,91 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="admin-body min-h-screen pb-10">
+<body class="admin-body min-h-screen pb-12">
 
-  <!-- ── Top navigation bar ───────────────────────────────── -->
-  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-      <!-- Brand -->
-      <div class="flex items-center gap-3">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black">Passcode Generator</h1>
-          <p class="text-white/70 text-sm font-semibold">Generate time-limited participant access passcodes.</p>
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Passcode Generator</h1>
+            <p class="text-white/60 text-xs font-semibold">Generate time-limited access codes for participants.</p>
+          </div>
         </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link" href="answers.html">Answers</a>
+          <a class="nav-link" href="participants.html">Participants</a>
+          <a class="nav-link active super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
       </div>
+    </header>
+  </div>
 
-      <!-- Nav links -->
-      <nav class="nav-area flex gap-2">
-        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
-        <a class="nav-link" href="questions.html">Questions</a>
-        <a class="nav-link" href="answers.html">Answers</a>
-        <a class="nav-link" href="participants.html">Participants</a>
-        <a class="nav-link active super-only" href="passcodes.html">Passcodes</a>
-        <a class="nav-link super-only" href="admins.html">Admins</a>
-        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
-          <span class="logout-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
-          </span>
-          Logout
-        </button>
-      </nav>
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
-    </div>
-  </header>
-
-  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
-
-    <!-- ── Hero banner with generate button ─────────────────── -->
-    <section class="dashboard-hero card p-6 sm:p-8 mb-6 passcode-hero">
+    <!-- ── Hero + generate button ─────────────────────────────── -->
+    <section class="dashboard-hero card passcode-hero p-6 sm:p-7">
       <div>
-        <span class="eyebrow">Reusable Access Control</span>
+        <span class="eyebrow mb-2 inline-flex">Reusable Access Control</span>
+        <h2 class="text-2xl font-black text-slate-800 mt-1">Session Passcodes</h2>
+        <p class="text-slate-500 font-semibold text-sm mt-1">
+          One passcode covers all participants in a test session. Share it before the exam begins.
+        </p>
       </div>
       <div class="hero-actions">
-        <button onclick="generatePasscode()" class="btn passcode-generate-btn">Generate New Passcode</button>
+        <button onclick="generatePasscode()"
+                class="btn passcode-generate-btn flex items-center gap-2 px-6 py-3">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Generate New Passcode
+        </button>
       </div>
     </section>
 
-    <!-- ── Generated output + passcode history ───────────────── -->
-    <section class="grid lg:grid-cols-3 gap-6">
+    <!-- ── Generated output + history ───────────────────────── -->
+    <section class="grid lg:grid-cols-3 gap-5">
 
-      <!-- Latest generated code output box -->
-      <div class="card p-5 sm:p-6 lg:col-span-1 text-center">
-        <span class="eyebrow">Latest Generated Code</span>
-        <!-- Populated by JS after generatePasscode() succeeds -->
-        <div id="generatedPasscode" class="mt-5 hidden"></div>
-        <!-- Placeholder shown before any code is generated -->
-        <div class="passcode-empty mt-5" id="passcodeHelpBox">
-          <b>No new code generated yet.</b>
-          <p>Click Generate New Passcode to create one.</p>
+      <!-- Latest code -->
+      <div class="card p-6 text-center flex flex-col items-center justify-center">
+        <span class="eyebrow mb-4">Latest Generated Code</span>
+        <div id="generatedPasscode" class="mt-2 hidden w-full rounded-xl p-4"></div>
+        <div class="passcode-empty mt-2 w-full" id="passcodeHelpBox">
+          <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <b class="text-slate-600 text-sm block">No code generated yet</b>
+          <p>Click <strong>Generate New Passcode</strong> above.</p>
         </div>
       </div>
 
-      <!-- Passcode history table -->
-      <div class="card p-5 sm:p-6 lg:col-span-2">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <div>
-            <h2 class="text-xl font-black">Generated Passcode History</h2>
-            <p class="text-sm text-slate-500 font-semibold">Status changes automatically based on expiry time.</p>
-          </div>
+      <!-- History table -->
+      <div class="card p-6 lg:col-span-2">
+        <div class="mb-5">
+          <h2 class="text-lg font-black text-slate-800">Generated Passcode History</h2>
+          <p class="text-sm text-slate-500 font-semibold">Status updates automatically when codes expire.</p>
         </div>
         <div class="table-wrap">
           <table class="modern-table">
             <thead>
               <tr>
                 <th>Passcode</th>
-                <th>Created At</th>
-                <th>Expires At</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th style="width:10rem">Created At</th>
+                <th style="width:10rem">Expires At</th>
+                <th style="width:6rem">Status</th>
+                <th style="width:6rem">Action</th>
               </tr>
             </thead>
             <tbody id="passcodesTable"></tbody>

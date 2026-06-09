@@ -8,145 +8,149 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="admin-body min-h-screen pb-10">
+<body class="admin-body min-h-screen pb-12">
 
-  <!-- ── Top navigation bar ───────────────────────────────── -->
-  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-      <!-- Brand -->
-      <div class="flex items-center gap-3">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black">Admin Dashboard</h1>
-          <p class="text-white/70 text-sm font-semibold">Digital Aptitude Evaluation System</p>
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Admin Dashboard</h1>
+            <p class="text-white/60 text-xs font-semibold">Digital Aptitude Evaluation System</p>
+          </div>
         </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link active" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link" href="answers.html">Answers</a>
+          <a class="nav-link" href="participants.html">Participants</a>
+          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
       </div>
+    </header>
+  </div>
 
-      <!-- Nav links -->
-      <nav class="nav-area flex gap-2">
-        <a class="nav-link active" href="admin-dashboard.html">Dashboard</a>
-        <a class="nav-link" href="questions.html">Questions</a>
-        <a class="nav-link" href="answers.html">Answers</a>
-        <a class="nav-link" href="participants.html">Participants</a>
-        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
-        <a class="nav-link super-only" href="admins.html">Admins</a>
-        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
-          <span class="logout-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
-          </span>
-          Logout
-        </button>
-      </nav>
-
-    </div>
-  </header>
-
-  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
     <!-- ── Hero banner ──────────────────────────────────────── -->
-    <section class="dashboard-hero card p-6 sm:p-8 mb-6">
+    <section class="dashboard-hero card p-6 sm:p-7">
       <div>
-        <span class="eyebrow">Live assessment overview</span>
+        <span class="eyebrow mb-2 inline-flex">Live Assessment Overview</span>
+        <h2 class="text-2xl font-black text-slate-800 mt-1">Welcome to DAES</h2>
+        <p class="text-slate-500 font-semibold text-sm mt-1">Monitor test sessions, review results, and manage the question bank.</p>
       </div>
       <div class="hero-actions">
-        <a href="questions.html" class="btn-soft">View Questions</a>
-        <a href="answers.html"   class="btn-outline">View Answers</a>
+        <a href="questions.html"
+           class="btn-soft inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+          </svg>
+          Questions
+        </a>
+        <a href="participants.html"
+           class="btn-outline inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Participants
+        </a>
+        <a href="passcodes.html"
+           class="btn-outline super-only inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Generate Passcode
+        </a>
       </div>
     </section>
 
-    <!-- ── Summary metric cards (rendered by JS) ────────────── -->
-    <section id="summary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"></section>
+    <!-- ── Summary metric cards ─────────────────────────────── -->
+    <section id="summary" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"></section>
 
-    <!-- ── Charts row: section perf + turnout donut + score distribution ── -->
-    <section class="grid lg:grid-cols-4 gap-6 mt-6">
+    <!-- ── Charts row ───────────────────────────────────────── -->
+    <section class="grid lg:grid-cols-4 gap-5">
 
-      <!-- Section bar chart -->
       <div class="card p-5 sm:p-6 lg:col-span-2">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div>
-            <h2 class="text-xl font-black">Section Performance</h2>
-            <p class="text-sm text-slate-500 font-semibold">Average score by section based on submitted tests.</p>
+            <h2 class="text-lg font-black text-slate-800">Section Performance</h2>
+            <p class="text-sm text-slate-500 font-semibold">Average score per section across all submissions.</p>
           </div>
-          <span class="pill pill-teal">Out of 16 each</span>
+          <span id="sectionChartSubtitle" class="pill pill-teal shrink-0">Loading…</span>
         </div>
         <div id="sectionChart" class="chart-stack"></div>
       </div>
 
-      <!-- Participation turnout donut -->
       <div class="card p-5 sm:p-6">
-        <div class="mb-4">
-          <h2 class="text-xl font-black">Participation Rate</h2>
-          <p class="text-sm text-slate-500 font-semibold">Registered vs Appeared Turnout</p>
-        </div>
+        <h2 class="text-lg font-black text-slate-800 mb-1">Participation Rate</h2>
+        <p class="text-sm text-slate-500 font-semibold mb-4">Registered vs. appeared turnout.</p>
         <div id="turnoutChart"></div>
       </div>
 
-      <!-- Score distribution chart -->
       <div class="card p-5 sm:p-6">
-        <div class="mb-5">
-          <h2 class="text-xl font-black">Score Distribution</h2>
-          <p class="text-sm text-slate-500 font-semibold">Participant count by score range.</p>
-        </div>
+        <h2 class="text-lg font-black text-slate-800 mb-1">Score Distribution</h2>
+        <p class="text-sm text-slate-500 font-semibold mb-4">Participants by score range.</p>
         <div id="distributionChart" class="mini-chart"></div>
       </div>
 
     </section>
 
-    <!-- ── Final result table ────────────────────────────────── -->
-    <section class="card p-5 sm:p-6 mt-6">
-      <div class="mb-5">
-        <div class="flex items-start justify-between w-full">
-          <div>
-            <h2 class="text-xl font-black">Final Result Summary</h2>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <button onclick="printAllResults()" class="btn-icon btn-soft" title="Print all results as PDF">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9"/>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                <rect x="6" y="14" width="12" height="8"/>
-              </svg>
-            </button>
-            <a href="/api/admin/results/export" class="btn-icon btn-soft" title="Export results as Excel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-            </a>
-          </div>
+    <!-- ── Results table ─────────────────────────────────────── -->
+    <section class="card p-5 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <h2 class="text-lg font-black text-slate-800">Final Result Summary</h2>
+          <p class="text-sm text-slate-500 font-semibold">All submitted test results with section-wise breakdown.</p>
         </div>
-        <div class="flex items-center gap-2 flex-wrap mt-3">
-          <input id="resultSearch" class="input sm:max-w-xs" placeholder="Search participant...">
-          <button id="deleteSelectedResultsBtn" onclick="deleteSelectedResults()" class="btn-outline hidden flex items-center gap-1.5 whitespace-nowrap text-red-600 border-red-300 hover:bg-red-50" title="Delete selected results">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="printAllResults()" class="btn-icon btn-soft" title="Print results as PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
             </svg>
-            <span>Delete Selected</span>
           </button>
+          <a href="/api/admin/results/export" class="btn-icon btn-soft" title="Export as Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
         </div>
       </div>
+
+      <div class="flex items-center gap-2 flex-wrap mb-4">
+        <input id="resultSearch" class="input sm:max-w-xs text-sm" placeholder="Search by name or CID…">
+        <button id="deleteSelectedResultsBtn" onclick="deleteSelectedResults()"
+                class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+          Delete Selected
+        </button>
+      </div>
+
       <div class="table-wrap result-table-wrap">
         <table class="modern-table result-table">
-          <thead>
-            <tr>
-              <th class="super-only" style="width:40px"><input type="checkbox" id="selectAllResults" title="Select all" onchange="toggleSelectAllResults(this)"></th>
-              <th>Serial No.</th>
-              <th>Name of Candidate</th>
-              <th>Total Score<br><span>Out of 48</span></th>
-              <th>Analytical<br><span>Out of 16</span></th>
-              <th>Verbal<br><span>Out of 16</span></th>
-              <th>Quantitative<br><span>Out of 16</span></th>
-              <th>Rank</th>
-              <th>Company</th>
-              <th>Contact</th>
-              <th>Details</th>
-              <th class="super-only">Action</th>
-            </tr>
-          </thead>
+          <thead><tr id="resultsTableHeader"></tr></thead>
           <tbody id="results"></tbody>
         </table>
       </div>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Settings - DAES</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body min-h-screen pb-12">
+
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Test Settings</h1>
+            <p class="text-white/60 text-xs font-semibold">Configure duration, passcode validity, and sections.</p>
+          </div>
+        </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link" href="answers.html">Answers</a>
+          <a class="nav-link" href="participants.html">Participants</a>
+          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link active super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
+      </div>
+    </header>
+  </div>
+
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+    <!-- ── Test configuration (super admin only) ─────────────── -->
+    <section class="super-only">
+      <div class="card p-6">
+        <div class="mb-5">
+          <h2 class="text-lg font-black text-slate-800">Test Configuration</h2>
+          <p class="text-sm text-slate-500 font-semibold">Changes take effect immediately for all new test sessions.</p>
+        </div>
+
+        <form id="configForm" class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="test_duration">
+              Test Duration (minutes)
+            </label>
+            <input id="test_duration" type="number" min="1" max="480" class="input" placeholder="60" required>
+            <p class="text-xs text-slate-400 mt-1.5 font-semibold">How long each participant has to complete the test.</p>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="passcode_validity">
+              Passcode Validity (minutes)
+            </label>
+            <input id="passcode_validity" type="number" min="10" max="1440" class="input" placeholder="90" required>
+            <p class="text-xs text-slate-400 mt-1.5 font-semibold">How long a generated passcode stays valid after creation.</p>
+          </div>
+          <div class="sm:col-span-2 flex justify-end">
+            <button type="submit" class="btn px-8 flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Save Configuration
+            </button>
+          </div>
+        </form>
+        <p id="configMsg" class="mt-3 text-sm font-semibold"></p>
+      </div>
+    </section>
+
+    <!-- ── Section management ──────────────────────────────────── -->
+    <section class="grid lg:grid-cols-5 gap-5">
+
+      <!-- Add / edit section form (super admin only) -->
+      <div class="card p-6 lg:col-span-2 super-only">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800" id="sectionFormTitle">Add Section</h2>
+            <p class="text-sm text-slate-500 font-semibold">Create a new question section for the test.</p>
+          </div>
+          <button id="cancelSectionEdit" type="button"
+                  class="btn-outline hidden text-sm px-4 py-2" onclick="resetSectionForm()">Cancel</button>
+        </div>
+
+        <form id="sectionForm" class="space-y-4">
+          <input id="section_id_edit" type="hidden">
+
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_name">Section Name</label>
+            <input id="section_name" class="input" placeholder="e.g. Logical Reasoning" required>
+            <p class="text-xs text-slate-400 mt-1.5 font-semibold">Must match the section value stored in questions exactly.</p>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_label">Display Label</label>
+            <input id="section_label" class="input" placeholder="e.g. Section D">
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_qcount">Questions Shown per Test</label>
+            <input id="section_qcount" type="number" min="1" class="input" placeholder="e.g. 10" required>
+            <p class="text-xs text-slate-400 mt-1.5 font-semibold">Randomly drawn from this section's bank per participant. Any number is allowed.</p>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_order">Sort Order</label>
+            <input id="section_order" type="number" min="0" class="input" placeholder="1">
+          </div>
+          <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <input id="section_active" type="checkbox" checked class="w-4 h-4 accent-blue-600">
+            <label for="section_active" class="text-sm font-bold text-slate-700 cursor-pointer">
+              Active — shown in tests
+            </label>
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="btn px-6 flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span id="sectionSubmitLabel">Save Section</span>
+            </button>
+          </div>
+          <p id="sectionMsg" class="text-sm font-semibold"></p>
+        </form>
+      </div>
+
+      <!-- All sections table — visible to all admins, edits super-only -->
+      <div class="card p-6 lg:col-span-3">
+        <div class="mb-5">
+          <h2 class="text-lg font-black text-slate-800">All Sections</h2>
+          <p class="text-sm text-slate-500 font-semibold">
+            Active sections appear in the test. Inactive ones are excluded.
+            Total questions per test = sum of active section quotas.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Section Name</th>
+                <th style="width:6rem">Q / Test</th>
+                <th style="width:5rem">In Bank</th>
+                <th style="width:4.5rem">Order</th>
+                <th style="width:5.5rem">Status</th>
+                <th class="super-only" style="width:7rem">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sectionsTable"></tbody>
+          </table>
+        </div>
+        <p id="sectionsEmpty" class="text-center text-slate-400 text-sm py-6 hidden">No sections configured yet. Use the form to add one.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

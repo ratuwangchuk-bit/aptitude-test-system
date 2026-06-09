@@ -3,7 +3,11 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -15,33 +19,43 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GetQuestions returns exactly 16 random questions per section for the participant test.
-// The three UNION ALL sub-selects each draw from a single section so the mix is
-// always balanced regardless of how many questions exist per section in the database.
+// GetQuestions returns random questions for the participant test, drawing the
+// configured number of questions per active section. Section configuration is
+// read from test_sections at request time so admins can change it without restart.
 func GetQuestions(w http.ResponseWriter, r *http.Request) {
-	// Ensure each section has at least 16 questions before presenting the test.
-	var minCount int
-	if err := config.DB.QueryRow(`
-		SELECT MIN(cnt) FROM (
-			SELECT COUNT(*) AS cnt FROM questions WHERE section='Analytical Ability'
-			UNION ALL
-			SELECT COUNT(*) FROM questions WHERE section='Verbal Ability'
-			UNION ALL
-			SELECT COUNT(*) FROM questions WHERE section='Quantitative Skills'
-		) t`).Scan(&minCount); err != nil || minCount < 16 {
+	sections, err := loadActiveSections()
+	if err != nil || len(sections) == 0 {
 		utils.Error(w, http.StatusServiceUnavailable, "The question bank is not ready. Please contact the administrator.")
 		return
 	}
 
-	rows, err := config.DB.Query(`
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Analytical Ability'  ORDER BY random() LIMIT 16)
-		UNION ALL
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Verbal Ability'      ORDER BY random() LIMIT 16)
-		UNION ALL
-		(SELECT id, section, question_text, option_a, option_b, option_c, option_d
-		 FROM questions WHERE section='Quantitative Skills' ORDER BY random() LIMIT 16)`)
+	// Verify each active section has enough questions.
+	for _, sec := range sections {
+		var cnt int
+		config.DB.QueryRow("SELECT COUNT(*) FROM questions WHERE section=$1", sec.Name).Scan(&cnt)
+		if cnt < sec.QuestionsPerTest {
+			utils.Error(w, http.StatusServiceUnavailable,
+				fmt.Sprintf("Not enough questions in '%s' (need %d, have %d). Please contact the administrator.",
+					sec.Name, sec.QuestionsPerTest, cnt))
+			return
+		}
+	}
+
+	// Build a dynamic UNION ALL query — one sub-select per active section.
+	parts := make([]string, len(sections))
+	args := make([]interface{}, len(sections)*2)
+	for i, sec := range sections {
+		// $1,$2 for section 0; $3,$4 for section 1; etc.
+		parts[i] = fmt.Sprintf(
+			"(SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(image_url,'') FROM questions WHERE section=$%d ORDER BY random() LIMIT $%d)",
+			i*2+1, i*2+2,
+		)
+		args[i*2] = sec.Name
+		args[i*2+1] = sec.QuestionsPerTest
+	}
+	query := strings.Join(parts, " UNION ALL ")
+
+	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
 		return
@@ -56,10 +70,9 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllQuestions returns every question in insertion order for the admin panel.
-// Unlike GetQuestions, this returns the full bank without randomisation or limits.
 func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(
-		"SELECT id, section, question_text, option_a, option_b, option_c, option_d FROM questions ORDER BY id ASC",
+		"SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(image_url,'') FROM questions ORDER BY id ASC",
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
@@ -74,23 +87,22 @@ func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
-// scanQuestions iterates over a *sql.Rows result and converts each row into a
-// Question struct. It is a shared helper used by both GetQuestions and GetAllQuestions
-// to avoid duplicating the scan logic.
 func scanQuestions(rows *sql.Rows) ([]models.Question, error) {
 	qs := []models.Question{}
 	for rows.Next() {
 		var q models.Question
-		if err := rows.Scan(&q.ID, &q.Section, &q.QuestionText, &q.OptionA, &q.OptionB, &q.OptionC, &q.OptionD); err != nil {
+		if err := rows.Scan(&q.ID, &q.Section, &q.QuestionText, &q.QuestionType, &q.OptionA, &q.OptionB, &q.OptionC, &q.OptionD, &q.ImageURL); err != nil {
 			return nil, err
+		}
+		if q.QuestionType == "" {
+			q.QuestionType = "mcq"
 		}
 		qs = append(qs, q)
 	}
 	return qs, nil
 }
 
-// AddQuestion inserts a new question after normalising its section name to one of
-// the three canonical values ("Analytical Ability", "Verbal Ability", "Quantitative Skills").
+// AddQuestion inserts a new question after normalising its section name.
 func AddQuestion(w http.ResponseWriter, r *http.Request) {
 	var q models.Question
 	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
@@ -98,10 +110,13 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeSection(&q.Section)
+	if q.QuestionType == "" {
+		q.QuestionType = "mcq"
+	}
 	err := config.DB.QueryRow(`
-		INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
-		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD,
+		INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, image_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')) RETURNING id`,
+		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.ImageURL,
 	).Scan(&q.ID)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not add question")
@@ -110,8 +125,7 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusCreated, q)
 }
 
-// UpdateQuestion replaces all fields of an existing question.
-// Returns 404 if no row with the given ID exists.
+// UpdateQuestion replaces all fields of an existing question including optional image.
 func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var q models.Question
@@ -120,11 +134,14 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeSection(&q.Section)
+	if q.QuestionType == "" {
+		q.QuestionType = "mcq"
+	}
 	res, err := config.DB.Exec(`
 		UPDATE questions
-		SET section=$1, question_text=$2, option_a=$3, option_b=$4, option_c=$5, option_d=$6
-		WHERE id=$7`,
-		q.Section, q.QuestionText, q.OptionA, q.OptionB, q.OptionC, q.OptionD, id,
+		SET section=$1, question_text=$2, question_type=$3, option_a=$4, option_b=$5, option_c=$6, option_d=$7, image_url=NULLIF($8,'')
+		WHERE id=$9`,
+		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.ImageURL, id,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not update question")
@@ -138,13 +155,14 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question updated"})
 }
 
-// DeleteQuestion removes a question by ID. Its linked answer row is deleted
-// automatically by the ON DELETE CASCADE on answers.question_id.
-// After deletion, if the questions table is now empty the sequence is reset to 1
-// so the next inserted question gets ID 1 rather than continuing from wherever
-// the old sequence left off.
+// DeleteQuestion removes a question by ID and its associated image file.
 func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	// Grab image_url before deleting so we can remove the file.
+	var imageURL sql.NullString
+	config.DB.QueryRow("SELECT image_url FROM questions WHERE id=$1", id).Scan(&imageURL)
+
 	res, err := config.DB.Exec("DELETE FROM questions WHERE id=$1", id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not delete question")
@@ -155,23 +173,96 @@ func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusNotFound, "Question not found")
 		return
 	}
-	// setval(..., 1, false) sets the sequence so nextval() will return 1 next time.
-	// The WHERE NOT EXISTS guard makes the entire expression a no-op when the table
-	// still has rows, so it is safe to run after every delete.
+
+	// Clean up the image file if one existed.
+	if imageURL.Valid && imageURL.String != "" {
+		os.Remove(filepath.Join("frontend", imageURL.String))
+	}
+
 	config.DB.Exec("SELECT setval('questions_id_seq', 1, false) WHERE NOT EXISTS (SELECT 1 FROM questions)")
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question deleted"})
 }
 
-// UploadQuestions bulk-imports questions (and optionally their correct answers)
-// from an Excel file. Each sheet is processed independently and the sheet name
-// is used as a fallback section when no "section" column is present.
-//
-// Backward compatibility: old templates that have columns in positional order
-// rather than named headers are detected and parsed correctly. A row whose first
-// cell looks like a section label (e.g. "Section A") is treated as having the
-// section in column 0 and the question in column 1; otherwise column 0 is the
-// question text. If a correct_option is present in the row it is also inserted
-// into the answers table.
+// UploadQuestionImage accepts a multipart image file, saves it under
+// frontend/uploads/questions/, updates questions.image_url, and returns the URL.
+func UploadQuestionImage(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	if id == 0 {
+		utils.Error(w, http.StatusBadRequest, "Question ID is required")
+		return
+	}
+
+	// Ensure the upload directory exists.
+	uploadDir := filepath.Join("frontend", "uploads", "questions")
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not create upload directory")
+		return
+	}
+
+	// 10 MB limit for question images.
+	r.ParseMultipartForm(10 << 20)
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Image file is required")
+		return
+	}
+	defer file.Close()
+
+	// Only allow common image types.
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowed[ext] {
+		utils.Error(w, http.StatusBadRequest, "Only JPG, PNG, GIF and WEBP images are allowed")
+		return
+	}
+
+	// Remove old image file if present.
+	var oldURL sql.NullString
+	config.DB.QueryRow("SELECT image_url FROM questions WHERE id=$1", id).Scan(&oldURL)
+	if oldURL.Valid && oldURL.String != "" {
+		os.Remove(filepath.Join("frontend", oldURL.String))
+	}
+
+	// Save new file with a name derived from question ID for easy lookup.
+	filename := fmt.Sprintf("q%d%s", id, ext)
+	destPath := filepath.Join(uploadDir, filename)
+	dest, err := os.Create(destPath)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not save image")
+		return
+	}
+	defer dest.Close()
+	if _, err := io.Copy(dest, file); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not write image")
+		return
+	}
+
+	// Store relative URL (served by the static file server under /uploads/questions/).
+	relURL := "/uploads/questions/" + filename
+	_, err = config.DB.Exec("UPDATE questions SET image_url=$1 WHERE id=$2", relURL, id)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not update question image")
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, map[string]string{"image_url": relURL})
+}
+
+// RemoveQuestionImage clears the image from a question and deletes the file.
+func RemoveQuestionImage(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	var imageURL sql.NullString
+	config.DB.QueryRow("SELECT image_url FROM questions WHERE id=$1", id).Scan(&imageURL)
+
+	if imageURL.Valid && imageURL.String != "" {
+		os.Remove(filepath.Join("frontend", imageURL.String))
+	}
+	config.DB.Exec("UPDATE questions SET image_url=NULL WHERE id=$1", id)
+	utils.JSON(w, http.StatusOK, map[string]string{"message": "Image removed"})
+}
+
+// UploadQuestions bulk-imports questions (and optionally answers) from Excel.
 func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -194,7 +285,6 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 		if err != nil || len(rows) < 2 {
 			continue
 		}
-		// Use the sheet name as the default section when the row has no section column.
 		sheetSection := sectionFromSheet(sheet)
 		headerMap := excelHeaderMap(rows[0])
 
@@ -203,7 +293,6 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Named section column overrides the sheet-name default.
 			section := valueByHeader(row, headerMap, "section")
 			if section == "" {
 				section = sheetSection
@@ -227,11 +316,6 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				valueByHeader(row, headerMap, "answer"),
 			))
 
-			// Positional fallback for old templates with no header row.
-			// If col 0 looks like a section label, treat the row as:
-			//   [section, question, A, B, C, D, correct_option?]
-			// Otherwise treat it as:
-			//   [question, A, B, C, D, correct_option?]
 			if questionText == "" && len(row) >= 5 {
 				if len(row) >= 6 && looksLikeSection(row[0]) {
 					section = row[0]
@@ -248,7 +332,6 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Skip rows that are missing any required question field.
 			if questionText == "" || optionA == "" || optionB == "" || optionC == "" || optionD == "" {
 				continue
 			}
@@ -264,8 +347,6 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			}
 			questionCount++
 
-			// Insert the answer in the same pass if a valid correct option was found,
-			// saving the admin from uploading a separate answers file.
 			if correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D" {
 				_, err = config.DB.Exec(`
 					INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)

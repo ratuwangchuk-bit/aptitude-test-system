@@ -8,24 +8,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Left panel decorative animated gradient orbs */
     .orb {
-      position: absolute;
-      border-radius: 9999px;
-      filter: blur(72px);
-      opacity: 0.18;
-      pointer-events: none;
+      position: absolute; border-radius: 9999px;
+      filter: blur(80px); opacity: 0.16; pointer-events: none;
     }
-    /* Passcode input — oversized monospace with wide tracking */
     #code {
-      font-size: 1.6rem;
-      letter-spacing: 0.35em;
-      text-align: center;
-      font-weight: 900;
-      text-transform: uppercase;
-      padding: 1.1rem 1rem;
+      font-size: 1.55rem; letter-spacing: 0.3em;
+      text-align: center; font-weight: 900;
+      text-transform: uppercase; padding: 1rem 1rem;
     }
-    #code::placeholder { letter-spacing: 0.2em; font-size: 1rem; font-weight: 400; }
+    #code::placeholder { letter-spacing: 0.18em; font-size: 1rem; font-weight: 400; }
   </style>
 </head>
 
@@ -37,7 +29,7 @@
   ════════════════════════════════════════════════════════════ -->
   <div class="relative lg:w-[46%] xl:w-[42%] flex flex-col justify-between overflow-hidden
               px-8 py-12 sm:px-12 lg:px-14 lg:py-16"
-       style="background: linear-gradient(150deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%)">
+       style="background: linear-gradient(150deg,#0b1220 0%,#1a2e6e 55%,#0a5c54 100%)">
 
     <!-- Decorative orbs -->
     <div class="orb w-96 h-96 -top-24 -right-24 bg-blue-400"></div>

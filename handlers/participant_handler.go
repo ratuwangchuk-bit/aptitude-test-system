@@ -19,10 +19,12 @@ type passcodeRequest struct {
 	Code string `json:"code"`
 }
 
-// testDurationSeconds is the total allowed test time (60 minutes).
-// It is defined as a constant so the same value is used by both StartTest
-// (to calculate seconds_remaining) and the client-side timer.
-const testDurationSeconds = 3600
+// testDurationSeconds returns the configured test duration in seconds.
+// It reads from test_config at call time so admin changes take effect immediately.
+func testDurationSeconds() int {
+	cfg := loadTestConfig()
+	return cfg.TestDurationMinutes * 60
+}
 
 // ValidatePasscode checks that the submitted passcode exists and has not expired.
 // A valid passcode is the first gate in the participant flow: passcode → CID → test.
@@ -112,7 +114,7 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		)
 		SELECT GREATEST(0, $2 - FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)))::int)
 		FROM upd`,
-		req.ParticipantID, testDurationSeconds,
+		req.ParticipantID, testDurationSeconds(),
 	).Scan(&secondsRemaining)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, "Participant not found")

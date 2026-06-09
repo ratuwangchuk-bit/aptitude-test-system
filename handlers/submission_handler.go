@@ -14,19 +14,9 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// SubmitTest processes a participant's completed test.
-// The handler runs inside a database transaction to ensure the submission row,
-// all per-question answer rows, and the final score update are written atomically —
-// either everything commits or nothing does.
-//
-// Scoring flow:
-//  1. Check for a duplicate submission (idempotency guard).
-//  2. Open a transaction and insert a placeholder submission row to get an ID.
-//  3. Fetch the correct answers for all submitted question IDs in one query (avoids N+1).
-//  4. Score each answer; accumulate per-section scores.
-//  5. Bulk-insert all participant_answers rows in a single statement.
-//  6. Update the submission row with the final scores.
-//  7. Commit.
+// SubmitTest processes a participant's completed test atomically.
+// Section scores are stored in submission_section_scores using the active
+// test_sections configuration so they remain correct even if sections change later.
 func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	var req models.SubmitTestRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -42,7 +32,6 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Guard against duplicate submissions (e.g. double-click or network retry).
 	var alreadySubmitted bool
 	if err := config.DB.QueryRow(
 		"SELECT EXISTS(SELECT 1 FROM submissions WHERE participant_id=$1)",
@@ -56,12 +45,23 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load active sections so we know how to categorise and count section scores.
+	sections, err := loadActiveSections()
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load test sections")
+		return
+	}
+	sectionSet := make(map[string]bool, len(sections))
+	for _, s := range sections {
+		sectionSet[s.Name] = true
+	}
+
 	tx, err := config.DB.Begin()
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not start submission")
 		return
 	}
-	defer tx.Rollback() // No-op after a successful Commit().
+	defer tx.Rollback()
 
 	total := len(req.Answers)
 	var submissionID int
@@ -74,15 +74,11 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// answerKey holds the correct option and section for one question.
 	type answerKey struct {
 		correct string
 		section string
+		qtype   string
 	}
-
-	// Fetch correct answers for all submitted question IDs in a single query
-	// rather than one query per answer. Under 48 answers this avoids 47 extra
-	// round-trips to the database — important for reliability under concurrent load.
 	answerMap := make(map[int]answerKey, len(req.Answers))
 	qIDs := make([]int, 0, len(req.Answers))
 	for _, ans := range req.Answers {
@@ -91,7 +87,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 
 	if len(qIDs) > 0 {
 		rows, err := tx.Query(`
-			SELECT a.question_id, a.correct_option, q.section
+			SELECT a.question_id, a.correct_option, q.section, COALESCE(q.question_type,'mcq')
 			FROM answers a JOIN questions q ON a.question_id=q.id
 			WHERE a.question_id = ANY($1)`,
 			pq.Array(qIDs),
@@ -102,53 +98,79 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		}
 		for rows.Next() {
 			var qid int
-			var correct, section string
-			if rows.Scan(&qid, &correct, &section) == nil {
-				answerMap[qid] = answerKey{correct, section}
+			var correct, section, qtype string
+			if rows.Scan(&qid, &correct, &section, &qtype) == nil {
+				answerMap[qid] = answerKey{correct, section, qtype}
 			}
 		}
 		rows.Close()
+		if err := rows.Err(); err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not read answer key")
+			return
+		}
 	}
 
-	// Score each submitted answer and collect them for the bulk insert below.
-	// Unanswered questions are stored as NULL in selected_option (satisfies the DB
-	// CHECK constraint which only allows 'A'–'D' or NULL) so the admin answer sheet
-	// always shows all 48 rows, including skipped ones.
-	score, analyticalScore, verbalScore, quantitativeScore := 0, 0, 0, 0
+	score := 0
+	// Track per-section correct counts dynamically.
+	sectionScores := make(map[string]int)
+	sectionCounts := make(map[string]int) // total questions per section in this submission
 
 	type scoredAnswer struct {
 		questionID int
-		selected   any // nil for unanswered; "A"/"B"/"C"/"D" for answered
+		selected   any
 		isCorrect  bool
 	}
 	allAnswers := make([]scoredAnswer, 0, len(req.Answers))
 
 	for _, ans := range req.Answers {
-		selected := strings.ToUpper(strings.TrimSpace(ans.SelectedOption))
+		selected := strings.TrimSpace(ans.SelectedOption)
 		key := answerMap[ans.QuestionID]
 		isCorrect := false
-		var selVal any // nil = unanswered → stored as SQL NULL
-		if selected == "A" || selected == "B" || selected == "C" || selected == "D" {
-			selVal = selected
-			isCorrect = key.correct != "" && key.correct == selected
-			if isCorrect {
-				score++
-				switch key.section {
-				case "Analytical Ability":
-					analyticalScore++
-				case "Verbal Ability":
-					verbalScore++
-				case "Quantitative Skills":
-					quantitativeScore++
+		var selVal any
+
+		// Primary: use the question_type field.
+		// Fallback heuristic (legacy Excel uploads): if correct_option is non-empty and
+		// is not a single A/B/C/D letter, treat as fill_blank.
+		// The empty-string guard is critical: without it, questions with NO answer row
+		// (correct_option='') would be misclassified as fill_blank and never scored.
+		correctTrimmed := strings.TrimSpace(key.correct)
+		isFillBlank := key.qtype == "fill_blank" ||
+			(key.correct != "" && (len(correctTrimmed) != 1 || (correctTrimmed != "A" && correctTrimmed != "B" && correctTrimmed != "C" && correctTrimmed != "D")))
+
+		if isFillBlank && key.correct != "" {
+			// Match against any comma-separated keyword (case-insensitive, trimmed).
+			if selected != "" {
+				selVal = selected
+				for _, kw := range strings.Split(key.correct, ",") {
+					if strings.EqualFold(selected, strings.TrimSpace(kw)) {
+						isCorrect = true
+						break
+					}
+				}
+				if isCorrect {
+					score++
+					sectionScores[key.section]++
 				}
 			}
+		} else if !isFillBlank {
+			// MCQ: expect A/B/C/D.
+			upper := strings.ToUpper(selected)
+			if upper == "A" || upper == "B" || upper == "C" || upper == "D" {
+				selVal = upper
+				isCorrect = key.correct != "" && key.correct == upper
+				if isCorrect {
+					score++
+					sectionScores[key.section]++
+				}
+			}
+		}
+		if key.section != "" {
+			sectionCounts[key.section]++
 		}
 		allAnswers = append(allAnswers, scoredAnswer{ans.QuestionID, selVal, isCorrect})
 	}
 
-	// Build a single multi-row INSERT for all participant_answers rather than
-	// executing 48 individual statements. This keeps the transaction open for
-	// the shortest possible time, reducing contention under concurrent submissions.
+	// Bulk-insert all participant_answers.
 	if len(allAnswers) > 0 {
 		placeholders := make([]string, len(allAnswers))
 		args := make([]any, 0, len(allAnswers)*4)
@@ -168,17 +190,35 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Insert one row per section into submission_section_scores.
+	for _, sec := range sections {
+		_, err = tx.Exec(
+			`INSERT INTO submission_section_scores (submission_id, section_name, score, questions_count)
+			 VALUES ($1, $2, $3, $4)`,
+			submissionID, sec.Name, sectionScores[sec.Name], sectionCounts[sec.Name],
+		)
+		if err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not save section scores")
+			return
+		}
+	}
+
 	percentage := 0.0
 	if total > 0 {
 		percentage = (float64(score) / float64(total)) * 100
 	}
 
-	// Write the final scores back to the submission row created earlier.
+	// Keep legacy columns populated for backward compatibility with old queries.
 	_, err = tx.Exec(`
 		UPDATE submissions
-		SET score=$1, percentage=$2, analytical_score=$3, verbal_score=$4, quantitative_score=$5
+		SET score=$1, percentage=$2,
+		    analytical_score=$3, verbal_score=$4, quantitative_score=$5
 		WHERE id=$6`,
-		score, percentage, analyticalScore, verbalScore, quantitativeScore, submissionID,
+		score, percentage,
+		sectionScores["Analytical Ability"],
+		sectionScores["Verbal Ability"],
+		sectionScores["Quantitative Skills"],
+		submissionID,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save result")
@@ -196,9 +236,27 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// loadSectionScores fetches submission_section_scores rows for one submission.
+func loadSectionScores(submissionID int) []models.SectionScore {
+	rows, err := config.DB.Query(
+		"SELECT section_name, score, questions_count FROM submission_section_scores WHERE submission_id=$1 ORDER BY section_name",
+		submissionID,
+	)
+	if err != nil {
+		return []models.SectionScore{}
+	}
+	defer rows.Close()
+	out := []models.SectionScore{}
+	for rows.Next() {
+		var s models.SectionScore
+		if rows.Scan(&s.SectionName, &s.Score, &s.QuestionsCount) == nil {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // GetSubmissionDetail returns a full per-question breakdown for a single submission.
-// It is used by the admin "View answer sheet" panel to show what the participant
-// chose for each question alongside the correct answer.
 func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -231,10 +289,11 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the per-question breakdown ordered by section then question ID so the
-	// detail panel groups questions consistently regardless of submission order.
+	detail.SectionScores = loadSectionScores(detail.SubmissionID)
+
 	rows, err := config.DB.Query(`
-		SELECT q.id, q.section, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
+		SELECT q.id, q.section, q.question_text, COALESCE(q.image_url,''),
+		       q.option_a, q.option_b, q.option_c, q.option_d,
 		       COALESCE(pa.selected_option, '') AS selected_option,
 		       COALESCE(a.correct_option, '')   AS correct_option, pa.is_correct
 		FROM participant_answers pa
@@ -254,7 +313,7 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var ans models.ParticipantAnswerDetail
 		if err := rows.Scan(
-			&ans.QuestionID, &ans.Section, &ans.QuestionText,
+			&ans.QuestionID, &ans.Section, &ans.QuestionText, &ans.ImageURL,
 			&ans.OptionA, &ans.OptionB, &ans.OptionC, &ans.OptionD,
 			&ans.SelectedOption, &ans.CorrectOption, &ans.IsCorrect,
 		); err != nil {
@@ -267,10 +326,7 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, detail)
 }
 
-// CheckSubmission reports whether a participant has already submitted the test.
-// The test page polls this on load so a participant who already submitted
-// (e.g. via auto-submit on tab close) sees a "test already submitted" message
-// instead of a blank test form.
+// CheckSubmission reports whether a participant has already submitted.
 func CheckSubmission(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["participantId"]
 	var submitted bool
@@ -284,29 +340,37 @@ func CheckSubmission(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetParticipantResult returns the most recent submission summary for a participant.
-// It is used by the result page to display a participant's own score after submission.
 func GetParticipantResult(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["participantId"]
 	var res models.Result
 	err := config.DB.QueryRow(`
-		SELECT s.id, p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
-		       s.score, s.total_questions,
-		       COALESCE(s.analytical_score,0), COALESCE(s.verbal_score,0), COALESCE(s.quantitative_score,0),
-		       s.percentage,
-		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI')
-		FROM submissions s JOIN participants p ON s.participant_id=p.id
-		WHERE p.id=$1
-		ORDER BY s.submitted_at DESC LIMIT 1`,
+		SELECT id, pid, full_name, cid_number, company_name, contact_number,
+		       score, total_questions, analytical_score, verbal_score, quantitative_score,
+		       percentage, rank, submitted_at
+		FROM (
+			SELECT s.id, p.id AS pid, p.full_name, p.cid_number, p.company_name, p.contact_number,
+			       s.score, s.total_questions,
+			       COALESCE(s.analytical_score,0)    AS analytical_score,
+			       COALESCE(s.verbal_score,0)         AS verbal_score,
+			       COALESCE(s.quantitative_score,0)   AS quantitative_score,
+			       s.percentage,
+			       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+			       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
+			FROM submissions s JOIN participants p ON s.participant_id=p.id
+		) ranked
+		WHERE pid=$1
+		ORDER BY submitted_at DESC LIMIT 1`,
 		id,
 	).Scan(
 		&res.SubmissionID, &res.ParticipantID, &res.FullName, &res.CIDNumber,
 		&res.CompanyName, &res.ContactNumber, &res.Score, &res.TotalQuestions,
 		&res.AnalyticalScore, &res.VerbalScore, &res.QuantitativeScore,
-		&res.Percentage, &res.SubmittedAt,
+		&res.Percentage, &res.Rank, &res.SubmittedAt,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, "Result not found")
 		return
 	}
+	res.SectionScores = loadSectionScores(res.SubmissionID)
 	utils.JSON(w, http.StatusOK, res)
 }

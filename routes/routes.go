@@ -10,18 +10,10 @@ import (
 )
 
 // RegisterRoutes attaches all HTTP handlers to the router.
-// Routes are grouped by access level:
-//   - Public participant routes  — no authentication required
-//   - Admin auth routes          — login / logout / session check
-//   - Read-only admin routes     — any valid admin session
-//   - Write / delete routes      — super admin only
-//   - Static file server         — serves the frontend directory
 func RegisterRoutes(r *mux.Router) {
 
 	// ── Participant-facing public routes ──────────────────────────────────────
-	// These endpoints are called directly by the test page without any admin
-	// session. Passcode and CID validation are the only two "gates" before
-	// a participant can reach the test form.
+	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
 	r.HandleFunc("/api/validate-passcode", handlers.ValidatePasscode).Methods("POST")
 	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
 	r.HandleFunc("/api/validate-cid", handlers.ValidateCID).Methods("POST")
@@ -33,8 +25,6 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/result/{participantId}", handlers.GetParticipantResult).Methods("GET")
 
 	// ── Admin auth ────────────────────────────────────────────────────────────
-	// Login and logout are unprotected by design. /me is protected so the
-	// frontend can verify a session is still valid on every page load.
 	r.HandleFunc("/api/admin/login", handlers.AdminLogin).Methods("POST")
 	r.HandleFunc("/api/admin/logout", handlers.AdminLogout).Methods("POST")
 	r.HandleFunc("/api/admin/me", middleware.AdminAuth(handlers.CheckAdminSession)).Methods("GET")
@@ -47,6 +37,8 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/questions", middleware.AdminAuth(handlers.GetAllQuestions)).Methods("GET")
 	r.HandleFunc("/api/admin/answers", middleware.AdminAuth(handlers.GetAnswers)).Methods("GET")
 	r.HandleFunc("/api/admin/participants", middleware.AdminAuth(handlers.GetAdminParticipants)).Methods("GET")
+	r.HandleFunc("/api/admin/settings/config", middleware.AdminAuth(handlers.GetTestConfig)).Methods("GET")
+	r.HandleFunc("/api/admin/settings/sections", middleware.AdminAuth(handlers.GetSections)).Methods("GET")
 
 	// ── Write / delete (super admin only) ────────────────────────────────────
 	r.HandleFunc("/api/admin/results/{id}", middleware.SuperAdminOnly(handlers.DeleteResult)).Methods("DELETE")
@@ -60,10 +52,11 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/passcodes/generate", middleware.SuperAdminOnly(handlers.GeneratePasscode)).Methods("POST")
 	r.HandleFunc("/api/admin/passcodes/{id}", middleware.SuperAdminOnly(handlers.DeletePasscode)).Methods("DELETE")
 
-	// Note: /upload and the bare collection POST must be registered before /{id}
-	// so gorilla/mux matches the more specific paths first.
+	// /upload and collection POST must come before /{id} so gorilla/mux matches them first.
 	r.HandleFunc("/api/admin/questions/upload", middleware.SuperAdminOnly(handlers.UploadQuestions)).Methods("POST")
 	r.HandleFunc("/api/admin/questions", middleware.SuperAdminOnly(handlers.AddQuestion)).Methods("POST")
+	r.HandleFunc("/api/admin/questions/{id}/image", middleware.SuperAdminOnly(handlers.UploadQuestionImage)).Methods("POST")
+	r.HandleFunc("/api/admin/questions/{id}/image", middleware.SuperAdminOnly(handlers.RemoveQuestionImage)).Methods("DELETE")
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.UpdateQuestion)).Methods("PUT")
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.DeleteQuestion)).Methods("DELETE")
 
@@ -79,8 +72,13 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/users/{id}/role", middleware.SuperAdminOnly(handlers.ChangeAdminRole)).Methods("PUT")
 	r.HandleFunc("/api/admin/users/{id}/password", middleware.SuperAdminOnly(handlers.ChangeAdminPassword)).Methods("PUT")
 
+	// Settings (super admin only for writes)
+	r.HandleFunc("/api/admin/settings/config", middleware.SuperAdminOnly(handlers.UpdateTestConfig)).Methods("PUT")
+	r.HandleFunc("/api/admin/settings/sections", middleware.SuperAdminOnly(handlers.AddSection)).Methods("POST")
+	r.HandleFunc("/api/admin/settings/sections/{id}", middleware.SuperAdminOnly(handlers.UpdateSection)).Methods("PUT")
+	r.HandleFunc("/api/admin/settings/sections/{id}", middleware.SuperAdminOnly(handlers.DeleteSection)).Methods("DELETE")
+
 	// ── Static frontend files ─────────────────────────────────────────────────
-	// The catch-all must come last so it never shadows the /api/* routes above.
 	fs := http.FileServer(http.Dir("./frontend"))
 	r.PathPrefix("/").Handler(fs)
 }

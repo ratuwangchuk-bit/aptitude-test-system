@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,9 +27,12 @@ func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := loadTestConfig()
+	validityMinutes := cfg.PasscodeValidityMinutes
+
 	var id int
 	err = config.DB.QueryRow(
-		"INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + INTERVAL '90 minutes') RETURNING id",
+		fmt.Sprintf("INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + INTERVAL '%d minutes') RETURNING id", validityMinutes),
 		code,
 	).Scan(&id)
 	if err != nil {
@@ -37,7 +41,7 @@ func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "Participant passcode generated successfully. It will expire after 1 hour 30 minutes.",
+		"message": fmt.Sprintf("Passcode generated. It will expire in %d minutes.", validityMinutes),
 		"id":      id,
 		"code":    code,
 	})

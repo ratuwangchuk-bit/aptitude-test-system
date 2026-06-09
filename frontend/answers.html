@@ -8,76 +8,92 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="admin-body min-h-screen pb-10">
+<body class="admin-body min-h-screen pb-12">
 
-  <!-- ── Top navigation bar ───────────────────────────────── -->
-  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-      <!-- Brand -->
-      <div class="flex items-center gap-3">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black">Answer Management</h1>
-          <p class="text-white/70 text-sm font-semibold">Link correct options with questions.</p>
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Answer Management</h1>
+            <p class="text-white/60 text-xs font-semibold">Assign correct options to questions.</p>
+          </div>
         </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link active" href="answers.html">Answers</a>
+          <a class="nav-link" href="participants.html">Participants</a>
+          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
       </div>
+    </header>
+  </div>
 
-      <!-- Nav links -->
-      <nav class="nav-area flex gap-2">
-        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
-        <a class="nav-link" href="questions.html">Questions</a>
-        <a class="nav-link active" href="answers.html">Answers</a>
-        <a class="nav-link" href="participants.html">Participants</a>
-        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
-        <a class="nav-link super-only" href="admins.html">Admins</a>
-        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
-          <span class="logout-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
-          </span>
-          Logout
-        </button>
-      </nav>
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
+    <!-- ── Tip banner ────────────────────────────────────────── -->
+    <div class="rounded-xl bg-blue-50 border border-blue-200 p-3.5 flex items-start gap-3">
+      <svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p class="text-blue-800 text-xs font-semibold leading-relaxed">
+        <strong>Tip:</strong> You can set the correct answer directly on the <a href="questions.html" class="underline">Questions page</a> when adding a question — this page is for bulk-uploading or editing answers separately.
+      </p>
     </div>
-  </header>
-
-  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6">
 
     <!-- ── Answer form + bulk upload (super admin only) ─────── -->
-    <section class="grid lg:grid-cols-5 gap-6 super-only management-panel">
+    <section class="grid lg:grid-cols-5 gap-5 super-only management-panel">
 
       <!-- Add / edit answer form -->
-      <div class="card p-5 sm:p-6 lg:col-span-3">
-        <div class="flex items-center justify-between mb-5">
+      <div class="card p-6 lg:col-span-3">
+        <div class="flex items-start justify-between mb-5">
           <div>
-            <h2 class="text-xl font-black" id="answerFormTitle">Add / Update Correct Answer</h2>
-            <p class="text-sm text-slate-500 font-semibold">Select the correct option for a question.</p>
+            <h2 class="text-lg font-black text-slate-800" id="answerFormTitle">Add / Update Answer</h2>
+            <p class="text-sm text-slate-500 font-semibold">Set the correct option for a given question ID.</p>
           </div>
-          <button id="cancelAnswerEdit" type="button" class="btn-outline hidden" onclick="resetAnswerForm()">Cancel Edit</button>
+          <button id="cancelAnswerEdit" type="button"
+                  class="btn-outline hidden text-sm px-4 py-2" onclick="resetAnswerForm()">Cancel Edit</button>
         </div>
 
         <form id="answerForm" class="grid sm:grid-cols-2 gap-4">
           <input id="answer_id_edit" type="hidden">
 
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="question_id">Question ID</label>
-            <input id="question_id" type="number" min="1" class="input" placeholder="Example: 1" required>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="question_id">Question ID</label>
+            <input id="question_id" type="number" min="1" class="input" placeholder="e.g. 42" required>
           </div>
 
-          <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="correct_option">Correct Option</label>
+          <div id="correctOptionWrap">
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="correct_option">Correct Option</label>
+            <!-- MCQ select (default) -->
             <select id="correct_option" class="input" required>
               <option value="A">Option A</option>
               <option value="B">Option B</option>
               <option value="C">Option C</option>
               <option value="D">Option D</option>
             </select>
+            <!-- Fill-blank text input (shown when question is fill_blank type) -->
+            <input id="correct_option_text" class="input hidden"
+                   placeholder="e.g. Paris, france, the capital of France">
+            <p id="fillBlankHint" class="hidden text-xs text-slate-400 font-semibold mt-1.5">
+              Separate multiple accepted keywords with a comma. Matching is case-insensitive.
+            </p>
           </div>
 
-          <div class="sm:col-span-2 flex justify-center">
+          <div class="sm:col-span-2 flex justify-end">
             <button class="btn flex items-center gap-2 px-6" id="answerSubmitBtn">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
                 <polyline points="7 3 7 8 15 8"/>
@@ -86,15 +102,18 @@
             </button>
           </div>
         </form>
-        <p id="message"></p>
+        <p id="message" class="mt-2"></p>
       </div>
 
-      <!-- Bulk upload via Excel -->
-      <div class="card p-5 sm:p-6 lg:col-span-2">
-        <div class="flex items-start justify-between mb-2">
-          <h2 class="text-xl font-black">Upload Answers in Bulk</h2>
-          <!-- Download icon — triggers template file download -->
-          <a class="btn-icon btn-soft" href="templates/answers_template.xlsx" download title="Download Answers Template">
+      <!-- Bulk upload -->
+      <div class="card p-6 lg:col-span-2 flex flex-col">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
+            <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import correct answers.</p>
+          </div>
+          <a class="btn-icon btn-soft shrink-0" href="templates/answers_template.xlsx"
+             download title="Download answers template">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -102,38 +121,37 @@
             </svg>
           </a>
         </div>
-        <p class="text-sm text-slate-600 mb-4">Download the section-wise answer template, enter question IDs and correct options, then upload.</p>
-        <p class="text-xs text-slate-500 font-bold mb-3">Sheets included: Section A Analytical, Section B Verbal, Section C Quantitative.</p>
-        <input id="answerFile" type="file" accept=".xlsx" class="input">
-        <div class="flex justify-center mt-4">
-          <button onclick="uploadAnswers()" class="btn flex items-center gap-2 px-6">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            Upload Excel
-          </button>
-        </div>
+        <p class="text-sm text-slate-500 font-semibold mb-3">Download the template, fill question IDs and correct options per section sheet, then upload.</p>
+        <input id="answerFile" type="file" accept=".xlsx" class="input text-sm mb-4">
+        <button onclick="uploadAnswers()" class="btn flex items-center gap-2 justify-center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
+        </button>
       </div>
 
     </section>
 
-    <!-- ── All answers table ─────────────────────────────────── -->
-    <section class="card p-5 sm:p-6 mt-6">
+    <!-- ── All Q&A table ─────────────────────────────────────── -->
+    <section class="card p-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h2 class="text-xl font-black">All Questions &amp; Answers</h2>
+          <h2 class="text-lg font-black text-slate-800">All Questions &amp; Answers</h2>
+          <p class="text-sm text-slate-500 font-semibold">Questions without an answer are highlighted.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-          <input id="answerSearch" class="input sm:max-w-xs" placeholder="Search answers...">
-          <button id="deleteSelectedAnswersBtn" onclick="deleteSelectedAnswers()" class="btn-outline hidden flex items-center gap-1.5 whitespace-nowrap text-red-600 border-red-300 hover:bg-red-50" title="Delete selected answers">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <input id="answerSearch" class="input sm:max-w-xs text-sm" placeholder="Search questions…">
+          <button id="deleteSelectedAnswersBtn" onclick="deleteSelectedAnswers()"
+                  class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/>
               <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
-            <span>Delete Selected</span>
+            Delete Selected
           </button>
         </div>
       </div>
@@ -141,12 +159,14 @@
         <table class="modern-table">
           <thead>
             <tr>
-              <th class="super-only" style="width:40px"><input type="checkbox" id="selectAllAnswers" title="Select all" onchange="toggleSelectAllAnswers(this)"></th>
-              <th>Question ID</th>
-              <th>Section</th>
+              <th class="super-only" style="width:40px">
+                <input type="checkbox" id="selectAllAnswers" title="Select all" onchange="toggleSelectAllAnswers(this)">
+              </th>
+              <th style="width:5rem">Q ID</th>
+              <th style="width:8rem">Section</th>
               <th>Question</th>
-              <th>Correct Option</th>
-              <th class="super-only">Action</th>
+              <th style="width:9rem">Correct Option</th>
+              <th class="super-only" style="width:7rem">Actions</th>
             </tr>
           </thead>
           <tbody id="answersTable"></tbody>

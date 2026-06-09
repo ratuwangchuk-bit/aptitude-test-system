@@ -53,10 +53,21 @@ func AddAnswer(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	a.CorrectOption = strings.ToUpper(a.CorrectOption)
-	if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
-		utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
-		return
+	// Look up the question type so we can validate appropriately.
+	var qType string
+	config.DB.QueryRow("SELECT COALESCE(question_type,'mcq') FROM questions WHERE id=$1", a.QuestionID).Scan(&qType)
+	if qType == "fill_blank" {
+		a.CorrectOption = strings.TrimSpace(a.CorrectOption)
+		if a.CorrectOption == "" {
+			utils.Error(w, http.StatusBadRequest, "Correct answer text is required for fill-in-the-blank questions")
+			return
+		}
+	} else {
+		a.CorrectOption = strings.ToUpper(strings.TrimSpace(a.CorrectOption))
+		if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
+			utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
+			return
+		}
 	}
 
 	err := config.DB.QueryRow(`
@@ -73,7 +84,6 @@ func AddAnswer(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateAnswer modifies the question_id and correct_option for an existing answer row.
-// The correct_option is validated to be A, B, C, or D before the update.
 func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var a models.Answer
@@ -81,10 +91,20 @@ func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	a.CorrectOption = strings.ToUpper(a.CorrectOption)
-	if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
-		utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
-		return
+	var qType string
+	config.DB.QueryRow("SELECT COALESCE(question_type,'mcq') FROM questions WHERE id=$1", a.QuestionID).Scan(&qType)
+	if qType == "fill_blank" {
+		a.CorrectOption = strings.TrimSpace(a.CorrectOption)
+		if a.CorrectOption == "" {
+			utils.Error(w, http.StatusBadRequest, "Correct answer text is required for fill-in-the-blank questions")
+			return
+		}
+	} else {
+		a.CorrectOption = strings.ToUpper(strings.TrimSpace(a.CorrectOption))
+		if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
+			utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
+			return
+		}
 	}
 
 	res, err := config.DB.Exec(

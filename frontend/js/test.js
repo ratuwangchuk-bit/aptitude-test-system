@@ -1,14 +1,14 @@
 let questions           = [];
 let submitted           = false;
+let testStarted         = false; // true only after /api/start-test succeeds
 let currentQuestionIdx  = 0;
-const selectedAnswers   = {}; // { [question_id]: 'A'|'B'|'C'|'D' } — survives question navigation
-const DURATION          = 60 * 60; // Total test duration in seconds (60 minutes).
+const selectedAnswers   = {}; // { [question_id]: 'A'|'B'|'C'|'D' }
+
+// These are set dynamically from /api/test-info before the test starts.
+let DURATION     = 60 * 60; // fallback — overwritten by initTest()
+let testSections = [];       // [{id, name, label, questions_per_test, sort_order}]
 
 // ── Single-tab enforcement ─────────────────────────────────────────────────────
-// Only one browser tab per participant may hold the test open at a time.
-// A BroadcastChannel allows tabs on the same origin to message each other.
-// When a new tab opens it broadcasts a "check" message; if an existing active tab
-// responds with "active", the new tab knows it is a duplicate and blocks itself.
 const _tabChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('daes_test_tab')
   : null;
@@ -20,10 +20,6 @@ _tabChannel?.addEventListener('message', e => {
   }
 });
 
-/**
- * Attempts to claim the single-tab lock for this participant.
- * Resolves true if no other tab responded "active" within 150 ms.
- */
 function acquireTabLock() {
   if (!_tabChannel) return Promise.resolve(true);
   return new Promise(resolve => {
@@ -44,28 +40,31 @@ function acquireTabLock() {
   });
 }
 
-// Canonical section order and display metadata.
-const sectionOrder = ['Analytical Ability', 'Verbal Ability', 'Quantitative Skills'];
+/* ── Section helpers ────────────────────────────────────────────────────────── */
 
-const sectionLetters = {
-  'Analytical Ability':  'A',
-  'Verbal Ability':      'B',
-  'Quantitative Skills': 'C',
-};
+function getSectionMeta(sectionName) {
+  const meta = testSections.find(s => s.name === sectionName);
+  return {
+    label:  meta?.label  || sectionName,
+    letter: meta?.label  ? meta.label.replace('Section ', '').trim() : sectionName.slice(0, 3),
+    qpt:    meta?.questions_per_test || 0,
+  };
+}
 
-const sectionTabLabels = {
-  'Analytical Ability':  'Analytical Ability',
-  'Verbal Ability':      'Verbal Ability',
-  'Quantitative Skills': 'Quantitative Skills',
-};
+// Returns sections that have at least one question in the current question set.
+function activeSectionsInOrder() {
+  const fromMeta = testSections
+    .filter(s => questions.some(q => q.section === s.name))
+    .map(s => s.name);
+  // Include any sections present in questions but not in testSections (e.g. uploaded questions).
+  questions.forEach(q => {
+    if (!fromMeta.includes(q.section)) fromMeta.push(q.section);
+  });
+  return fromMeta;
+}
 
 /* ── Progress tracking ─────────────────────────────────────────────────────── */
 
-/**
- * Counts answered questions from selectedAnswers (not the DOM, since only one
- * question is rendered at a time). Updates the topbar counter, progress bar,
- * and submit button, then refreshes the sidebar and section tab indicators.
- */
 function updateAnsweredProgress() {
   const answered = questions.filter(q => selectedAnswers[q.id]).length;
   const total    = questions.length;
@@ -78,10 +77,10 @@ function updateAnsweredProgress() {
   if (progressBar) progressBar.style.width = total ? `${(answered / total) * 100}%` : '0%';
 
   if (submitBtn) {
-    const allDone = total > 0 && answered === total;
-    submitBtn.disabled = !allDone;
-    submitBtn.classList.toggle('opacity-40',        !allDone);
-    submitBtn.classList.toggle('cursor-not-allowed', !allDone);
+    const canSubmit = total > 0;
+    submitBtn.disabled = !canSubmit;
+    submitBtn.classList.toggle('opacity-40',         !canSubmit);
+    submitBtn.classList.toggle('cursor-not-allowed', !canSubmit);
   }
 
   updateSidebarButtons();
@@ -90,32 +89,33 @@ function updateAnsweredProgress() {
 
 /* ── Sidebar + section tab bar ─────────────────────────────────────────────── */
 
-/**
- * Builds the left sidebar (question number grid per section) and the section
- * tab bar (A / B / C with answered/total counts). Called once after questions load.
- */
 function buildSidebarAndTabs() {
   const sidebar = document.getElementById('testSidebar');
   const tabBar  = document.getElementById('testSectionBar');
   if (!sidebar || !tabBar) return;
 
-  let globalIdx = 0;
-  let tabsHtml  = '';
-  let sideHtml  = '';
+  const sections = activeSectionsInOrder();
+  let globalIdx  = 0;
+  let tabsHtml   = '';
+  let sideHtml   = '';
 
-  sectionOrder.forEach(section => {
-    const sq     = questions.filter(q => q.section === section);
+  sections.forEach(sectionName => {
+    const sq   = questions.filter(q => q.section === sectionName);
     if (!sq.length) return;
-    const letter = sectionLetters[section] || '?';
+    const meta = getSectionMeta(sectionName);
 
     tabsHtml += `
-      <button class="tab-btn" id="tabBtn_${letter}"
-              onclick="jumpToSection('${section}')">
-        ${letter} &middot; ${sectionTabLabels[section] || section}
-        <span class="tab-score" id="tabScore_${letter}">0/${sq.length}</span>
+      <button class="tab-btn" data-tab-section="${escapeHtml(sectionName)}"
+              onclick="jumpToSection(${JSON.stringify(sectionName)})">
+        ${escapeHtml(meta.letter)} &middot; ${escapeHtml(meta.label)}
+        <span class="tab-score" data-tab-score="${escapeHtml(sectionName)}">0/${sq.length}</span>
       </button>`;
 
-    sideHtml += `<div class="sb-section-header"><span class="sb-dot"></span>Section ${letter}</div><div class="sb-grid">`;
+    sideHtml += `
+      <div class="sb-section-header">
+        <span class="sb-dot"></span>${escapeHtml(meta.label)}
+      </div>
+      <div class="sb-grid">`;
     sq.forEach((q, li) => {
       sideHtml += `<button class="sb-q" id="sbq_${globalIdx}" onclick="goToQuestion(${globalIdx})">${li + 1}</button>`;
       globalIdx++;
@@ -127,9 +127,6 @@ function buildSidebarAndTabs() {
   sidebar.innerHTML = sideHtml;
 }
 
-/**
- * Repaints every sidebar button: current = orange, answered = blue, else default.
- */
 function updateSidebarButtons() {
   questions.forEach((q, gi) => {
     const btn = document.getElementById(`sbq_${gi}`);
@@ -140,61 +137,49 @@ function updateSidebarButtons() {
   });
 }
 
-/**
- * Updates the per-section answered/total scores in the tab bar and highlights
- * the tab that owns the currently visible question.
- */
 function updateSectionTabs() {
   const activeSection = questions[currentQuestionIdx]?.section;
-
-  sectionOrder.forEach(section => {
-    const letter = sectionLetters[section];
-    const sq     = questions.filter(q => q.section === section);
+  activeSectionsInOrder().forEach(sectionName => {
+    const sq     = questions.filter(q => q.section === sectionName);
     const done   = sq.filter(q => selectedAnswers[q.id]).length;
 
-    const scoreEl = document.getElementById(`tabScore_${letter}`);
+    const scoreEl = document.querySelector(`[data-tab-score="${CSS.escape(sectionName)}"]`);
     if (scoreEl) scoreEl.textContent = `${done}/${sq.length}`;
 
-    const tabEl = document.getElementById(`tabBtn_${letter}`);
-    if (tabEl) tabEl.classList.toggle('tab-active', section === activeSection);
+    const tabEl = document.querySelector(`[data-tab-section="${CSS.escape(sectionName)}"]`);
+    if (tabEl) tabEl.classList.toggle('tab-active', sectionName === activeSection);
   });
+}
+
+/* ── Topbar subtitle ────────────────────────────────────────────────────────── */
+
+function updateTopbarMeta() {
+  const el = document.getElementById('testTopbarMeta');
+  if (!el || !testSections.length) return;
+  const sectionSummary = testSections
+    .filter(s => questions.some(q => q.section === s.name))
+    .map(s => `${s.questions_per_test} ${escapeHtml(s.label || s.name)}`)
+    .join(' · ');
+  el.textContent = sectionSummary;
 }
 
 /* ── Markdown table renderer ───────────────────────────────────────────────── */
 
-/**
- * Converts pipe-delimited markdown tables embedded in question text to HTML.
- * Non-table lines are wrapped in <p> tags. All cell content is passed through
- * escapeHtml so no user-supplied markup can reach the DOM.
- *
- * Supports:
- *   | Header | Header |       ← thead
- *   |--------|--------|       ← separator (detected, not rendered)
- *   | Cell   | Cell   |       ← tbody
- *
- * Tables without a separator row are treated as body-only (no <thead>).
- * Mixed text + table questions work correctly — text renders above/below the table.
- */
 function renderQuestionText(raw) {
   const lines = raw.split('\n');
   const parts = [];
   let i = 0;
 
   while (i < lines.length) {
-    // A table block is a run of consecutive lines that contain a pipe character.
     if (lines[i].includes('|')) {
       const tableLines = [];
       while (i < lines.length && lines[i].includes('|')) {
         tableLines.push(lines[i]);
         i++;
       }
-
-      // Parse each line: strip leading/trailing pipes, split on |, trim cells.
-      const rows = tableLines.map(l =>
+      const rows  = tableLines.map(l =>
         l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim())
       );
-
-      // A separator row contains only dashes, colons, and spaces in every cell.
       const isSep = r => r.every(c => /^[-:\s]+$/.test(c));
       const sepIdx = rows.findIndex(isSep);
 
@@ -203,18 +188,14 @@ function renderQuestionText(raw) {
 
       let html = '<table class="q-table">';
       if (headerRows.length) {
-        html += '<thead>' +
-          headerRows.map(r =>
-            '<tr>' + r.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>'
-          ).join('') +
-          '</thead>';
+        html += '<thead>' + headerRows.map(r =>
+          '<tr>' + r.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>'
+        ).join('') + '</thead>';
       }
       if (dataRows.length) {
-        html += '<tbody>' +
-          dataRows.map(r =>
-            '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>'
-          ).join('') +
-          '</tbody>';
+        html += '<tbody>' + dataRows.map(r =>
+          '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>'
+        ).join('') + '</tbody>';
       }
       html += '</table>';
       parts.push(html);
@@ -224,27 +205,20 @@ function renderQuestionText(raw) {
       i++;
     }
   }
-
   return parts.join('');
 }
 
 /* ── Question display ──────────────────────────────────────────────────────── */
 
-/**
- * Renders question at global index `idx` into the question panel.
- * Reads the saved answer from `selectedAnswers` so the tile is pre-selected
- * when the participant navigates back to a previously answered question.
- */
 function showQuestion(idx) {
   if (idx < 0 || idx >= questions.length) return;
   currentQuestionIdx = idx;
 
-  const q          = questions[idx];
-  const section    = q.section || 'Other';
-  const letter     = sectionLetters[section] || '';
-  const badgeLabel = letter ? `Section ${letter}  ·  ${section}` : section;
+  const q      = questions[idx];
+  const meta   = getSectionMeta(q.section || '');
+  const badgeLabel = `${meta.label}  ·  ${q.section}`;
 
-  const sectionQs = questions.filter(sq => sq.section === section);
+  const sectionQs = questions.filter(sq => sq.section === q.section);
   const localIdx  = sectionQs.indexOf(q);
   const saved     = selectedAnswers[q.id] || '';
 
@@ -254,7 +228,7 @@ function showQuestion(idx) {
   form.innerHTML = `
     <div class="q-section-badge">
       <span class="q-badge-dot"></span>
-      ${escapeHtml(badgeLabel)}
+      ${escapeHtml(meta.label !== q.section ? badgeLabel : meta.label)}
     </div>
     <p class="q-meta">
       <span>Question ${localIdx + 1} of ${sectionQs.length}</span>
@@ -262,18 +236,29 @@ function showQuestion(idx) {
       <span>Overall ${idx + 1} of ${questions.length}</span>
     </p>
     <div class="q-text-card">${renderQuestionText(q.question_text)}</div>
-    <div class="q-options">
-      ${['A','B','C','D'].map(opt => {
-        const text   = q['option_' + opt.toLowerCase()];
-        const selCls = saved === opt ? ' q-selected' : '';
-        return `
-          <label class="q-opt${selCls}" id="qopt_${q.id}_${opt}"
-                 onclick="onOptionChange(${q.id},'${opt}')">
-            <span class="q-opt-badge">${opt}</span>
-            <span>${escapeHtml(text)}</span>
-          </label>`;
-      }).join('')}
-    </div>
+    ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(q.image_url)}" alt="Question image" class="q-img"></div>` : ''}
+    ${(q.question_type === 'fill_blank' || (!q.option_a && !q.option_b && !q.option_c && !q.option_d))
+      ? `<div class="q-fill-wrap">
+           <label class="block text-sm font-bold text-slate-600 mb-2">Your Answer</label>
+           <input id="qfill_${q.id}" type="text" class="q-fill-input"
+                  placeholder="Type your answer here…"
+                  value="${escapeHtml(saved)}"
+                  oninput="onFillChange(${q.id}, this.value)"
+                  autocomplete="off">
+         </div>`
+      : `<div class="q-options">
+           ${['A','B','C','D'].map(opt => {
+             const text   = q['option_' + opt.toLowerCase()];
+             const selCls = saved === opt ? ' q-selected' : '';
+             return `
+               <label class="q-opt${selCls}" id="qopt_${q.id}_${opt}"
+                      onclick="onOptionChange(${q.id},'${opt}')">
+                 <span class="q-opt-badge">${opt}</span>
+                 <span>${escapeHtml(text)}</span>
+               </label>`;
+           }).join('')}
+         </div>`
+    }
     <div class="q-nav">
       <button class="q-nav-btn" onclick="goToQuestion(${idx - 1})" ${idx === 0 ? 'disabled' : ''}>
         &#8592; Previous
@@ -284,37 +269,35 @@ function showQuestion(idx) {
       </button>
     </div>`;
 
-  // Scroll the question panel back to the top when switching questions.
   document.querySelector('.test-q-panel')?.scrollTo({ top: 0, behavior: 'smooth' });
-
   updateSidebarButtons();
   updateSectionTabs();
 }
 
-/**
- * Records the chosen option, updates tile styling, then refreshes progress.
- * Uses the `selectedAnswers` map so answers persist across question navigation
- * without requiring all radio inputs to remain in the DOM simultaneously.
- */
 function onOptionChange(qId, opt) {
   selectedAnswers[qId] = opt;
-
-  // Deselect all tiles for this question, then select the chosen one.
   ['A','B','C','D'].forEach(o => {
     document.getElementById(`qopt_${qId}_${o}`)?.classList.remove('q-selected');
   });
   document.getElementById(`qopt_${qId}_${opt}`)?.classList.add('q-selected');
-
   updateAnsweredProgress();
 }
 
-/** Navigates to the question at global index `idx`. */
+function onFillChange(qId, value) {
+  const trimmed = value.trim();
+  if (trimmed) {
+    selectedAnswers[qId] = value; // store raw (server trims on scoring)
+  } else {
+    delete selectedAnswers[qId];
+  }
+  updateAnsweredProgress();
+}
+
 function goToQuestion(idx) {
   if (idx < 0 || idx >= questions.length) return;
   showQuestion(idx);
 }
 
-/** Jumps to the first question in the given section. */
 function jumpToSection(section) {
   const idx = questions.findIndex(q => q.section === section);
   if (idx !== -1) goToQuestion(idx);
@@ -322,12 +305,6 @@ function jumpToSection(section) {
 
 /* ── Question loading ──────────────────────────────────────────────────────── */
 
-/**
- * Fetches questions from the API, builds the sidebar and tab bar, then shows
- * the first question. If savedAnswers are provided (from reload recovery), they
- * are restored into `selectedAnswers` before rendering so the participant does
- * not lose progress across page reloads.
- */
 async function loadQuestions(savedAnswers = null) {
   try {
     questions = (await api('/api/questions')) || [];
@@ -345,9 +322,9 @@ async function loadQuestions(savedAnswers = null) {
     const totalEl = document.getElementById('questionTotal');
     if (totalEl) totalEl.textContent = questions.length;
 
+    updateTopbarMeta();
     buildSidebarAndTabs();
 
-    // Restore answers from reload checkpoint before the first render.
     if (savedAnswers) {
       savedAnswers.forEach(a => {
         if (a.selected_option) selectedAnswers[a.question_id] = a.selected_option;
@@ -363,11 +340,6 @@ async function loadQuestions(savedAnswers = null) {
 
 /* ── Passcode expiry watcher ───────────────────────────────────────────────── */
 
-/**
- * Polls /api/passcode-status every 30 seconds. If the passcode is deleted or
- * expires while the participant is mid-test, shows a warning banner and
- * auto-submits after a 3-second grace period so answers are not lost.
- */
 function startPasscodeWatcher() {
   const passcodeId = Number(localStorage.getItem('passcode_id'));
   if (!passcodeId) return;
@@ -379,18 +351,15 @@ function startPasscodeWatcher() {
       const data = await res.json().catch(() => ({}));
       if (!data.valid) {
         clearInterval(interval);
-
-        // Show a prominent warning banner above the question panel.
         const banner = document.createElement('div');
         banner.style.cssText = [
-          'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
-          'background:#7f1d1d', 'border-bottom:2px solid #ef4444',
-          'color:#fca5a5', 'font-weight:800', 'font-size:0.9rem',
-          'padding:0.9rem 1.5rem', 'text-align:center',
+          'position:fixed','top:0','left:0','right:0','z-index:99999',
+          'background:#7f1d1d','border-bottom:2px solid #ef4444',
+          'color:#fca5a5','font-weight:800','font-size:0.9rem',
+          'padding:0.9rem 1.5rem','text-align:center',
         ].join(';');
         banner.textContent = '⚠  The session passcode has expired. Your answers are being submitted automatically…';
         document.body.prepend(banner);
-
         setTimeout(() => submitTest(true), 3000);
       }
     } catch { /* Network error — wait for next tick. */ }
@@ -399,10 +368,6 @@ function startPasscodeWatcher() {
 
 /* ── Timer ─────────────────────────────────────────────────────────────────── */
 
-/**
- * Starts the countdown timer. The server's authoritative start time is stored
- * in localStorage so the clock survives page reloads without resetting.
- */
 function startTimer() {
   const stored   = localStorage.getItem('test_start_time');
   const storedMs = stored ? parseInt(stored, 10) : NaN;
@@ -419,7 +384,6 @@ function startTimer() {
     const timer     = document.getElementById('timer');
     if (timer) {
       timer.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-      // Pulse animation when ≤ 5 minutes remain.
       if (remaining <= 300) timer.parentElement.classList.add('animate-pulse');
     }
     if (remaining <= 0) { clearInterval(interval); submitTest(true); }
@@ -431,10 +395,6 @@ function startTimer() {
 
 /* ── Submission ────────────────────────────────────────────────────────────── */
 
-/**
- * Collects all answers from `selectedAnswers` (not the DOM) and submits.
- * auto=true skips the confirmation dialog (used by the timer auto-submit).
- */
 async function submitTest(auto = false) {
   if (submitted) return;
   if (!auto) {
@@ -461,6 +421,7 @@ async function submitTest(auto = false) {
     _isActiveTab = false;
     localStorage.removeItem('participant_id');
     localStorage.removeItem('test_start_time');
+    localStorage.removeItem('passcode_id');
 
     document.body.innerHTML = `
       <div class="min-h-screen flex items-center justify-center p-6"
@@ -486,15 +447,8 @@ document.getElementById('submitBtn')?.addEventListener('click', () => submitTest
 document.addEventListener('copy',        e => { e.preventDefault(); });
 document.addEventListener('contextmenu', e => { e.preventDefault(); });
 
-/* ── Beacon auto-submit (tab close / navigation away) ─────────────────────── */
+/* ── Beacon auto-submit ─────────────────────────────────────────────────────── */
 
-/**
- * Fires the answers via sendBeacon so they are delivered even while the page
- * tears down. Reads from `selectedAnswers` rather than the DOM so all answers
- * are captured regardless of which question is currently displayed.
- * A sessionStorage checkpoint is written before the beacon so that the next
- * page load (a reload) can cancel the submission and restore answers.
- */
 function autoSubmitViaBeacon() {
   const participantId = Number(localStorage.getItem('participant_id'));
   if (!participantId || questions.length === 0) return;
@@ -504,7 +458,6 @@ function autoSubmitViaBeacon() {
     selected_option: selectedAnswers[q.id] || '',
   }));
 
-  // Checkpoint before beacon so the cancel handler can read it on reload.
   sessionStorage.setItem('_testSession', JSON.stringify({ participantId, answers }));
 
   const payload = JSON.stringify({ participant_id: participantId, answers });
@@ -518,11 +471,6 @@ function autoSubmitViaBeacon() {
   }
 }
 
-/**
- * Cancels an auto-submission made within the last 60 seconds.
- * Retries up to 3 times with 400 ms gaps to survive the race between the
- * sendBeacon arriving at the server and this cancellation request.
- */
 async function cancelAutoSubmit(participantId) {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 400));
@@ -540,31 +488,24 @@ async function cancelAutoSubmit(participantId) {
   return false;
 }
 
-// Warn the participant before leaving while the test is active.
 window.addEventListener('beforeunload', e => {
   if (!submitted) { e.preventDefault(); e.returnValue = ''; }
 });
 
-// Auto-submit when the participant confirms "Leave" or on mobile without dialog.
 window.addEventListener('pagehide', () => {
-  if (!submitted) autoSubmitViaBeacon();
+  // Only beacon if the test was properly started (start-test succeeded).
+  // Without this guard, a tab-close during a failed start-test would beacon
+  // a blank submission and permanently consume the participant's one attempt.
+  if (!submitted && testStarted) autoSubmitViaBeacon();
 });
 
 /* ── Entry point ───────────────────────────────────────────────────────────── */
 
-/**
- * Called by the fullscreen prompt button after the participant enters fullscreen.
- * Handles reload recovery (cancels the pagehide beacon, restores answers), checks
- * for already-submitted state, enforces single-tab lock, syncs the timer, then
- * loads questions and starts the countdown.
- */
 async function initTest() {
   const participantId = localStorage.getItem('participant_id');
   if (!participantId) { window.location.href = 'index.html'; return; }
 
-  // ── Reload recovery ──────────────────────────────────────────────────────────
-  // pagehide fires on both reload and close. sessionStorage survives reload but
-  // is wiped on close — that asymmetry lets us cancel the beacon on reload only.
+  // Reload recovery.
   const navType    = performance.getEntriesByType?.('navigation')?.[0]?.type;
   const sessionRaw = sessionStorage.getItem('_testSession');
   let savedAnswersForRestore = null;
@@ -574,13 +515,13 @@ async function initTest() {
       const session = JSON.parse(sessionRaw);
       if (session.participantId === Number(participantId)) {
         await cancelAutoSubmit(session.participantId);
-        savedAnswersForRestore = session.answers; // Restore answers after cancel.
+        savedAnswersForRestore = session.answers;
       }
     } catch { /* Malformed checkpoint — ignore. */ }
     sessionStorage.removeItem('_testSession');
   }
 
-  // Block if the participant has already submitted.
+  // Block if already submitted.
   try {
     const status = await api(`/api/submission-status/${participantId}`);
     if (status.submitted) {
@@ -597,9 +538,7 @@ async function initTest() {
       submitted = true;
       return;
     }
-  } catch {
-    // Status check failed — fall through and allow the test to load.
-  }
+  } catch { /* Status check failed — fall through. */ }
 
   // Block duplicate tabs.
   const tabAllowed = await acquireTabLock();
@@ -608,14 +547,35 @@ async function initTest() {
       <div class="card p-8 text-center">
         <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
         <h2 class="text-2xl font-black text-red-600 mt-4">Test Already Open</h2>
-        <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab or window. Please close this tab and continue in your original tab.</p>
+        <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab. Please close this tab and continue in your original tab.</p>
       </div>`;
     document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
     submitted = true;
     return;
   }
 
-  // Synchronise the timer with the server so all reloads show identical time.
+  // ── Fetch dynamic test configuration ────────────────────────────────────────
+  try {
+    const info = await fetch('/api/test-info').then(r => r.json());
+    if (info.duration_minutes && info.duration_minutes > 0) {
+      DURATION = info.duration_minutes * 60;
+    }
+    if (Array.isArray(info.sections) && info.sections.length) {
+      testSections = info.sections;
+    }
+    // Update timer display to reflect actual duration.
+    const timerEl = document.getElementById('timer');
+    if (timerEl) {
+      const m = Math.floor(DURATION / 60);
+      const s = DURATION % 60;
+      timerEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    // Update topbar total from config.
+    const totalEl = document.getElementById('questionTotal');
+    if (totalEl && info.total_questions) totalEl.textContent = info.total_questions;
+  } catch { /* Use fallback DURATION and empty testSections. */ }
+
+  // Sync timer with server's authoritative start time.
   try {
     const startData = await api('/api/start-test', {
       method: 'POST',
@@ -623,9 +583,8 @@ async function initTest() {
     });
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
     localStorage.setItem('test_start_time', seededStart.toString());
-  } catch {
-    // Network error — use localStorage value or start fresh.
-  }
+    testStarted = true; // beacon guard: only auto-submit if start-test succeeded
+  } catch { /* Use localStorage value or start fresh. */ }
 
   loadQuestions(savedAnswersForRestore);
   startTimer();

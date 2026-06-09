@@ -82,21 +82,19 @@ func looksLikeSection(value string) bool {
 		strings.Contains(v, "section")
 }
 
-// normalizeSection maps common aliases to the three canonical section names used
-// throughout the system. The pointer receiver allows callers to modify the string
-// in-place. Any unrecognised value falls back to "Analytical Ability" so data is
-// never silently dropped when a template uses an unexpected section label.
+// normalizeSection maps common legacy aliases to canonical section names.
+// Known short-hands (a/b/c, "section a", "analytical", etc.) are expanded;
+// any other value is left unchanged so custom section names added through the
+// admin UI pass through without being corrupted.
 func normalizeSection(section *string) {
 	v := strings.ToLower(strings.TrimSpace(*section))
 	switch {
-	case v == "a" || strings.Contains(v, "section a") || strings.Contains(v, "analytical"):
+	case v == "a" || v == "section a" || strings.Contains(v, "analytical"):
 		*section = "Analytical Ability"
-	case v == "b" || strings.Contains(v, "section b") || strings.Contains(v, "verbal"):
+	case v == "b" || v == "section b" || strings.Contains(v, "verbal"):
 		*section = "Verbal Ability"
-	case v == "c" || strings.Contains(v, "section c") || strings.Contains(v, "quantitative"):
+	case v == "c" || v == "section c" || strings.Contains(v, "quantitative"):
 		*section = "Quantitative Skills"
-	default:
-		// Unknown sections default to Analytical Ability to avoid silently losing rows.
-		*section = "Analytical Ability"
+	// All other values — including custom section names — are kept as-is.
 	}
 }

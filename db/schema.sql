@@ -1,108 +1,199 @@
+-- ══════════════════════════════════════════════════════════════════════════════
+-- Digital Aptitude Evaluation System — Full Database Schema
+-- ══════════════════════════════════════════════════════════════════════════════
+--
+-- FIRST-TIME SETUP (run as a PostgreSQL superuser, e.g. postgres):
+--
+--   psql -U postgres -f db/schema.sql
+--
+-- This script creates the database if it does not already exist, then
+-- connects to it and creates all tables, indexes, and seed rows.
+--
+-- RE-RUNNING ON AN EXISTING DATABASE:
+--   The script is idempotent — every CREATE uses IF NOT EXISTS and every
+--   INSERT uses ON CONFLICT … DO NOTHING / DO UPDATE, so it is safe to
+--   re-run at any time without losing data.
+--
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- ── Create database (skip if it already exists) ───────────────────────────────
+SELECT 'CREATE DATABASE aptitude_db'
+WHERE NOT EXISTS (
+    SELECT FROM pg_database WHERE datname = 'aptitude_db'
+)\gexec
+
+-- Connect to the database for all subsequent statements.
+\c aptitude_db
+
+
+-- ── Admins ────────────────────────────────────────────────────────────────────
+-- Stores admin accounts. Two roles: super_admin (full access) and
+-- general_admin (read-only, no passcode/settings/admin management).
+-- Super-admin session: 1 hour. General-admin session: 30 minutes.
+
 CREATE TABLE IF NOT EXISTS admins (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    role VARCHAR(30) NOT NULL DEFAULT 'general_admin' CHECK (role IN ('super_admin', 'general_admin')),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    id            SERIAL PRIMARY KEY,
+    username      VARCHAR(100) UNIQUE NOT NULL,
+    password_hash TEXT        NOT NULL,
+    role          VARCHAR(30) NOT NULL DEFAULT 'general_admin'
+                    CHECK (role IN ('super_admin', 'general_admin')),
+    is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP            DEFAULT CURRENT_TIMESTAMP
 );
-
-
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS role VARCHAR(30) NOT NULL DEFAULT 'general_admin';
-ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
-DO $$ BEGIN
-    ALTER TABLE admins ADD CONSTRAINT admins_role_check CHECK (role IN ('super_admin', 'general_admin'));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
 
 CREATE TABLE IF NOT EXISTS admin_sessions (
-    id SERIAL PRIMARY KEY,
-    admin_id INT REFERENCES admins(id) ON DELETE CASCADE,
+    id            SERIAL PRIMARY KEY,
+    admin_id      INT  REFERENCES admins(id) ON DELETE CASCADE,
     session_token TEXT UNIQUE NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    expires_at    TIMESTAMP   NOT NULL,
+    created_at    TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS passcodes (
-    id SERIAL PRIMARY KEY,
-    code VARCHAR(100) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 minutes')
-);
-
--- Remove old one-time-use column from earlier versions. Passcodes are reusable.
-ALTER TABLE passcodes DROP COLUMN IF EXISTS is_used;
-ALTER TABLE passcodes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 minutes');
-
-
-CREATE TABLE IF NOT EXISTS participants (
-    id SERIAL PRIMARY KEY,
-    full_name VARCHAR(150) NOT NULL,
-    cid_number VARCHAR(50) NOT NULL,
-    company_name VARCHAR(150) NOT NULL,
-    contact_number VARCHAR(50) NOT NULL,
-    passcode_id INT REFERENCES passcodes(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
--- Ensure CID remains unique for all existing and future participants.
-DO $$ BEGIN
-    ALTER TABLE participants ADD CONSTRAINT participants_cid_number_unique UNIQUE (cid_number);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
-ALTER TABLE participants ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
-
-CREATE TABLE IF NOT EXISTS questions (
-    id SERIAL PRIMARY KEY,
-    section VARCHAR(50) NOT NULL DEFAULT 'Analytical Ability' CHECK (section IN ('Analytical Ability', 'Verbal Ability', 'Quantitative Skills')),
-    question_text TEXT NOT NULL,
-    option_a TEXT NOT NULL,
-    option_b TEXT NOT NULL,
-    option_c TEXT NOT NULL,
-    option_d TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE questions ADD COLUMN IF NOT EXISTS section VARCHAR(50) NOT NULL DEFAULT 'Analytical Ability';
-DO $$ BEGIN
-    ALTER TABLE questions ADD CONSTRAINT questions_section_check CHECK (section IN ('Analytical Ability', 'Verbal Ability', 'Quantitative Skills'));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
-CREATE TABLE IF NOT EXISTS answers (
-    id SERIAL PRIMARY KEY,
-    question_id INT UNIQUE REFERENCES questions(id) ON DELETE CASCADE,
-    correct_option CHAR(1) NOT NULL CHECK (correct_option IN ('A', 'B', 'C', 'D')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS submissions (
-    id SERIAL PRIMARY KEY,
-    participant_id INT REFERENCES participants(id) ON DELETE CASCADE,
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    score INT DEFAULT 0,
-    total_questions INT DEFAULT 0,
-    analytical_score INT DEFAULT 0,
-    verbal_score INT DEFAULT 0,
-    quantitative_score INT DEFAULT 0,
-    percentage NUMERIC(5,2) DEFAULT 0
-);
-
-ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analytical_score INT DEFAULT 0;
-ALTER TABLE submissions ADD COLUMN IF NOT EXISTS verbal_score INT DEFAULT 0;
-ALTER TABLE submissions ADD COLUMN IF NOT EXISTS quantitative_score INT DEFAULT 0;
-
-CREATE TABLE IF NOT EXISTS participant_answers (
-    id SERIAL PRIMARY KEY,
-    submission_id INT REFERENCES submissions(id) ON DELETE CASCADE,
-    question_id INT REFERENCES questions(id) ON DELETE CASCADE,
-    selected_option CHAR(1) CHECK (selected_option IN ('A', 'B', 'C', 'D')),
-    is_correct BOOLEAN DEFAULT FALSE
-);
-
--- Default super admin username: admin password: admin123
+-- Default super admin  (username: admin  |  password: admin123)
 INSERT INTO admins (username, password_hash, role, is_active)
 VALUES ('admin', '$2a$10$jAf3YJPlTSPg0aVSjhlcdONGwEW5dM42Nh/URf6vCB5y.5Yc7/frW', 'super_admin', TRUE)
-ON CONFLICT (username) DO UPDATE SET role='super_admin', is_active=TRUE;
+ON CONFLICT (username) DO UPDATE SET role = 'super_admin', is_active = TRUE;
+
+
+-- ── Passcodes ─────────────────────────────────────────────────────────────────
+-- Reusable access codes generated by super admins. Validity window is
+-- configured in test_config.passcode_validity_minutes (default 90 min).
+
+CREATE TABLE IF NOT EXISTS passcodes (
+    id         SERIAL PRIMARY KEY,
+    code       VARCHAR(100) UNIQUE NOT NULL,
+    expires_at TIMESTAMP    NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 minutes'),
+    created_at TIMESTAMP             DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ── Participants ──────────────────────────────────────────────────────────────
+-- One row per registered test-taker. CID is unique — a person can only sit
+-- the test once. started_at is stamped when they open the test page.
+
+CREATE TABLE IF NOT EXISTS participants (
+    id             SERIAL PRIMARY KEY,
+    full_name      VARCHAR(150) NOT NULL,
+    cid_number     VARCHAR(50)  NOT NULL UNIQUE,
+    company_name   VARCHAR(150) NOT NULL,
+    contact_number VARCHAR(50)  NOT NULL,
+    passcode_id    INT REFERENCES passcodes(id),
+    started_at     TIMESTAMP,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ── Questions ─────────────────────────────────────────────────────────────────
+-- question_type values:
+--   'mcq'        — four options (option_a … option_d); correct answer is A/B/C/D
+--   'fill_blank' — options are empty; correct answer is comma-separated keywords
+--                  (any one keyword match, case-insensitive, counts as correct)
+
+CREATE TABLE IF NOT EXISTS questions (
+    id            SERIAL PRIMARY KEY,
+    section       VARCHAR(100) NOT NULL,
+    question_text TEXT         NOT NULL,
+    question_type VARCHAR(20)  NOT NULL DEFAULT 'mcq',
+    option_a      TEXT         NOT NULL DEFAULT '',
+    option_b      TEXT         NOT NULL DEFAULT '',
+    option_c      TEXT         NOT NULL DEFAULT '',
+    option_d      TEXT         NOT NULL DEFAULT '',
+    image_url     TEXT,
+    created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ── Answers ───────────────────────────────────────────────────────────────────
+-- One row per question.
+-- For MCQ:        correct_option is 'A', 'B', 'C', or 'D'.
+-- For fill_blank: correct_option is a comma-separated list of accepted keywords
+--                 (e.g. "Paris, paris, the capital of France").
+
+CREATE TABLE IF NOT EXISTS answers (
+    id             SERIAL PRIMARY KEY,
+    question_id    INT  UNIQUE REFERENCES questions(id) ON DELETE CASCADE,
+    correct_option TEXT NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ── Submissions ───────────────────────────────────────────────────────────────
+-- One row per completed test attempt. Legacy per-section columns
+-- (analytical_score, verbal_score, quantitative_score) are kept for
+-- backward compatibility; new per-section data lives in
+-- submission_section_scores.
+
+CREATE TABLE IF NOT EXISTS submissions (
+    id                  SERIAL PRIMARY KEY,
+    participant_id      INT REFERENCES participants(id) ON DELETE CASCADE,
+    submitted_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    score               INT           DEFAULT 0,
+    total_questions     INT           DEFAULT 0,
+    percentage          NUMERIC(5,2)  DEFAULT 0,
+    analytical_score    INT           DEFAULT 0,
+    verbal_score        INT           DEFAULT 0,
+    quantitative_score  INT           DEFAULT 0
+);
+
+
+-- ── Participant Answers ───────────────────────────────────────────────────────
+-- One row per question per submission.
+-- selected_option is TEXT to support both A/B/C/D (MCQ) and free-text
+-- (fill_blank) answers.
+
+CREATE TABLE IF NOT EXISTS participant_answers (
+    id              SERIAL PRIMARY KEY,
+    submission_id   INT  REFERENCES submissions(id)  ON DELETE CASCADE,
+    question_id     INT  REFERENCES questions(id)    ON DELETE CASCADE,
+    selected_option TEXT,
+    is_correct      BOOLEAN DEFAULT FALSE
+);
+
+
+-- ── Per-submission Section Scores ─────────────────────────────────────────────
+-- Stores one row per section per submission so historical section scores remain
+-- correct even if the section configuration changes after the test was taken.
+
+CREATE TABLE IF NOT EXISTS submission_section_scores (
+    id              SERIAL PRIMARY KEY,
+    submission_id   INT          NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+    section_name    VARCHAR(100) NOT NULL,
+    score           INT          NOT NULL DEFAULT 0,
+    questions_count INT          NOT NULL DEFAULT 0
+);
+
+
+-- ── Test Configuration ────────────────────────────────────────────────────────
+-- Singleton row (id = 1). All runtime test parameters live here so super
+-- admins can change them via the Settings page without redeploying.
+
+CREATE TABLE IF NOT EXISTS test_config (
+    id                       INT PRIMARY KEY DEFAULT 1,
+    test_duration_minutes    INT NOT NULL DEFAULT 60,
+    passcode_validity_minutes INT NOT NULL DEFAULT 90,
+    updated_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by               INT REFERENCES admins(id)
+);
+
+INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes)
+VALUES (1, 60, 90)
+ON CONFLICT (id) DO NOTHING;
+
+
+-- ── Test Sections ─────────────────────────────────────────────────────────────
+-- Replaces the old hardcoded three-section model. Each row defines one section
+-- that appears in the test. questions_per_test controls how many questions are
+-- drawn randomly from that section's bank for each participant.
+-- Deleting a section also deletes all questions in that section (enforced in
+-- the application layer via a transaction).
+
+CREATE TABLE IF NOT EXISTS test_sections (
+    id                SERIAL PRIMARY KEY,
+    name              VARCHAR(100) NOT NULL UNIQUE,
+    label             VARCHAR(50)  NOT NULL DEFAULT '',
+    questions_per_test INT         NOT NULL DEFAULT 16,
+    sort_order        INT          NOT NULL DEFAULT 0,
+    is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at        TIMESTAMP             DEFAULT CURRENT_TIMESTAMP
+);
+

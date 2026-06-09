@@ -8,78 +8,90 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="admin-body min-h-screen pb-10">
+<body class="admin-body min-h-screen pb-12">
 
-  <!-- ── Top navigation bar ───────────────────────────────── -->
-  <header class="admin-topbar max-w-[1180px] mx-auto w-full px-4">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-      <!-- Brand -->
-      <div class="flex items-center gap-3">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black">Admin User Control</h1>
-          <p class="text-white/70 text-sm font-semibold">Create admins, revoke access and reset passwords.</p>
-        </div>
-      </div>
-
-      <!-- Nav links -->
-      <nav class="nav-area flex gap-2">
-        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
-        <a class="nav-link" href="questions.html">Questions</a>
-        <a class="nav-link" href="answers.html">Answers</a>
-        <a class="nav-link" href="participants.html">Participants</a>
-        <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
-        <a class="nav-link active super-only" href="admins.html">Admins</a>
-        <button onclick="logout()" class="nav-link logout-link unique-logout" title="Secure logout">
-          <span class="logout-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
-          </span>
-          Logout
-        </button>
-      </nav>
-
-    </div>
-  </header>
-
-  <!-- Super admin only — general admins are redirected by JS -->
-  <main class="max-w-[1180px] mx-auto w-full px-4 mt-6 super-only">
-
-    <section class="grid lg:grid-cols-5 gap-6">
-
-      <!-- ── Create admin form ─────────────────────────────── -->
-      <div class="card p-5 sm:p-6 lg:col-span-2">
-        <span class="eyebrow">Super Admin Only</span>
-        <h2 class="text-xl font-black mt-2">Add New Admin</h2>
-        <p class="text-sm text-slate-500 font-semibold mt-1">Create either a general result-view admin or another super admin.</p>
-
-        <form id="adminUserForm" class="mt-5 space-y-4">
+  <!-- ── Sticky page header ───────────────────────────────── -->
+  <div class="admin-page-header">
+    <header class="admin-topbar max-w-[1200px] mx-auto w-full px-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_username">Username</label>
-            <input id="new_admin_username" class="input" required placeholder="Example: resultadmin">
+            <h1 class="text-2xl font-black text-white tracking-tight">Admin User Control</h1>
+            <p class="text-white/60 text-xs font-semibold">Create admins, revoke access, and reset passwords.</p>
+          </div>
+        </div>
+        <nav class="nav-area flex gap-1.5">
+          <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+          <a class="nav-link" href="questions.html">Questions</a>
+          <a class="nav-link" href="answers.html">Answers</a>
+          <a class="nav-link" href="participants.html">Participants</a>
+          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
+          <a class="nav-link super-only" href="test-settings.html">Settings</a>
+          <a class="nav-link active super-only" href="admins.html">Admins</a>
+          <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
+            <span class="logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
+            </span>
+            Logout
+          </button>
+        </nav>
+      </div>
+    </header>
+  </div>
+
+  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 super-only">
+
+    <section class="grid lg:grid-cols-5 gap-5">
+
+      <!-- Create admin form -->
+      <div class="card p-6 lg:col-span-2">
+        <span class="eyebrow mb-3 inline-flex">Super Admin Only</span>
+        <h2 class="text-lg font-black text-slate-800 mt-1">Add Admin Account</h2>
+        <p class="text-sm text-slate-500 font-semibold mt-1 mb-5">
+          Create a general result-viewer or a full super admin account.
+        </p>
+
+        <form id="adminUserForm" class="space-y-4">
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_username">Username</label>
+            <input id="new_admin_username" class="input" required placeholder="e.g. resultviewer">
           </div>
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_password">Password</label>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_password">Password</label>
             <input id="new_admin_password" type="password" class="input" minlength="6" required placeholder="Minimum 6 characters">
           </div>
           <div>
-            <label class="block mb-1 text-sm font-extrabold text-slate-700" for="new_admin_role">Role</label>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_role">Role</label>
             <select id="new_admin_role" class="input">
-              <option value="general_admin">General Admin - View only</option>
-              <option value="super_admin">Super Admin - Full access</option>
+              <option value="general_admin">General Admin — View only</option>
+              <option value="super_admin">Super Admin — Full access</option>
             </select>
           </div>
-          <button class="btn w-full" type="submit">Create Admin</button>
+
+          <div class="rounded-xl bg-amber-50 border border-amber-200 p-3">
+            <p class="text-xs text-amber-800 font-semibold leading-relaxed">
+              <strong>General admins</strong> can view results, questions, participants, and answers.<br>
+              <strong>Super admins</strong> have full write access including settings and passcodes.
+            </p>
+          </div>
+
+          <button class="btn w-full flex items-center gap-2 justify-center" type="submit">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Create Admin Account
+          </button>
         </form>
       </div>
 
-      <!-- ── Admin accounts table ──────────────────────────── -->
-      <div class="card p-5 sm:p-6 lg:col-span-3">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <div>
-            <h2 class="text-xl font-black">Admin Accounts</h2>
-            <p class="text-sm text-slate-500 font-semibold">Manage administrator role and access status.</p>
-          </div>
+      <!-- Admin accounts table -->
+      <div class="card p-6 lg:col-span-3">
+        <div class="mb-5">
+          <h2 class="text-lg font-black text-slate-800">Admin Accounts</h2>
+          <p class="text-sm text-slate-500 font-semibold">Manage roles and enable/disable access.</p>
         </div>
         <div class="table-wrap">
           <table class="modern-table">
@@ -87,9 +99,9 @@
               <tr>
                 <th style="width:4rem">ID</th>
                 <th>Username</th>
-                <th style="width:9rem">Role</th>
+                <th style="width:10rem">Role</th>
                 <th style="width:7rem">Status</th>
-                <th>Actions</th>
+                <th style="width:9rem">Actions</th>
               </tr>
             </thead>
             <tbody id="adminsTable"></tbody>
