@@ -30,10 +30,11 @@ func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	cfg := loadTestConfig()
 	validityMinutes := cfg.PasscodeValidityMinutes
 
+	// Use parameterised interval multiplication to avoid any fmt.Sprintf injection risk.
 	var id int
 	err = config.DB.QueryRow(
-		fmt.Sprintf("INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + INTERVAL '%d minutes') RETURNING id", validityMinutes),
-		code,
+		"INSERT INTO passcodes (code, expires_at) VALUES ($1, NOW() + ($2::int * INTERVAL '1 minute')) RETURNING id",
+		code, validityMinutes,
 	).Scan(&id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save passcode")

@@ -829,17 +829,23 @@ function downloadIndividualResult() {
   const d = currentResultDetail;
   if (!d) return;
   const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
+  // All participant/question data is HTML-escaped before being written to the popup
+  // via win.document.write(). Without escaping, a question saved with an HTML payload
+  // (e.g. <script>…</script>) would execute in the admin-origin print window.
   const rows = (d.answers || []).map((a, i) => {
     const o        = opts(a);
     const sel      = a.selected_option || '';
-    const selText  = sel && o[sel] ? `${sel}. ${o[sel]}` : (sel || '—');
-    const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${o[a.correct_option]}` : (a.correct_option || '—');
+    const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : (escapeHtml(sel) || '—');
+    const corrText = a.correct_option && o[a.correct_option]
+      ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}`
+      : (escapeHtml(a.correct_option) || '—');
     const rowCls   = a.is_correct ? 'correct-row' : (sel ? 'wrong-row' : '');
-    const status   = a.is_correct ? '<span class="status-c">✓ Correct</span>' : (sel ? '<span class="status-w">✗ Wrong</span>' : '<span class="status-s">— Skipped</span>');
+    const status   = a.is_correct ? '<span class="status-c">&#10003; Correct</span>'
+      : (sel ? '<span class="status-w">&#10007; Wrong</span>' : '<span class="status-s">&#8212; Skipped</span>');
     return `<tr class="${rowCls}">
       <td style="text-align:center;color:#94a3b8;font-weight:900">${i + 1}</td>
-      <td>${a.section || '—'}</td>
-      <td>${a.question_text}</td>
+      <td>${escapeHtml(a.section || '—')}</td>
+      <td>${escapeHtml(a.question_text)}</td>
       <td class="${a.is_correct ? 'ans-c' : (sel ? 'ans-w' : '')}">${selText}</td>
       <td class="ans-c">${corrText}</td>
       <td>${status}</td>
@@ -854,7 +860,7 @@ function downloadIndividualResult() {
     let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}${totalQ ? `/${totalQ}` : ''}</span></div>`;
     if (d.section_scores && d.section_scores.length) {
       d.section_scores.forEach(ss => {
-        h += `<div class="si"><span class="lbl">${ss.section_name}</span><span class="val">${ss.score}/${ss.questions_count}</span></div>`;
+        h += `<div class="si"><span class="lbl">${escapeHtml(ss.section_name)}</span><span class="val">${ss.score}/${ss.questions_count}</span></div>`;
       });
     } else {
       h += `<div class="si ana"><span class="lbl">Analytical</span><span class="val">${d.analytical_score}/16</span></div>`;
@@ -867,7 +873,7 @@ function downloadIndividualResult() {
   })();
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-  <title>Result — ${d.full_name}</title>
+  <title>Result &#8212; ${escapeHtml(d.full_name)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;padding:28px;font-size:13px}
@@ -888,9 +894,9 @@ function downloadIndividualResult() {
     @media print{body{padding:0}}
   </style></head><body>
   <div class="header">
-    <div class="org">Digital Aptitude Evaluation System — Individual Result</div>
-    <div class="name">${d.full_name}</div>
-    <div class="sub">CID: ${d.cid_number || '—'} &nbsp;·&nbsp; ${d.company_name || '—'} &nbsp;·&nbsp; ${d.contact_number || '—'}</div>
+    <div class="org">Digital Aptitude Evaluation System &#8212; Individual Result</div>
+    <div class="name">${escapeHtml(d.full_name)}</div>
+    <div class="sub">CID: ${escapeHtml(d.cid_number || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.company_name || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.contact_number || '&#8212;')}</div>
   </div>
   <div class="scores">${scoreHtml}</div>
   <table>
@@ -1425,7 +1431,11 @@ document.getElementById('questionForm')?.addEventListener('submit', async (e) =>
     }
     // Save correct answer inline if chosen.
     if (newQId && correctOpt) {
-      const existingAns = allAnswers.find(a => Number(a.question_id) === Number(newQId));
+      // GetAnswers returns id=0 via COALESCE for questions with no answer row yet.
+      // We must use POST (not PUT /0) when the answer row doesn't exist yet.
+      const existingAns = allAnswers.find(
+        a => Number(a.question_id) === Number(newQId) && a.id > 0
+      );
       try {
         await api(existingAns ? `/api/admin/answers/${existingAns.id}` : '/api/admin/answers', {
           method: existingAns ? 'PUT' : 'POST',

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -32,20 +33,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var alreadySubmitted bool
-	if err := config.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM submissions WHERE participant_id=$1)",
-		req.ParticipantID,
-	).Scan(&alreadySubmitted); err != nil {
-		utils.Error(w, http.StatusInternalServerError, "Could not verify submission status")
-		return
-	}
-	if alreadySubmitted {
-		utils.Error(w, http.StatusConflict, "You have already submitted this test")
-		return
-	}
-
-	// Load active sections so we know how to categorise and count section scores.
+	// Load active sections before opening the transaction (read-only, no race risk).
 	sections, err := loadActiveSections()
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load test sections")
@@ -65,10 +53,21 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 
 	total := len(req.Answers)
 	var submissionID int
+	// ON CONFLICT DO NOTHING is the atomic guard against duplicate submissions.
+	// The UNIQUE constraint on submissions(participant_id) ensures that even two
+	// concurrent requests race safely: only the first INSERT succeeds; the second
+	// gets no row back (sql.ErrNoRows) and returns 409 Conflict.
 	err = tx.QueryRow(
-		`INSERT INTO submissions (participant_id, total_questions) VALUES ($1, $2) RETURNING id`,
+		`INSERT INTO submissions (participant_id, total_questions)
+		 VALUES ($1, $2)
+		 ON CONFLICT (participant_id) DO NOTHING
+		 RETURNING id`,
 		req.ParticipantID, total,
 	).Scan(&submissionID)
+	if err == sql.ErrNoRows {
+		utils.Error(w, http.StatusConflict, "You have already submitted this test")
+		return
+	}
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not create submission")
 		return

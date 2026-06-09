@@ -371,7 +371,9 @@ function startPasscodeWatcher() {
 function startTimer() {
   const stored   = localStorage.getItem('test_start_time');
   const storedMs = stored ? parseInt(stored, 10) : NaN;
-  const isStale  = !stored || isNaN(storedMs) || (Date.now() - storedMs) >= DURATION * 1000;
+  // Use strict > so a start-time that is exactly DURATION old is treated as expired
+  // (remaining = 0), not stale (which would reset the clock to a full DURATION).
+  const isStale  = !stored || isNaN(storedMs) || (Date.now() - storedMs) > DURATION * 1000;
   if (isStale) localStorage.setItem('test_start_time', Date.now().toString());
 
   const startTime = parseInt(localStorage.getItem('test_start_time'), 10);
@@ -525,8 +527,11 @@ async function initTest() {
   try {
     const status = await api(`/api/submission-status/${participantId}`);
     if (status.submitted) {
+      // Clear all three keys so the participant cannot skip the passcode gate on a
+      // subsequent visit (passcode_id is missing here in the original code — bug fix).
       localStorage.removeItem('participant_id');
       localStorage.removeItem('test_start_time');
+      localStorage.removeItem('passcode_id');
       document.getElementById('testForm').innerHTML = `
         <div class="card p-8 text-center">
           <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
@@ -556,7 +561,11 @@ async function initTest() {
 
   // ── Fetch dynamic test configuration ────────────────────────────────────────
   try {
-    const info = await fetch('/api/test-info').then(r => r.json());
+    // Check res.ok before parsing: a non-2xx error body (e.g. 503 HTML) would throw
+    // a JSON parse error and leave DURATION and testSections at their fallback values.
+    const res  = await fetch('/api/test-info');
+    if (!res.ok) throw new Error(`test-info returned ${res.status}`);
+    const info = await res.json();
     if (info.duration_minutes && info.duration_minutes > 0) {
       DURATION = info.duration_minutes * 60;
     }
@@ -581,6 +590,12 @@ async function initTest() {
       method: 'POST',
       body:   JSON.stringify({ participant_id: Number(participantId) }),
     });
+    // Guard: if the server says time has already elapsed, auto-submit immediately
+    // instead of resetting the clock to a full DURATION.
+    if (startData.seconds_remaining <= 0) {
+      submitTest(true);
+      return;
+    }
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
     localStorage.setItem('test_start_time', seededStart.toString());
     testStarted = true; // beacon guard: only auto-submit if start-test succeeded

@@ -43,32 +43,48 @@ func GetAnswers(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, answers)
 }
 
+// normaliseCorrectOption looks up the question type for questionID and validates/normalises
+// the raw correct_option value accordingly.
+// Returns (normalisedValue, errorMessage). An empty errorMessage means the value is valid.
+// This is extracted as a shared helper because AddAnswer and UpdateAnswer share identical logic.
+func normaliseCorrectOption(questionID int, raw string) (string, string) {
+	var qType string
+	// If the question doesn't exist the Scan silently leaves qType as "", which
+	// falls through to the MCQ branch — the INSERT will then fail on the FK constraint
+	// and return a clear "Could not save answer" error.
+	config.DB.QueryRow(
+		"SELECT COALESCE(question_type,'mcq') FROM questions WHERE id=$1", questionID,
+	).Scan(&qType)
+
+	if qType == "fill_blank" {
+		v := strings.TrimSpace(raw)
+		if v == "" {
+			return "", "Correct answer text is required for fill-in-the-blank questions"
+		}
+		return v, ""
+	}
+	v := strings.ToUpper(strings.TrimSpace(raw))
+	if v != "A" && v != "B" && v != "C" && v != "D" {
+		return "", "Correct option must be A, B, C, or D"
+	}
+	return v, ""
+}
+
 // AddAnswer creates a new answer or updates an existing one for the same question.
-// The ON CONFLICT upsert means this endpoint is idempotent — calling it twice
-// with the same question_id simply updates the correct option rather than creating
-// a duplicate row.
+// The ON CONFLICT upsert makes this idempotent — calling it twice updates the
+// correct option rather than creating a duplicate row.
 func AddAnswer(w http.ResponseWriter, r *http.Request) {
 	var a models.Answer
 	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	// Look up the question type so we can validate appropriately.
-	var qType string
-	config.DB.QueryRow("SELECT COALESCE(question_type,'mcq') FROM questions WHERE id=$1", a.QuestionID).Scan(&qType)
-	if qType == "fill_blank" {
-		a.CorrectOption = strings.TrimSpace(a.CorrectOption)
-		if a.CorrectOption == "" {
-			utils.Error(w, http.StatusBadRequest, "Correct answer text is required for fill-in-the-blank questions")
-			return
-		}
-	} else {
-		a.CorrectOption = strings.ToUpper(strings.TrimSpace(a.CorrectOption))
-		if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
-			utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
-			return
-		}
+	normalised, errMsg := normaliseCorrectOption(a.QuestionID, a.CorrectOption)
+	if errMsg != "" {
+		utils.Error(w, http.StatusBadRequest, errMsg)
+		return
 	}
+	a.CorrectOption = normalised
 
 	err := config.DB.QueryRow(`
 		INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
@@ -83,7 +99,7 @@ func AddAnswer(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusCreated, a)
 }
 
-// UpdateAnswer modifies the question_id and correct_option for an existing answer row.
+// UpdateAnswer modifies the correct_option for an existing answer row.
 func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var a models.Answer
@@ -91,21 +107,12 @@ func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	var qType string
-	config.DB.QueryRow("SELECT COALESCE(question_type,'mcq') FROM questions WHERE id=$1", a.QuestionID).Scan(&qType)
-	if qType == "fill_blank" {
-		a.CorrectOption = strings.TrimSpace(a.CorrectOption)
-		if a.CorrectOption == "" {
-			utils.Error(w, http.StatusBadRequest, "Correct answer text is required for fill-in-the-blank questions")
-			return
-		}
-	} else {
-		a.CorrectOption = strings.ToUpper(strings.TrimSpace(a.CorrectOption))
-		if a.CorrectOption != "A" && a.CorrectOption != "B" && a.CorrectOption != "C" && a.CorrectOption != "D" {
-			utils.Error(w, http.StatusBadRequest, "Correct option must be A, B, C, or D")
-			return
-		}
+	normalised, errMsg := normaliseCorrectOption(a.QuestionID, a.CorrectOption)
+	if errMsg != "" {
+		utils.Error(w, http.StatusBadRequest, errMsg)
+		return
 	}
+	a.CorrectOption = normalised
 
 	res, err := config.DB.Exec(
 		"UPDATE answers SET question_id=$1, correct_option=$2 WHERE id=$3",

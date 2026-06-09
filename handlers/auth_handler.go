@@ -103,11 +103,14 @@ func AdminLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// MaxAge: -1 tells the browser to delete the cookie immediately.
+	// Secure must match the login cookie so browsers recognise them as the same cookie.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "admin_session",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   utils.SessionSecure(),
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Logout successful"})

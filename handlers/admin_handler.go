@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 	"github.com/xuri/excelize/v2"
 
 	"digital-aptitude-evaluation-system/config"
@@ -14,15 +15,24 @@ import (
 )
 
 // DashboardSummary returns aggregate statistics used by the admin dashboard cards.
+// All five values are read in a single query so they are consistent with each other
+// even if submissions arrive during the request.
 func DashboardSummary(w http.ResponseWriter, r *http.Request) {
 	var totalParticipants, appearedParticipants, highestScore, lowestScore int
 	var averageScore float64
 
-	config.DB.QueryRow("SELECT COUNT(*) FROM participants").Scan(&totalParticipants)
-	config.DB.QueryRow("SELECT COUNT(DISTINCT participant_id) FROM submissions").Scan(&appearedParticipants)
-	config.DB.QueryRow("SELECT COALESCE(MAX(score),0) FROM submissions").Scan(&highestScore)
-	config.DB.QueryRow("SELECT COALESCE(AVG(score),0) FROM submissions").Scan(&averageScore)
-	config.DB.QueryRow("SELECT COALESCE(MIN(score),0) FROM submissions").Scan(&lowestScore)
+	err := config.DB.QueryRow(`
+		SELECT
+		    (SELECT COUNT(*) FROM participants)                  AS total_participants,
+		    (SELECT COUNT(DISTINCT participant_id) FROM submissions) AS appeared,
+		    COALESCE((SELECT MAX(score) FROM submissions), 0)    AS highest_score,
+		    COALESCE((SELECT AVG(score) FROM submissions), 0)    AS average_score,
+		    COALESCE((SELECT MIN(score) FROM submissions), 0)    AS lowest_score
+	`).Scan(&totalParticipants, &appearedParticipants, &highestScore, &averageScore, &lowestScore)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load dashboard statistics")
+		return
+	}
 
 	utils.JSON(w, http.StatusOK, map[string]interface{}{
 		"total_participants":    totalParticipants,
@@ -63,6 +73,7 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 		submissionID                                    int
 	}
 	var allRows []row
+	var exportIDs []int
 	for rows.Next() {
 		var r row
 		if err := rows.Scan(
@@ -72,8 +83,12 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 			utils.Error(w, http.StatusInternalServerError, "Could not read results")
 			return
 		}
+		exportIDs = append(exportIDs, r.submissionID)
 		allRows = append(allRows, r)
 	}
+
+	// Load all section scores in one query instead of once per row.
+	exportSectionMap := loadSectionScoresBatch(exportIDs)
 
 	f := excelize.NewFile()
 	defer f.Close()
@@ -95,9 +110,8 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 
 	bst := time.FixedZone("BST", 6*60*60)
 	for rowNum, r := range allRows {
-		sectionScores := loadSectionScores(r.submissionID)
 		scoreBySection := make(map[string]int)
-		for _, ss := range sectionScores {
+		for _, ss := range exportSectionMap[r.submissionID] {
 			scoreBySection[ss.SectionName] = ss.Score
 		}
 
@@ -150,7 +164,37 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted successfully"})
 }
 
+// loadSectionScoresBatch fetches section scores for all given submission IDs in a
+// single query, returning a map[submissionID][]SectionScore. This avoids the N+1
+// pattern where loadSectionScores was called once per result row.
+func loadSectionScoresBatch(ids []int) map[int][]models.SectionScore {
+	out := make(map[int][]models.SectionScore, len(ids))
+	if len(ids) == 0 {
+		return out
+	}
+	rows, err := config.DB.Query(
+		`SELECT submission_id, section_name, score, questions_count
+		 FROM submission_section_scores
+		 WHERE submission_id = ANY($1)
+		 ORDER BY submission_id, section_name`,
+		pq.Array(ids),
+	)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var submID int
+		var s models.SectionScore
+		if rows.Scan(&submID, &s.SectionName, &s.Score, &s.QuestionsCount) == nil {
+			out[submID] = append(out[submID], s)
+		}
+	}
+	return out
+}
+
 // GetResults returns all submissions with computed rank and per-section scores.
+// Section scores are loaded in a single batch query to avoid N+1 DB round-trips.
 func GetResults(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT s.id, p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
@@ -169,6 +213,7 @@ func GetResults(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	results := []models.Result{}
+	var ids []int
 	for rows.Next() {
 		var res models.Result
 		if err := rows.Scan(
@@ -180,8 +225,17 @@ func GetResults(w http.ResponseWriter, r *http.Request) {
 			utils.Error(w, http.StatusInternalServerError, "Could not read results")
 			return
 		}
-		res.SectionScores = loadSectionScores(res.SubmissionID)
+		ids = append(ids, res.SubmissionID)
 		results = append(results, res)
+	}
+
+	// Single batch query replaces N individual loadSectionScores calls.
+	sectionMap := loadSectionScoresBatch(ids)
+	for i := range results {
+		results[i].SectionScores = sectionMap[results[i].SubmissionID]
+		if results[i].SectionScores == nil {
+			results[i].SectionScores = []models.SectionScore{}
+		}
 	}
 	utils.JSON(w, http.StatusOK, results)
 }

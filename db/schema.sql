@@ -125,7 +125,9 @@ CREATE TABLE IF NOT EXISTS answers (
 
 CREATE TABLE IF NOT EXISTS submissions (
     id                  SERIAL PRIMARY KEY,
-    participant_id      INT REFERENCES participants(id) ON DELETE CASCADE,
+    -- UNIQUE enforces one submission per participant at the DB level, preventing
+    -- the TOCTOU race where two concurrent requests both pass the EXISTS check.
+    participant_id      INT UNIQUE REFERENCES participants(id) ON DELETE CASCADE,
     submitted_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
     score               INT           DEFAULT 0,
     total_questions     INT           DEFAULT 0,
@@ -134,6 +136,9 @@ CREATE TABLE IF NOT EXISTS submissions (
     verbal_score        INT           DEFAULT 0,
     quantitative_score  INT           DEFAULT 0
 );
+
+-- Ensure the constraint exists on databases created before this version.
+CREATE UNIQUE INDEX IF NOT EXISTS submissions_participant_id_unique ON submissions(participant_id);
 
 
 -- ── Participant Answers ───────────────────────────────────────────────────────
@@ -178,6 +183,16 @@ CREATE TABLE IF NOT EXISTS test_config (
 INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes)
 VALUES (1, 60, 90)
 ON CONFLICT (id) DO NOTHING;
+
+
+-- ── Performance Indexes ───────────────────────────────────────────────────────
+-- These cover the most frequent per-participant and per-submission lookups.
+
+CREATE INDEX IF NOT EXISTS participant_answers_submission_id_idx
+    ON participant_answers(submission_id);
+
+CREATE INDEX IF NOT EXISTS submission_section_scores_submission_id_idx
+    ON submission_section_scores(submission_id);
 
 
 -- ── Test Sections ─────────────────────────────────────────────────────────────
