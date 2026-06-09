@@ -448,7 +448,8 @@ async function loadDashboard(showErrors = true) {
     const appeared   = s.appeared_participants || 0;
     const registered = s.total_participants    || 0;
     const turnout    = registered ? Math.round((appeared / registered) * 100) : 0;
-    const totalQ     = allSections.reduce((sum, s) => sum + s.questions_per_test, 0) || 48;
+    const totalQ     = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
+    const outOf      = totalQ ? `<small>/${totalQ}</small>` : '';
 
     document.getElementById('summary').innerHTML = `
       <div class="card metric-card card-hover">
@@ -461,15 +462,15 @@ async function loadDashboard(showErrors = true) {
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon amber"><svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
-        <p class="metric-label">Highest Score</p><p class="metric-value">${s.highest_score || 0}<small>/${totalQ}</small></p><p class="metric-note">Top performer</p>
+        <p class="metric-label">Highest Score</p><p class="metric-value">${s.highest_score || 0}${outOf}</p><p class="metric-note">Top performer</p>
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon purple"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
-        <p class="metric-label">Average Score</p><p class="metric-value">${Number(s.average_score || 0).toFixed(1)}<small>/${totalQ}</small></p><p class="metric-note">Overall average</p>
+        <p class="metric-label">Average Score</p><p class="metric-value">${Number(s.average_score || 0).toFixed(1)}${outOf}</p><p class="metric-note">Overall average</p>
       </div>
       <div class="card metric-card card-hover">
         <span class="metric-icon rose"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
-        <p class="metric-label">Lowest Score</p><p class="metric-value">${s.lowest_score || 0}<small>/${totalQ}</small></p><p class="metric-note">Minimum score</p>
+        <p class="metric-label">Lowest Score</p><p class="metric-value">${s.lowest_score || 0}${outOf}</p><p class="metric-note">Minimum score</p>
       </div>`;
 
     allResults = await api('/api/admin/results');
@@ -583,7 +584,8 @@ function renderDistributionChart(rows) {
   const el = document.getElementById('distributionChart');
   if (!el) return;
   if (!rows.length) { el.innerHTML = `<div class="empty-chart">No score distribution yet.</div>`; return; }
-  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0) || 48;
+  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0)
+    || Math.max(10, ...rows.map(r => Number(r.score || 0)));
   const step = Math.ceil(totalQ / 5);
   const buckets = [];
   for (let i = 0; i < 5; i++) {
@@ -761,8 +763,8 @@ function showResultDetailModal(d) {
   // Build dynamic section score cards
   const sectionScoreCards = (() => {
     const pct = Number(d.percentage || 0).toFixed(1);
-    const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0) || 48;
-    let cards = `<div class="rd-score-item total"><span>Total</span><b>${d.score}/${totalQ}</b></div>`;
+    const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
+    let cards = `<div class="rd-score-item total"><span>Total</span><b>${d.score}${totalQ ? `/${totalQ}` : ''}</b></div>`;
     if (d.section_scores && d.section_scores.length) {
       d.section_scores.forEach(ss => {
         const [, , , accent] = sectionPalette(ss.section_name);
@@ -846,10 +848,10 @@ function downloadIndividualResult() {
 
   const pct = Number(d.percentage || 0).toFixed(1);
   const submittedAt = d.submitted_at ? formatDate(d.submitted_at) : '—';
-  const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0) || 48;
+  const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
 
   const scoreHtml = (() => {
-    let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}/${totalQ}</span></div>`;
+    let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}${totalQ ? `/${totalQ}` : ''}</span></div>`;
     if (d.section_scores && d.section_scores.length) {
       d.section_scores.forEach(ss => {
         h += `<div class="si"><span class="lbl">${ss.section_name}</span><span class="val">${ss.score}/${ss.questions_count}</span></div>`;
