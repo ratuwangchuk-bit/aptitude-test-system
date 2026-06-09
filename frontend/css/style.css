@@ -299,7 +299,7 @@ table.modern-table {
   letter-spacing: .2em; margin-top: .2rem;
 }
 .result-table td { text-align: center; vertical-align: middle; }
-.result-table td:nth-child(2), .result-table td:nth-child(8), .result-table td:nth-child(9) { text-align: left; }
+.result-table td.td-left { text-align: left; }
 .result-table-wrap { background: #fff; }
 
 /* ── Pills & badges ────────────────────────────────────────── */

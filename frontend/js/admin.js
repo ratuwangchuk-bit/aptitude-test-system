@@ -606,7 +606,7 @@ function renderDistributionChart(rows) {
 function renderResultsTableHeader() {
   const header = document.getElementById('resultsTableHeader');
   if (!header) return;
-  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0) || 48;
+  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
   const sectionHeaders = allSections.length
     ? allSections.map(s => {
         const [, bg, color] = sectionPalette(s.name);
@@ -617,10 +617,9 @@ function renderResultsTableHeader() {
     ${isSuperAdmin() ? '<th style="width:40px"><input type="checkbox" id="selectAllResults" title="Select all" onchange="toggleSelectAllResults(this)"></th>' : ''}
     <th>Serial No.</th>
     <th>Name of Candidate</th>
-    <th>Total Score<br><span>Out of ${totalQ}</span></th>
+    <th>Total Score${totalQ ? `<br><span>Out of ${totalQ}</span>` : ''}</th>
     ${sectionHeaders}
     <th>Rank</th>
-    <th>Company</th>
     <th>Contact</th>
     <th>Details</th>
     ${isSuperAdmin() ? '<th>Action</th>' : ''}`;
@@ -631,8 +630,8 @@ function renderResults(rows) {
   if (!tbody) return;
   const selectAll = document.getElementById('selectAllResults');
   if (selectAll) selectAll.checked = false;
-  const totalQ    = allSections.reduce((sum, s) => sum + s.questions_per_test, 0) || 48;
-  const colSpan   = 8 + (isSuperAdmin() ? 2 : 0) + (allSections.length || 3);
+  const totalQ    = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
+  const colSpan   = 6 + (isSuperAdmin() ? 2 : 0) + allSections.length;
 
   const sectionScoreCols = (r) => {
     const scoreByName = {};
@@ -665,11 +664,10 @@ function renderResults(rows) {
         <tr>
           ${isSuperAdmin() ? `<td class="text-center"><input type="checkbox" class="result-checkbox" data-id="${r.submission_id}" ${selectedResultIds.has(r.submission_id) ? 'checked' : ''} onchange="toggleResultSelection(${r.submission_id}, this)"></td>` : ''}
           <td class="text-center"><span class="serial-badge">${i + 1}</span></td>
-          <td><b>${escapeHtml(r.full_name)}</b><div class="text-xs text-slate-500 mt-1">CID: ${escapeHtml(r.cid_number || '-')}</div></td>
-          <td><span class="score-badge total">${r.score}/${r.total_questions || totalQ}</span></td>
+          <td class="td-left"><b>${escapeHtml(r.full_name)}</b><div class="text-xs text-slate-500 mt-1">CID: ${escapeHtml(r.cid_number || '-')}</div></td>
+          <td><span class="score-badge total">${r.score}/${totalQ || r.total_questions}</span></td>
           ${sectionScoreCols(r)}
           <td><span class="rank-badge">${r.rank}</span></td>
-          <td>${escapeHtml(r.company_name || '-')}</td>
           <td>${escapeHtml(r.contact_number || '-')}</td>
           <td><button class="btn-icon btn-soft" title="View answer sheet" onclick="viewParticipantResult(${r.submission_id})">${ICON.eye}</button></td>
           ${isSuperAdmin() ? `<td><button class="btn-icon btn-danger" title="Delete" onclick="deleteResult(${r.submission_id})">${ICON.trash}</button></td>` : ''}
@@ -917,14 +915,15 @@ function printAllResults() {
   const avgScore  = results.length
     ? (results.reduce((s, r) => s + (r.score || 0), 0) / results.length).toFixed(1)
     : '—';
-  const totalQ = allSections.reduce((s, sec) => s + sec.questions_per_test, 0) || 48;
+  const totalQ = allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
 
   const sectionHeaders = allSections.length
     ? allSections.map(s => `<th class="c">${escapeHtml(s.label || s.name)}<br>/${s.questions_per_test}</th>`).join('')
     : '';
 
   const rows = results.map((r, i) => {
-    const pct    = ((r.score / totalQ) * 100).toFixed(1);
+    const denom  = totalQ || r.total_questions || 1;
+    const pct    = ((r.score / denom) * 100).toFixed(1);
     const pctN   = parseFloat(pct);
     const scoreCol = pctN >= 70 ? '#15803d' : pctN >= 50 ? '#1d4ed8' : '#b91c1c';
     const secCols = (() => {
@@ -943,23 +942,20 @@ function printAllResults() {
           return `<td class="c">—</td>`;
         }).join('');
       }
-      return `<td class="c">${r.analytical_score}/16</td><td class="c">${r.verbal_score}/16</td><td class="c">${r.quantitative_score}/16</td>`;
+      return '';
     })();
     return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
       <td class="c serial">${i + 1}</td>
       <td class="name-cell"><b>${escapeHtml(r.full_name)}</b><br><span class="cid">${escapeHtml(r.cid_number || '—')}</span></td>
-      <td>${escapeHtml(r.company_name || '—')}</td>
       <td>${escapeHtml(r.contact_number || '—')}</td>
-      <td class="c stotal" style="color:${scoreCol}">${r.score}/${totalQ}</td>
+      <td class="c stotal" style="color:${scoreCol}">${r.score}/${totalQ || r.total_questions}</td>
       ${secCols}
       <td class="c pct" style="color:${scoreCol}">${pct}%</td>
     </tr>`;
   }).join('');
 
-  const colCount = 6 + (allSections.length || 3);
-  const sectionNames = allSections.length
-    ? allSections.map(s => s.label || s.name).join(' / ')
-    : 'Analytical / Verbal / Quantitative';
+  const colCount = 4 + allSections.length;
+  const sectionNames = allSections.map(s => s.label || s.name).join(' / ');
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>DAES — All Results</title>
 <style>
@@ -1014,7 +1010,7 @@ function printAllResults() {
   <table>
     <thead>
       <tr><th colspan="${colCount}" class="tbl-caption"><span class="tbl-caption-title">Participant Results — Ranked by Total Score</span><span class="tbl-caption-sub">${totalQ} Questions &nbsp;·&nbsp; Sections: ${sectionNames} &nbsp;·&nbsp; 1 Mark Each &nbsp;·&nbsp; No Negative Marking</span></th></tr>
-      <tr><th class="c">SL No.</th><th>Name &amp; CID</th><th>Company</th><th>Contact</th><th class="c">Total<br>/${totalQ}</th>${sectionHeaders}<th class="c">Score %</th></tr>
+      <tr><th class="c">SL No.</th><th>Name &amp; CID</th><th>Contact</th><th class="c">Total<br>/${totalQ}</th>${sectionHeaders}<th class="c">Score %</th></tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
