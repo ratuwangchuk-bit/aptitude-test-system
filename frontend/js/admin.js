@@ -1222,13 +1222,16 @@ async function deleteSelectedQuestions() {
 // of calling loadQuestionsAdmin() + loadAnswersAdmin() back-to-back to avoid
 // issuing 4 requests and a potential race on the shared allAnswers cache.
 async function loadQuestionsAndAnswers() {
+  const hasQ = !!document.getElementById('questionsTable');
+  const hasA = !!document.getElementById('answersTable');
+  if (!hasQ && !hasA) return;
   try {
     [allQuestions, allAnswers] = await Promise.all([
       api('/api/admin/questions').then(r => r || []),
       api('/api/admin/answers').then(r => r || []),
     ]);
-    if (document.getElementById('questionsTable')) renderQuestions(allQuestions);
-    if (document.getElementById('answersTable'))   renderAnswers(allAnswers);
+    if (hasQ) renderQuestions(allQuestions);
+    if (hasA) renderAnswers(allAnswers);
   } catch (err) { showError(err.message, 'Could Not Load Data'); }
 }
 
