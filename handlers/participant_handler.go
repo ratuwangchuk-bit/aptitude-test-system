@@ -91,10 +91,11 @@ func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 // StartTest records when a participant first opens the test and returns the
 // authoritative number of seconds remaining.
 //
-// The COALESCE trick ensures started_at is only written once: the first call sets
-// it to NOW(); subsequent calls (e.g. after a page reload) leave it unchanged.
-// This means the clock never resets if the participant reloads, and all tabs for
-// the same participant see exactly the same remaining time.
+// started_at is set once on the first call and preserved on reloads so the
+// timer never resets mid-session. Exception: if the previous session's timer
+// fully elapsed without a submission being created (browser crash, beacon
+// failure, etc.), started_at is reset to NOW() so the participant gets a
+// fresh attempt rather than being permanently locked out.
 func StartTest(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ParticipantID int `json:"participant_id"`
@@ -104,17 +105,31 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	duration := testDurationSeconds()
 	var secondsRemaining int
 	err := config.DB.QueryRow(`
 		WITH upd AS (
 			UPDATE participants
-			SET started_at = COALESCE(started_at, NOW())
+			SET started_at = CASE
+				-- Active or newly-started session: keep the existing timestamp.
+				WHEN started_at IS NOT NULL
+				     AND EXTRACT(EPOCH FROM (NOW() - started_at))::int < $2
+				THEN started_at
+				-- Expired session with no submission: reset so the participant
+				-- is not permanently locked out by a beacon/network failure.
+				WHEN started_at IS NOT NULL
+				     AND EXTRACT(EPOCH FROM (NOW() - started_at))::int >= $2
+				     AND NOT EXISTS (SELECT 1 FROM submissions WHERE participant_id = $1)
+				THEN NOW()
+				-- First open (started_at IS NULL): record the start time.
+				ELSE NOW()
+			END
 			WHERE id = $1
 			RETURNING started_at
 		)
 		SELECT GREATEST(0, $2 - FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)))::int)
 		FROM upd`,
-		req.ParticipantID, testDurationSeconds(),
+		req.ParticipantID, duration,
 	).Scan(&secondsRemaining)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, "Participant not found")
