@@ -249,9 +249,13 @@ func AnswersTemplate(w http.ResponseWriter, r *http.Request) {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
 			f.SetCellValue(sheetName, cell, h)
 		}
-		// Example row.
+		// Row 2 — MCQ example: correct_option is a single letter A, B, C, or D.
 		f.SetCellValue(sheetName, "A2", "1")
 		f.SetCellValue(sheetName, "B2", "A")
+		// Row 3 — Fill-in-the-blank example: correct_option holds one or more accepted
+		// keywords separated by commas. Any single keyword match counts (case-insensitive).
+		f.SetCellValue(sheetName, "A3", "2")
+		f.SetCellValue(sheetName, "B3", "photosynthesis, Photosynthesis")
 	}
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

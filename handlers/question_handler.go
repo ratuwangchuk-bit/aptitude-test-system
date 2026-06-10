@@ -408,10 +408,25 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
 			f.SetCellValue(sheetName, cell, h)
 		}
-		// Example row so admins know the expected format.
-		example := []string{sec.Name, "Enter question text here", "mcq", "Option A text", "Option B text", "Option C text", "Option D text", "A"}
-		for col, v := range example {
+
+		// Row 2 — MCQ example: four options, correct_option is a single letter A/B/C/D.
+		mcqExample := []string{
+			sec.Name, "What is the capital of France?", "mcq",
+			"London", "Paris", "Berlin", "Rome", "B",
+		}
+		for col, v := range mcqExample {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 2)
+			f.SetCellValue(sheetName, cell, v)
+		}
+
+		// Row 3 — Fill-in-the-blank example: options are left blank; correct_option
+		// holds comma-separated accepted keywords (any one match counts, case-insensitive).
+		fibExample := []string{
+			sec.Name, "The process by which plants make food using sunlight is called ___.", "fill_blank",
+			"", "", "", "", "photosynthesis, Photosynthesis",
+		}
+		for col, v := range fibExample {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 3)
 			f.SetCellValue(sheetName, cell, v)
 		}
 	}
