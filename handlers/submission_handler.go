@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,22 +52,34 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 
 	total := len(req.Answers)
 	var submissionID int
-	// ON CONFLICT DO NOTHING is the atomic guard against duplicate submissions.
-	// The UNIQUE constraint on submissions(participant_id) ensures that even two
-	// concurrent requests race safely: only the first INSERT succeeds; the second
-	// gets no row back (sql.ErrNoRows) and returns 409 Conflict.
-	err = tx.QueryRow(
-		`INSERT INTO submissions (participant_id, total_questions)
-		 VALUES ($1, $2)
-		 ON CONFLICT (participant_id) DO NOTHING
-		 RETURNING id`,
-		req.ParticipantID, total,
-	).Scan(&submissionID)
-	if err == sql.ErrNoRows {
+
+	// Guard against duplicate submissions. The SELECT inside the same transaction
+	// is sufficient for the common case. The pq unique-violation handler below
+	// covers the rare concurrent race (works both with and without a UNIQUE
+	// constraint on participant_id, so this is safe on older DB schemas too).
+	var alreadySubmitted bool
+	if scanErr := tx.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM submissions WHERE participant_id=$1)",
+		req.ParticipantID,
+	).Scan(&alreadySubmitted); scanErr != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not check submission status")
+		return
+	}
+	if alreadySubmitted {
 		utils.Error(w, http.StatusConflict, "You have already submitted this test")
 		return
 	}
+
+	err = tx.QueryRow(
+		"INSERT INTO submissions (participant_id, total_questions) VALUES ($1, $2) RETURNING id",
+		req.ParticipantID, total,
+	).Scan(&submissionID)
 	if err != nil {
+		// 23505 = unique_violation — concurrent duplicate submission
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			utils.Error(w, http.StatusConflict, "You have already submitted this test")
+			return
+		}
 		utils.Error(w, http.StatusInternalServerError, "Could not create submission")
 		return
 	}
