@@ -1168,14 +1168,25 @@ function renderQuestions(rows) {
       </td>
     </tr>`;
     qs.forEach(q => {
-      const n = num++;
+      const n           = num++;
       const isFillBlank = q.question_type === 'fill_blank';
       const qAnswer     = allAnswers.find(a => Number(a.question_id) === Number(q.id));
-      const fillOpts    = isFillBlank
+      const hasAnswer   = qAnswer && qAnswer.id > 0 && qAnswer.correct_option;
+
+      // Section label: e.g. "Section B · Verbal Ability" → "Section B"
+      const sectionShort = sec.label ? sec.label.split('·')[0].trim() : sec.name;
+
+      // Type badge: MCQ (blue) or Fill (purple)
+      const typePill = isFillBlank
+        ? `<span class="pill" style="background:#ede9fe;color:#6d28d9;border-color:#ddd6fe;font-size:.63rem">Fill</span>`
+        : `<span class="pill" style="background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe;font-size:.63rem">MCQ</span>`;
+
+      // Expanded options / answer panel shown on chevron click
+      const optsPanel = isFillBlank
         ? `<div class="q-bank-opts hidden" id="qopts_${q.id}">
              <div class="q-bank-opt-item" style="font-style:italic;color:#475569">
                <span class="q-bank-opt-badge" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd">Ans</span>
-               ${qAnswer?.correct_option ? escapeHtml(qAnswer.correct_option) : '<span style="color:#94a3b8">Not set</span>'}
+               ${hasAnswer ? escapeHtml(qAnswer.correct_option) : '<span style="color:#94a3b8">Not set</span>'}
              </div>
            </div>`
         : `<div class="q-bank-opts hidden" id="qopts_${q.id}">
@@ -1184,21 +1195,32 @@ function renderQuestions(rows) {
              <div class="q-bank-opt-item"><span class="q-bank-opt-badge">C</span>${escapeHtml(q.option_c)}</div>
              <div class="q-bank-opt-item"><span class="q-bank-opt-badge">D</span>${escapeHtml(q.option_d)}</div>
            </div>`;
+
+      // Warn when no answer has been configured yet
+      const noAnswerHint = !hasAnswer
+        ? `<span style="display:inline-block;margin-top:4px;font-size:.68rem;font-weight:700;color:#f59e0b">&#9888; No answer set</span>`
+        : '';
+
       html += `
         <tr>
           ${isSuperAdmin() ? `<td class="text-center"><input type="checkbox" class="question-checkbox" data-id="${q.id}"
               ${selectedQuestionIds.has(q.id) ? 'checked' : ''} onchange="toggleQuestionSelection(${q.id}, this)"></td>` : ''}
-          <td><span class="pill">${n}</span></td>
-          <td>
-            <span class="pill pill-teal">${escapeHtml(sec.label ? sec.label.split('·')[0].trim().replace('Section ','') : sec.name.slice(0,3))}</span>
-            ${isFillBlank ? `<span class="pill" style="background:#ede9fe;color:#6d28d9;border-color:#ddd6fe;margin-left:4px;font-size:0.65rem">Fill</span>` : ''}
+          <td style="vertical-align:top;padding-top:10px"><span class="pill">${n}</span></td>
+          <td style="vertical-align:top;padding-top:8px">
+            <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+              <span class="pill pill-teal" style="font-size:.63rem;text-transform:uppercase;letter-spacing:.05em;padding:.22rem .55rem">${escapeHtml(sectionShort)}</span>
+              ${typePill}
+            </div>
           </td>
           <td>
-            <div style="font-weight:700;color:#1e293b;line-height:1.5;cursor:pointer;" onclick="toggleQOptions(${q.id})">${escapeHtml(q.question_text)}</div>
-            ${fillOpts}
+            <div style="font-weight:700;color:#1e293b;line-height:1.55;cursor:pointer;" onclick="toggleQOptions(${q.id})">${escapeHtml(q.question_text)}</div>
+            ${noAnswerHint}
+            ${optsPanel}
           </td>
-          <td class="text-center">${q.image_url ? `<img src="${escapeHtml(q.image_url)}" alt="img" style="max-height:36px;max-width:64px;border-radius:4px;object-fit:contain;cursor:pointer;" onclick="window.open('${escapeHtml(q.image_url)}','_blank')">` : '<span style="color:#94a3b8;font-size:0.75rem">—</span>'}</td>
-          ${isSuperAdmin() ? `<td><div class="flex gap-1.5 items-center">
+          <td class="text-center" style="vertical-align:top;padding-top:10px">${q.image_url
+            ? `<img src="${escapeHtml(q.image_url)}" alt="img" style="max-height:40px;max-width:68px;border-radius:6px;object-fit:contain;cursor:pointer;border:1px solid #e2e8f0" onclick="window.open('${escapeHtml(q.image_url)}','_blank')">`
+            : '<span style="color:#cbd5e1;font-size:0.8rem">—</span>'}</td>
+          ${isSuperAdmin() ? `<td style="vertical-align:top;padding-top:8px"><div class="flex gap-1.5 items-center">
             <button class="btn-icon" id="qchevron_${q.id}" title="Show options" onclick="toggleQOptions(${q.id})">${chevronSvg}</button>
             <button class="btn-icon btn-warning" title="Edit"   onclick="editQuestion(${q.id})">${ICON.edit}</button>
             <button class="btn-icon btn-danger"  title="Delete" onclick="deleteQuestion(${q.id})">${ICON.trash}</button>
