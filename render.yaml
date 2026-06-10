@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: daes
+    env: go
+    buildCommand: go build -o server .
+    startCommand: ./server
+    healthCheckPath: /api/health

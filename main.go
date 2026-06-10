@@ -13,24 +13,24 @@ import (
 )
 
 func main() {
-	r := mux.NewRouter()
-	routes.RegisterRoutes(r)
-
-	// Health check route for Render
-	r.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}).Methods("GET")
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Connect database with clear logs
+	// Connect DB before accepting traffic so handlers are never called with a nil DB.
 	log.Println("Connecting to database...")
 	config.ConnectDB()
 	log.Println("Database connected successfully")
+
+	r := mux.NewRouter()
+	routes.RegisterRoutes(r)
+
+	// Health check — Render polls this path to confirm the service is live.
+	r.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}).Methods("GET")
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:" + port,
