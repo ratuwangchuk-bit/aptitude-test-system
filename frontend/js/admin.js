@@ -1562,7 +1562,7 @@ function renderAnswers(rows) {
             ${hasAnswer
               ? `<button class="btn-icon btn-warning" title="Edit"   onclick="editAnswer(${a.id})">${ICON.edit}</button>
                  <button class="btn-icon btn-danger"  title="Delete" onclick="deleteAnswer(${a.id})">${ICON.trash}</button>`
-              : `<button class="btn-icon btn-soft" title="Set Answer" onclick="prefillAnswerForm(${a.question_id})" style="font-size:0.7rem;padding:0.25rem 0.5rem;width:auto">Set</button>`
+              : ''
             }
           </div></td>` : '';
         return `
@@ -1578,16 +1578,6 @@ function renderAnswers(rows) {
     : `<tr><td colspan="${isSuperAdmin() ? 6 : 4}" class="text-center text-slate-500 py-8">No questions found.</td></tr>`;
 }
 
-function prefillAnswerForm(questionId) {
-  document.getElementById('answer_id_edit').value = '';
-  document.getElementById('question_id').value = questionId;
-  syncAnswerInputType(questionId);
-  document.getElementById('answerFormTitle').textContent = 'Add Correct Answer';
-  document.getElementById('cancelAnswerEdit').classList.add('hidden');
-  document.querySelector('.management-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const isFill = allQuestions.find(q => Number(q.id) === Number(questionId))?.question_type === 'fill_blank';
-  document.getElementById(isFill ? 'correct_option_text' : 'correct_option')?.focus();
-}
 
 function toggleAnswerSelection(id, el) {
   if (el.checked) selectedAnswerIds.add(id); else selectedAnswerIds.delete(id);
@@ -1643,71 +1633,58 @@ document.getElementById('answerSearch')?.addEventListener('input', (e) => {
   ));
 });
 
-function syncAnswerInputType(questionId) {
-  const q = allQuestions.find(q => Number(q.id) === Number(questionId));
-  const isFill = q?.question_type === 'fill_blank';
-  document.getElementById('correct_option')?.classList.toggle('hidden', isFill);
-  document.getElementById('correct_option_text')?.classList.toggle('hidden', !isFill);
-  document.getElementById('fillBlankHint')?.classList.toggle('hidden', !isFill);
-  const label = document.querySelector('label[for="correct_option"]');
-  if (label) label.textContent = isFill ? 'Accepted Keywords' : 'Correct Option';
-}
-
-document.getElementById('question_id')?.addEventListener('change', function() {
-  syncAnswerInputType(this.value);
-});
-
 function editAnswer(id) {
   const a = allAnswers.find(a => Number(a.id) === Number(id));
   if (!a) return;
-  document.getElementById('answer_id_edit').value = a.id;
-  document.getElementById('question_id').value    = a.question_id;
-  syncAnswerInputType(a.question_id);
-  const isFill = allQuestions.find(q => Number(q.id) === Number(a.question_id))?.question_type === 'fill_blank';
-  if (isFill) {
-    const txtEl = document.getElementById('correct_option_text');
-    if (txtEl) txtEl.value = a.correct_option;
-  } else {
-    const sel = document.getElementById('correct_option');
-    if (sel) sel.value = a.correct_option;
-  }
-  document.getElementById('answerFormTitle').textContent = `Edit Answer #${a.id}`;
-  document.getElementById('answerSubmitBtn').querySelector('span').textContent = 'Update Answer';
-  document.getElementById('cancelAnswerEdit').classList.remove('hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const q      = allQuestions.find(q => Number(q.id) === Number(a.question_id));
+  const isFill = q?.question_type === 'fill_blank';
+
+  document.getElementById('editAnswerModalId').value  = a.id;
+  document.getElementById('editAnswerModalQId').value = a.question_id;
+  document.getElementById('editAnswerModalTitle').textContent    = `Edit Answer #${a.id}`;
+  document.getElementById('editAnswerModalQuestion').textContent = a.question_text || '';
+  document.getElementById('editAnswerModalLabel').textContent    = isFill ? 'Accepted Keywords' : 'Correct Option';
+
+  const sel  = document.getElementById('editAnswerModalSelect');
+  const txt  = document.getElementById('editAnswerModalText');
+  const hint = document.getElementById('editAnswerModalHint');
+  sel.classList.toggle('hidden', isFill);
+  txt.classList.toggle('hidden', !isFill);
+  hint.classList.toggle('hidden', !isFill);
+
+  if (isFill) { txt.value = a.correct_option; }
+  else        { sel.value = a.correct_option; }
+
+  document.getElementById('editAnswerModal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  setTimeout(() => (isFill ? txt : sel).focus(), 50);
 }
 
-function resetAnswerForm() {
-  document.getElementById('answerForm')?.reset();
-  document.getElementById('answer_id_edit').value = '';
-  // Reset to MCQ mode.
-  document.getElementById('correct_option')?.classList.remove('hidden');
-  document.getElementById('correct_option_text')?.classList.add('hidden');
-  const label = document.querySelector('label[for="correct_option"]');
-  if (label) label.textContent = 'Correct Option';
-  document.getElementById('answerFormTitle').textContent = 'Add / Update Correct Answer';
-  document.getElementById('answerSubmitBtn').querySelector('span').textContent = 'Save Answer';
-  document.getElementById('cancelAnswerEdit').classList.add('hidden');
+function closeEditAnswerModal() {
+  document.getElementById('editAnswerModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
 }
 
-document.getElementById('answerForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('answer_id_edit').value;
-  const qId = Number(document.getElementById('question_id').value);
+async function submitEditAnswerModal() {
+  const id    = document.getElementById('editAnswerModalId').value;
+  const qId   = Number(document.getElementById('editAnswerModalQId').value);
   const isFill = allQuestions.find(q => Number(q.id) === qId)?.question_type === 'fill_blank';
-  const payload = {
-    question_id:    qId,
-    correct_option: isFill
-      ? (document.getElementById('correct_option_text')?.value?.trim() || '')
-      : (document.getElementById('correct_option')?.value || ''),
-  };
+  const correct = isFill
+    ? (document.getElementById('editAnswerModalText')?.value?.trim() || '')
+    : (document.getElementById('editAnswerModalSelect')?.value || '');
+  if (!correct) return showError('Please enter a correct answer.', 'Required');
   try {
-    await api(id ? `/api/admin/answers/${id}` : '/api/admin/answers', {
-      method: id ? 'PUT' : 'POST', body: JSON.stringify(payload),
+    await api(`/api/admin/answers/${id}`, {
+      method: 'PUT', body: JSON.stringify({ question_id: qId, correct_option: correct }),
     });
-    await showSuccess(id ? 'Answer updated.' : 'Answer saved.', 'Saved');
-    resetAnswerForm(); loadQuestionsAndAnswers();
+    closeEditAnswerModal();
+    await showSuccess('Answer updated.', 'Saved');
+    loadAnswersAdmin();
   } catch (err) { showError(err.message, 'Save Failed'); }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeEditAnswerModal();
 });
 
 async function deleteAnswer(id) {

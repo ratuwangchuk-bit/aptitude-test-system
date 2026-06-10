@@ -52,61 +52,6 @@
       </p>
     </div>
 
-    <!-- ── Answer form (super admin only) ──────────────────────── -->
-    <section class="super-only management-panel">
-
-      <!-- Add / edit answer form -->
-      <div class="card p-6">
-        <div class="flex items-start justify-between mb-5">
-          <div>
-            <h2 class="text-lg font-black text-slate-800" id="answerFormTitle">Add / Update Answer</h2>
-            <p class="text-sm text-slate-500 font-semibold">Set the correct option for a given question ID.</p>
-          </div>
-          <button id="cancelAnswerEdit" type="button"
-                  class="btn-outline hidden text-sm px-4 py-2" onclick="resetAnswerForm()">Cancel Edit</button>
-        </div>
-
-        <form id="answerForm" class="grid sm:grid-cols-2 gap-4">
-          <input id="answer_id_edit" type="hidden">
-
-          <div>
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="question_id">Question ID</label>
-            <input id="question_id" type="number" min="1" class="input" placeholder="e.g. 42" required>
-          </div>
-
-          <div id="correctOptionWrap">
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="correct_option">Correct Option</label>
-            <!-- MCQ select (default) -->
-            <select id="correct_option" class="input" required>
-              <option value="A">Option A</option>
-              <option value="B">Option B</option>
-              <option value="C">Option C</option>
-              <option value="D">Option D</option>
-            </select>
-            <!-- Fill-blank text input (shown when question is fill_blank type) -->
-            <input id="correct_option_text" class="input hidden"
-                   placeholder="e.g. Paris, france, the capital of France">
-            <p id="fillBlankHint" class="hidden text-xs text-slate-400 font-semibold mt-1.5">
-              Separate multiple accepted keywords with a comma. Matching is case-insensitive.
-            </p>
-          </div>
-
-          <div class="sm:col-span-2 flex justify-end">
-            <button class="btn flex items-center gap-2 px-6" id="answerSubmitBtn">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-              <span>Save Answer</span>
-            </button>
-          </div>
-        </form>
-        <p id="message" class="mt-2"></p>
-      </div>
-
-    </section>
-
     <!-- ── All Q&A table ─────────────────────────────────────── -->
     <section class="card p-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
@@ -147,6 +92,44 @@
     </section>
 
   </main>
+
+  <!-- ── Edit Answer Modal ─────────────────────────────────────── -->
+  <div id="editAnswerModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="editAnswerModalTitle">
+    <div class="app-modal-backdrop" onclick="closeEditAnswerModal()"></div>
+    <div class="app-modal-card" style="max-width:480px">
+      <h3 id="editAnswerModalTitle" class="text-lg font-black text-slate-800 mb-1">Edit Answer</h3>
+      <p id="editAnswerModalQuestion" class="text-sm text-slate-500 font-semibold mb-5 leading-relaxed"></p>
+
+      <input id="editAnswerModalId"  type="hidden">
+      <input id="editAnswerModalQId" type="hidden">
+
+      <div class="mb-5">
+        <label class="block mb-1.5 text-sm font-bold text-slate-700" id="editAnswerModalLabel">Correct Option</label>
+        <select id="editAnswerModalSelect" class="input">
+          <option value="A">Option A</option>
+          <option value="B">Option B</option>
+          <option value="C">Option C</option>
+          <option value="D">Option D</option>
+        </select>
+        <input id="editAnswerModalText" class="input hidden" placeholder="e.g. Paris, france">
+        <p id="editAnswerModalHint" class="hidden text-xs text-slate-400 font-semibold mt-1.5">
+          Separate multiple accepted keywords with a comma. Matching is case-insensitive.
+        </p>
+      </div>
+
+      <div class="app-modal-actions">
+        <button type="button" class="btn-outline" onclick="closeEditAnswerModal()">Cancel</button>
+        <button type="button" class="btn flex items-center gap-2" onclick="submitEditAnswerModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Update Answer
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
