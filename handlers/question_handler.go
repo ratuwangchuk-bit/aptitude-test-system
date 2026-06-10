@@ -299,6 +299,16 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			}
 			normalizeSection(&section)
 
+			// Determine question type first — it controls which fields are required.
+			questionType := strings.ToLower(strings.TrimSpace(firstNonEmpty(
+				valueByHeader(row, headerMap, "question_type"),
+				valueByHeader(row, headerMap, "type"),
+			)))
+			if questionType != "fill_blank" {
+				questionType = "mcq" // default
+			}
+			isFillBlank := questionType == "fill_blank"
+
 			questionText := firstNonEmpty(
 				valueByHeader(row, headerMap, "question_text"),
 				valueByHeader(row, headerMap, "question"),
@@ -308,14 +318,23 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			optionB := firstNonEmpty(valueByHeader(row, headerMap, "option_b"), valueByHeader(row, headerMap, "option b"), valueByHeader(row, headerMap, "b"))
 			optionC := firstNonEmpty(valueByHeader(row, headerMap, "option_c"), valueByHeader(row, headerMap, "option c"), valueByHeader(row, headerMap, "c"))
 			optionD := firstNonEmpty(valueByHeader(row, headerMap, "option_d"), valueByHeader(row, headerMap, "option d"), valueByHeader(row, headerMap, "d"))
-			correctOption := strings.ToUpper(firstNonEmpty(
+
+			// Read correct_option raw — MCQ answers are uppercased (A/B/C/D) but
+			// fill-in-the-blank answers must preserve their original case so keyword
+			// text looks natural in the admin panel.
+			rawCorrect := strings.TrimSpace(firstNonEmpty(
 				valueByHeader(row, headerMap, "correct_option"),
 				valueByHeader(row, headerMap, "correct option"),
 				valueByHeader(row, headerMap, "correct_answer"),
 				valueByHeader(row, headerMap, "correct answer"),
 				valueByHeader(row, headerMap, "answer"),
 			))
+			correctOption := rawCorrect
+			if !isFillBlank {
+				correctOption = strings.ToUpper(rawCorrect)
+			}
 
+			// Positional fallback for old MCQ-only files with no header row.
 			if questionText == "" && len(row) >= 5 {
 				if len(row) >= 6 && looksLikeSection(row[0]) {
 					section = row[0]
@@ -330,24 +349,37 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 						correctOption = strings.ToUpper(row[5])
 					}
 				}
+				questionType = "mcq" // positional fallback is MCQ-only
+				isFillBlank = false
 			}
 
-			if questionText == "" || optionA == "" || optionB == "" || optionC == "" || optionD == "" {
+			// Require question text for all types.
+			// For MCQ, all four options must also be present.
+			// For fill-in-the-blank, options are intentionally empty — skip the check.
+			if questionText == "" {
+				continue
+			}
+			if !isFillBlank && (optionA == "" || optionB == "" || optionC == "" || optionD == "") {
 				continue
 			}
 
 			var questionID int
 			err := config.DB.QueryRow(`
-				INSERT INTO questions (section, question_text, option_a, option_b, option_c, option_d)
-				VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-				section, questionText, optionA, optionB, optionC, optionD,
+				INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d)
+				VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+				section, questionText, questionType, optionA, optionB, optionC, optionD,
 			).Scan(&questionID)
 			if err != nil {
 				continue
 			}
 			questionCount++
 
-			if correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D" {
+			// Save the correct answer if one was provided.
+			// MCQ: only A/B/C/D are valid.
+			// fill_blank: any non-empty text is valid (comma-separated keywords accepted).
+			validMCQ := !isFillBlank && (correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D")
+			validFIB := isFillBlank && correctOption != ""
+			if validMCQ || validFIB {
 				_, err = config.DB.Exec(`
 					INSERT INTO answers (question_id, correct_option) VALUES ($1, $2)
 					ON CONFLICT (question_id) DO UPDATE SET correct_option=EXCLUDED.correct_option`,
