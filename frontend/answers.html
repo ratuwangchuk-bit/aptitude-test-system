@@ -112,14 +112,15 @@
             <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
             <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import correct answers.</p>
           </div>
-          <a class="btn-icon btn-soft shrink-0" href="/api/admin/answers/template"
-             download title="Download answers template (auto-generated for your sections)">
+          <button type="button" class="btn-icon btn-soft shrink-0"
+                  onclick="downloadTemplate('/api/admin/answers/template','answers_template.xlsx')"
+                  title="Download answers template (auto-generated for your sections)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-          </a>
+          </button>
         </div>
         <p class="text-sm text-slate-500 font-semibold mb-3">Download the template, fill question IDs and correct options per section sheet, then upload.</p>
         <input id="answerFile" type="file" accept=".xlsx" class="input text-sm mb-4">

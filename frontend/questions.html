@@ -253,14 +253,15 @@
             <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
             <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import questions and answers.</p>
           </div>
-          <a class="btn-icon btn-soft shrink-0" href="/api/admin/questions/template"
-             download title="Download questions template (auto-generated for your sections)">
+          <button type="button" class="btn-icon btn-soft shrink-0"
+                  onclick="downloadTemplate('/api/admin/questions/template','questions_template.xlsx')"
+                  title="Download questions template (auto-generated for your sections)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-          </a>
+          </button>
         </div>
 
         <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-4">

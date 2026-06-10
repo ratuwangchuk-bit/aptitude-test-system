@@ -366,12 +366,23 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// excelSheetName truncates a section name to the 31-character limit imposed by
+// the Excel spec. Names beyond this limit cause excelize to silently produce
+// invalid files that Excel refuses to open.
+func excelSheetName(name string) string {
+	runes := []rune(name)
+	if len(runes) > 31 {
+		return string(runes[:31])
+	}
+	return name
+}
+
 // QuestionsTemplate generates a blank Excel upload template with one sheet per
 // active section so admins always get a template that matches the current DB setup.
 func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 	sections, err := loadActiveSections()
 	if err != nil || len(sections) == 0 {
-		utils.Error(w, http.StatusInternalServerError, "No active sections found")
+		utils.Error(w, http.StatusInternalServerError, "No active sections found. Please configure sections in Settings first.")
 		return
 	}
 
@@ -386,7 +397,7 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 
 	first := true
 	for _, sec := range sections {
-		sheetName := sec.Name
+		sheetName := excelSheetName(sec.Name)
 		if first {
 			f.SetSheetName("Sheet1", sheetName)
 			first = false
@@ -397,7 +408,7 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
 			f.SetCellValue(sheetName, cell, h)
 		}
-		// Example row so admins know the format.
+		// Example row so admins know the expected format.
 		example := []string{sec.Name, "Enter question text here", "mcq", "Option A text", "Option B text", "Option C text", "Option D text", "A"}
 		for col, v := range example {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 2)

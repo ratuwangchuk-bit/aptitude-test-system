@@ -228,7 +228,7 @@ func UploadAnswers(w http.ResponseWriter, r *http.Request) {
 func AnswersTemplate(w http.ResponseWriter, r *http.Request) {
 	sections, err := loadActiveSections()
 	if err != nil || len(sections) == 0 {
-		utils.Error(w, http.StatusInternalServerError, "No active sections found")
+		utils.Error(w, http.StatusInternalServerError, "No active sections found. Please configure sections in Settings first.")
 		return
 	}
 
@@ -237,7 +237,8 @@ func AnswersTemplate(w http.ResponseWriter, r *http.Request) {
 
 	first := true
 	for _, sec := range sections {
-		sheetName := sec.Name
+		// Truncate to 31 chars — Excel sheet names must not exceed this limit.
+		sheetName := excelSheetName(sec.Name)
 		if first {
 			f.SetSheetName("Sheet1", sheetName)
 			first = false

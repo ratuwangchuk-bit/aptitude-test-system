@@ -19,6 +19,34 @@ let selectedAnswerIds      = new Set();
 let currentResultDetail    = null;
 let pendingSaveMode        = 'save'; // 'save' | 'add_another'
 
+/* ── Template download helper ──────────────────────────────── */
+
+// downloadTemplate fetches an Excel template from the given API URL and triggers
+// a browser file-save. Using fetch+blob instead of a plain <a href download> means
+// auth failures and server errors are caught and shown as a proper UI error rather
+// than silently downloading a corrupt/JSON file.
+async function downloadTemplate(url, filename) {
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      let msg = 'Could not download template.';
+      try { msg = (await res.json()).error || msg; } catch { /* use default */ }
+      showError(msg + (res.status === 500 ? ' Make sure at least one active section is configured in Settings.' : ''), 'Download Failed');
+      return;
+    }
+    const blob = await res.blob();
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    showError(err.message || 'Network error. Please try again.', 'Download Failed');
+  }
+}
+
 /* ── Icon SVGs ─────────────────────────────────────────────── */
 const ICON = {
   copy:   `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
