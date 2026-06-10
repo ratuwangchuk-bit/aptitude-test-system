@@ -18,7 +18,7 @@
           <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
           <div>
             <h1 class="text-2xl font-black text-white tracking-tight">Answer Management</h1>
-            <p class="text-white/60 text-xs font-semibold">Assign correct options to questions.</p>
+            <p class="text-white/60 text-xs font-semibold">Edit or update correct answers and review each question's answer.</p>
           </div>
         </div>
         <nav class="nav-area flex gap-1.5">
@@ -48,15 +48,15 @@
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       <p class="text-blue-800 text-xs font-semibold leading-relaxed">
-        <strong>Tip:</strong> You can set the correct answer directly on the <a href="questions.html" class="underline">Questions page</a> when adding a question — this page is for bulk-uploading or editing answers separately.
+        <strong>Tip:</strong> You can set the correct answer directly on the <a href="questions.html" class="underline">Questions page</a> when adding a question. Use this page to edit or update existing answers and to review whether each question has the correct answer configured.
       </p>
     </div>
 
-    <!-- ── Answer form + bulk upload (super admin only) ─────── -->
-    <section class="grid lg:grid-cols-5 gap-5 super-only management-panel">
+    <!-- ── Answer form (super admin only) ──────────────────────── -->
+    <section class="super-only management-panel">
 
       <!-- Add / edit answer form -->
-      <div class="card p-6 lg:col-span-3">
+      <div class="card p-6">
         <div class="flex items-start justify-between mb-5">
           <div>
             <h2 class="text-lg font-black text-slate-800" id="answerFormTitle">Add / Update Answer</h2>
@@ -103,35 +103,6 @@
           </div>
         </form>
         <p id="message" class="mt-2"></p>
-      </div>
-
-      <!-- Bulk upload -->
-      <div class="card p-6 lg:col-span-2 flex flex-col">
-        <div class="flex items-start justify-between mb-3">
-          <div>
-            <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
-            <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import correct answers.</p>
-          </div>
-          <button type="button" class="btn-icon btn-soft shrink-0"
-                  onclick="downloadTemplate('/api/admin/answers/template','answers_template.xlsx')"
-                  title="Download answers template (auto-generated for your sections)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-          </button>
-        </div>
-        <p class="text-sm text-slate-500 font-semibold mb-3">Download the template, fill question IDs and correct options per section sheet, then upload.</p>
-        <input id="answerFile" type="file" accept=".xlsx" class="input text-sm mb-4">
-        <button onclick="uploadAnswers()" class="btn flex items-center gap-2 justify-center">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Upload Excel
-        </button>
       </div>
 
     </section>

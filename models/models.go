@@ -83,13 +83,13 @@ type Answer struct {
 	QuestionID    int    `json:"question_id"`
 	QuestionText  string `json:"question_text,omitempty"`
 	Section       string `json:"section,omitempty"`
-	CorrectOption string `json:"correct_option"` // "A", "B", "C", or "D"
+	CorrectOption string `json:"correct_option"` // MCQ: "A"–"D"; fill_blank: comma-separated accepted keywords
 }
 
 // SelectedAnswer is one participant's answer to a single question.
 type SelectedAnswer struct {
 	QuestionID     int    `json:"question_id"`
-	SelectedOption string `json:"selected_option"` // "A"–"D", or "" if skipped
+	SelectedOption string `json:"selected_option"` // MCQ: "A"–"D"; fill_blank: free text; "" if skipped
 }
 
 // SubmitTestRequest is the JSON body sent by the test page on submission.

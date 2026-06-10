@@ -62,8 +62,6 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.UpdateQuestion)).Methods("PUT")
 	r.HandleFunc("/api/admin/questions/{id}", middleware.SuperAdminOnly(handlers.DeleteQuestion)).Methods("DELETE")
 
-	r.HandleFunc("/api/admin/answers/template", middleware.AdminAuth(handlers.AnswersTemplate)).Methods("GET")
-	r.HandleFunc("/api/admin/answers/upload", middleware.SuperAdminOnly(handlers.UploadAnswers)).Methods("POST")
 	r.HandleFunc("/api/admin/answers", middleware.SuperAdminOnly(handlers.AddAnswer)).Methods("POST")
 	r.HandleFunc("/api/admin/answers/{id}", middleware.SuperAdminOnly(handlers.UpdateAnswer)).Methods("PUT")
 	r.HandleFunc("/api/admin/answers/{id}", middleware.SuperAdminOnly(handlers.DeleteAnswer)).Methods("DELETE")

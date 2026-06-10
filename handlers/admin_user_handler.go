@@ -189,30 +189,12 @@ func ChangeAdminRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent a super admin from changing their own role via a direct API call.
-	_, _, callerRole, _ := currentAdminFromRequest(r)
-	if callerRole == "super_admin" {
-		var targetUsername string
-		err := config.DB.QueryRow("SELECT username FROM admins WHERE id=$1", id).Scan(&targetUsername)
-		if err == sql.ErrNoRows {
-			utils.Error(w, http.StatusNotFound, "Admin user not found")
-			return
-		}
-		// Resolve the caller's own id to block self-role-change.
-		var callerID int
-		if err2 := config.DB.QueryRow(`
-			SELECT a.id FROM admin_sessions s JOIN admins a ON a.id=s.admin_id
-			WHERE s.session_token=$1 AND s.expires_at > NOW()`,
-			func() string {
-				c, _ := r.Cookie("admin_session")
-				if c != nil {
-					return c.Value
-				}
-				return ""
-			}(),
-		).Scan(&callerID); err2 == nil && callerID == id {
-			utils.Error(w, http.StatusForbidden, "You cannot change your own role")
-			return
-		}
+	// currentAdminFromRequest returns the caller's own ID from the session so no
+	// extra DB round-trip is needed.
+	callerID, _, _, _ := currentAdminFromRequest(r)
+	if callerID != 0 && callerID == id {
+		utils.Error(w, http.StatusForbidden, "You cannot change your own role")
+		return
 	}
 
 	res, err := config.DB.Exec("UPDATE admins SET role=$1 WHERE id=$2", payload.Role, id)

@@ -179,7 +179,6 @@ func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 		os.Remove(filepath.Join("frontend", imageURL.String))
 	}
 
-	config.DB.Exec("SELECT setval('questions_id_seq', 1, false) WHERE NOT EXISTS (SELECT 1 FROM questions)")
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question deleted"})
 }
 

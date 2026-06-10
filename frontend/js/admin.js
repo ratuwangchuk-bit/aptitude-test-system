@@ -544,11 +544,18 @@ function renderSectionChart(rows) {
     el.innerHTML = `<div class="empty-chart">No results yet. Charts appear after participants submit the test.</div>`;
     return;
   }
-  const sections = allSections.length ? allSections : [
-    { name: 'Analytical Ability',  label: 'Analytical',  questions_per_test: 16 },
-    { name: 'Verbal Ability',      label: 'Verbal',       questions_per_test: 16 },
-    { name: 'Quantitative Skills', label: 'Quantitative', questions_per_test: 16 },
-  ];
+  // If sections haven't loaded yet, derive them from the results' section_score data.
+  const sections = allSections.length ? allSections : (() => {
+    const seen = {}, derived = [];
+    rows.forEach(r => (r.section_scores || []).forEach(ss => {
+      if (!seen[ss.section_name]) {
+        seen[ss.section_name] = true;
+        derived.push({ name: ss.section_name, label: ss.section_name, questions_per_test: ss.questions_count || 1 });
+      }
+    }));
+    return derived;
+  })();
+  if (!sections.length) { el.innerHTML = `<div class="empty-chart">No section data available.</div>`; return; }
   const n = rows.length;
   el.innerHTML = sections.map(sec => {
     let total = 0;
@@ -945,7 +952,7 @@ function downloadIndividualResult() {
 
 function printAllResults() {
   const results = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
-  if (!results.length) { alert('No results to print.'); return; }
+  if (!results.length) { showError('No results to print yet.', 'No Results'); return; }
   const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const topScore  = results[0]?.score ?? '—';
   const avgScore  = results.length
@@ -1712,20 +1719,6 @@ async function deleteAnswer(id) {
     await showSuccess('Answer deleted.', 'Deleted');
   } catch (err) { showError(err.message, 'Delete Failed'); }
   loadAnswersAdmin();
-}
-
-async function uploadAnswers() {
-  const file = document.getElementById('answerFile')?.files[0];
-  if (!file) return showError('Please choose an Excel file first.', 'File Required');
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res  = await fetch('/api/admin/answers/upload', { method: 'POST', body: fd, credentials: 'include' });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
-    await showSuccess(data.message || 'Answers uploaded.', 'Upload Complete');
-    loadAnswersAdmin();
-  } catch (err) { showError(err.message, 'Upload Failed'); }
 }
 
 /* ── Participants ───────────────────────────────────────────── */
