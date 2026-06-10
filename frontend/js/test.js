@@ -236,7 +236,7 @@ function showQuestion(idx) {
       <span>Overall ${idx + 1} of ${questions.length}</span>
     </p>
     <div class="q-text-card">${renderQuestionText(q.question_text)}</div>
-    ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(q.image_url)}" alt="Question image" class="q-img"></div>` : ''}
+    ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(q.image_url)}" alt="Question image" class="q-img" onerror="this.closest('.q-img-wrap').style.display='none'"></div>` : ''}
     ${(q.question_type === 'fill_blank' || (!q.option_a && !q.option_b && !q.option_c && !q.option_d))
       ? `<div class="q-fill-wrap">
            <label class="block text-sm font-bold text-slate-600 mb-2">Your Answer</label>
@@ -439,6 +439,28 @@ async function submitTest(auto = false) {
         </div>
       </div>`;
   } catch (err) {
+    // 409 means the beacon already submitted on a prior refresh/close — treat
+    // it as a success so the participant sees the thank-you screen.
+    if (err.message && err.message.toLowerCase().includes('already submitted')) {
+      _isActiveTab = false;
+      localStorage.removeItem('participant_id');
+      localStorage.removeItem('test_start_time');
+      localStorage.removeItem('passcode_id');
+      document.body.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-6"
+             style="background:#0f172a">
+          <div class="glass-card p-8 max-w-lg text-center">
+            <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
+            <h1 class="text-3xl font-black text-green-700 mt-5">Thank You for Participating</h1>
+            <p class="text-slate-600 mt-3 leading-relaxed">Your answers have been submitted successfully. Please wait for good news from the administrator.</p>
+            <div class="rounded-2xl bg-green-50 border border-green-100 p-4 mt-6 text-green-800 font-bold">
+              Your result will be reviewed and announced by the administrator.
+            </div>
+            <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
+          </div>
+        </div>`;
+      return;
+    }
     submitted = false;
     setMessage('message', err.message, true);
   }
@@ -495,10 +517,10 @@ window.addEventListener('beforeunload', e => {
 });
 
 window.addEventListener('pagehide', () => {
-  // Only beacon if the test was properly started (start-test succeeded).
-  // Without this guard, a tab-close during a failed start-test would beacon
-  // a blank submission and permanently consume the participant's one attempt.
-  if (!submitted && testStarted) autoSubmitViaBeacon();
+  // Fire beacon whenever questions are loaded — covers both normal close and
+  // page refresh. The questions.length guard prevents beaconing a blank
+  // submission if the page is closed before questions finish loading.
+  if (!submitted && questions.length > 0) autoSubmitViaBeacon();
 });
 
 /* ── Entry point ───────────────────────────────────────────────────────────── */
@@ -512,11 +534,13 @@ async function initTest() {
   const sessionRaw = sessionStorage.getItem('_testSession');
   let savedAnswersForRestore = null;
 
+  // On reload the beacon fired on pagehide — don't cancel it.
+  // Answers in sessionStorage are kept only as a temporary fallback in the rare
+  // race where submission-status returns false before the beacon is processed.
   if (navType === 'reload' && sessionRaw) {
     try {
       const session = JSON.parse(sessionRaw);
       if (session.participantId === Number(participantId)) {
-        await cancelAutoSubmit(session.participantId);
         savedAnswersForRestore = session.answers;
       }
     } catch { /* Malformed checkpoint — ignore. */ }

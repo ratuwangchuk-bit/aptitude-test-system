@@ -783,7 +783,7 @@ function showResultDetailModal(d) {
     const statusBadge = a.is_correct
       ? `<span class="rd-status correct">✓</span>`
       : (sel ? `<span class="rd-status wrong">✗</span>` : `<span class="rd-status skip">—</span>`);
-    const imgHtml = a.image_url ? `<img src="${escapeHtml(a.image_url)}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block">` : '';
+    const imgHtml = a.image_url ? `<img src="${escapeHtml(a.image_url)}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
     return `
       <tr class="${rowCls}">
         <td class="rd-qnum">${i + 1}</td>
