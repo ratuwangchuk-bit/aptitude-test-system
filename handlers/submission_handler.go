@@ -27,10 +27,6 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Participant ID is required")
 		return
 	}
-	if len(req.Answers) == 0 {
-		utils.Error(w, http.StatusBadRequest, "No test answers received")
-		return
-	}
 
 	// Load active sections before opening the transaction (read-only, no race risk).
 	sections, err := loadActiveSections()

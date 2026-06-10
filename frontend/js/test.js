@@ -590,10 +590,27 @@ async function initTest() {
       method: 'POST',
       body:   JSON.stringify({ participant_id: Number(participantId) }),
     });
-    // Guard: if the server says time has already elapsed, auto-submit immediately
-    // instead of resetting the clock to a full DURATION.
+    // Guard: if the server says time has already elapsed, show an expiry screen
+    // and record a zero-score submission to prevent re-attempts.
     if (startData.seconds_remaining <= 0) {
-      submitTest(true);
+      document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
+      document.getElementById('testForm').innerHTML = `
+        <div class="card p-8 text-center">
+          <img src="assets/logo-icon.png" alt="" class="logo-icon mx-auto">
+          <h2 class="text-2xl font-black text-red-600 mt-4">Time Has Expired</h2>
+          <p class="text-slate-500 mt-3 leading-relaxed">
+            Your allotted test time has elapsed. Your attempt has been recorded.
+          </p>
+          <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
+        </div>`;
+      submitted = true;
+      localStorage.removeItem('participant_id');
+      localStorage.removeItem('test_start_time');
+      localStorage.removeItem('passcode_id');
+      api('/api/submit-test', {
+        method: 'POST',
+        body: JSON.stringify({ participant_id: Number(participantId), answers: [] }),
+      }).catch(() => {});
       return;
     }
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
