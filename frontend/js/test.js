@@ -77,10 +77,10 @@ function updateAnsweredProgress() {
   if (progressBar) progressBar.style.width = total ? `${(answered / total) * 100}%` : '0%';
 
   if (submitBtn) {
-    const canSubmit = total > 0;
-    submitBtn.disabled = !canSubmit;
-    submitBtn.classList.toggle('opacity-40',         !canSubmit);
-    submitBtn.classList.toggle('cursor-not-allowed', !canSubmit);
+    const allAnswered = total > 0 && answered === total;
+    submitBtn.disabled = !allAnswered;
+    submitBtn.classList.toggle('opacity-40',         !allAnswered);
+    submitBtn.classList.toggle('cursor-not-allowed', !allAnswered);
   }
 
   updateSidebarButtons();
