@@ -362,11 +362,17 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			imageURL := strings.TrimSpace(firstNonEmpty(
+				valueByHeader(row, headerMap, "image_url"),
+				valueByHeader(row, headerMap, "image url"),
+				valueByHeader(row, headerMap, "image"),
+			))
+
 			var questionID int
 			err := config.DB.QueryRow(`
-				INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d)
-				VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-				section, questionText, questionType, optionA, optionB, optionC, optionD,
+				INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, image_url)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')) RETURNING id`,
+				section, questionText, questionType, optionA, optionB, optionC, optionD, imageURL,
 			).Scan(&questionID)
 			if err != nil {
 				continue
@@ -423,7 +429,7 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 	headers := []string{
 		"section", "question_text", "question_type",
 		"option_a", "option_b", "option_c", "option_d",
-		"correct_option",
+		"correct_option", "image_url",
 	}
 
 	first := true
@@ -440,24 +446,34 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 			f.SetCellValue(sheetName, cell, h)
 		}
 
-		// Row 2 — MCQ example: four options, correct_option is a single letter A/B/C/D.
+		// Row 2 — MCQ example with an optional image URL.
 		mcqExample := []string{
 			sec.Name, "What is the capital of France?", "mcq",
-			"London", "Paris", "Berlin", "Rome", "B",
+			"London", "Paris", "Berlin", "Rome", "B", "",
 		}
 		for col, v := range mcqExample {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 2)
 			f.SetCellValue(sheetName, cell, v)
 		}
 
-		// Row 3 — Fill-in-the-blank example: options are left blank; correct_option
-		// holds comma-separated accepted keywords (any one match counts, case-insensitive).
+		// Row 3 — Fill-in-the-blank example (image_url left blank).
 		fibExample := []string{
 			sec.Name, "The process by which plants make food using sunlight is called ___.", "fill_blank",
-			"", "", "", "", "photosynthesis, Photosynthesis",
+			"", "", "", "", "photosynthesis, Photosynthesis", "",
 		}
 		for col, v := range fibExample {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 3)
+			f.SetCellValue(sheetName, cell, v)
+		}
+
+		// Row 4 — MCQ with image example.
+		imgExample := []string{
+			sec.Name, "By looking at the graph, which colour has the highest value?", "mcq",
+			"Red", "Blue", "Green", "Yellow", "B",
+			"https://example.com/graph.png",
+		}
+		for col, v := range imgExample {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 4)
 			f.SetCellValue(sheetName, cell, v)
 		}
 	}

@@ -366,6 +366,61 @@ function startPasscodeWatcher() {
   }, 30000);
 }
 
+/* ── 5-minute warning toast ────────────────────────────────────────────────── */
+
+function showTimerWarning() {
+  // Play a soft beep using the Web Audio API (no external file needed).
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 180, 360].forEach(delay => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type      = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + delay / 1000);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.4);
+      osc.start(ctx.currentTime + delay / 1000);
+      osc.stop(ctx.currentTime  + delay / 1000 + 0.4);
+    });
+  } catch { /* Audio not supported — skip beep. */ }
+
+  // Show a non-blocking banner that auto-dismisses after 8 seconds.
+  const banner = document.createElement('div');
+  banner.id = 'timerWarningBanner';
+  banner.style.cssText = [
+    'position:fixed', 'top:72px', 'left:50%', 'transform:translateX(-50%)',
+    'z-index:99999', 'background:#7f1d1d', 'color:#fca5a5',
+    'border:1.5px solid #ef4444', 'border-radius:12px',
+    'padding:0.85rem 1.4rem', 'font-weight:800', 'font-size:0.92rem',
+    'display:flex', 'align-items:center', 'gap:0.6rem',
+    'box-shadow:0 8px 32px rgba(0,0,0,0.45)',
+    'animation:slideDown 0.35s ease',
+  ].join(';');
+  banner.innerHTML = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span>Only <b>5 minutes</b> remaining — please review and submit your answers.</span>
+    <button onclick="this.parentElement.remove()" style="margin-left:0.6rem;background:transparent;
+      border:none;color:#fca5a5;cursor:pointer;font-size:1.1rem;line-height:1;padding:0"
+      aria-label="Dismiss">&#10005;</button>`;
+
+  // Inject keyframe if not already present.
+  if (!document.getElementById('_timerWarnStyle')) {
+    const s = document.createElement('style');
+    s.id = '_timerWarnStyle';
+    s.textContent = `@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`;
+    document.head.appendChild(s);
+  }
+
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 8000);
+}
+
 /* ── Timer ─────────────────────────────────────────────────────────────────── */
 
 function startTimer() {
@@ -377,6 +432,7 @@ function startTimer() {
   if (isStale) localStorage.setItem('test_start_time', Date.now().toString());
 
   const startTime = parseInt(localStorage.getItem('test_start_time'), 10);
+  let fiveMinWarningShown = false;
 
   function tick() {
     const elapsed   = Math.floor((Date.now() - startTime) / 1000);
@@ -387,6 +443,10 @@ function startTimer() {
     if (timer) {
       timer.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
       if (remaining <= 300) timer.parentElement.classList.add('animate-pulse');
+    }
+    if (!fiveMinWarningShown && remaining <= 300 && remaining > 0) {
+      fiveMinWarningShown = true;
+      showTimerWarning();
     }
     if (remaining <= 0) { clearInterval(interval); submitTest(true); }
   }
