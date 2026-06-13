@@ -14,6 +14,7 @@ func RegisterRoutes(r *mux.Router) {
 
 	// ── Participant-facing public routes ──────────────────────────────────────
 	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
+	r.HandleFunc("/api/image-proxy", handlers.ImageProxy).Methods("GET")
 	r.HandleFunc("/api/validate-passcode", handlers.ValidatePasscode).Methods("POST")
 	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
 	r.HandleFunc("/api/validate-cid", handlers.ValidateCID).Methods("POST")

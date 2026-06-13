@@ -30,18 +30,45 @@ function escapeHtml(value) {
 }
 
 /**
- * Converts common image-sharing links to a URL that works directly in an <img> tag.
- * Google Drive share links (/file/d/ID/view) are page URLs, not image URLs, so the
- * browser can't load them as <img src>. This maps them to the direct download form.
+ * Converts common image-sharing links to a URL that works in an <img> tag.
+ *
+ * Google Drive share/view links point to a webpage, not image bytes.
+ * We extract the file ID and route the request through our server-side
+ * /api/image-proxy endpoint, which fetches the thumbnail from Google and
+ * streams it back. This avoids CORS, rate-limit, and virus-scan redirect issues.
  */
 function toDirectImageUrl(url) {
   if (!url) return url;
+
+  let driveId = null;
+
   // https://drive.google.com/file/d/FILE_ID/view?...
   const m1 = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-  if (m1) return `https://drive.google.com/uc?export=view&id=${m1[1]}`;
+  if (m1) driveId = m1[1];
+
   // https://drive.google.com/open?id=FILE_ID
-  const m2 = url.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
-  if (m2) return `https://drive.google.com/uc?export=view&id=${m2[1]}`;
+  if (!driveId) {
+    const m2 = url.match(/drive\.google\.com\/open\?.*[?&]id=([^&]+)/);
+    if (m2) driveId = m2[1];
+  }
+
+  // https://drive.google.com/uc?export=view&id=FILE_ID  (older manual format)
+  if (!driveId) {
+    const m3 = url.match(/drive\.google\.com\/uc\?.*[?&]id=([^&]+)/);
+    if (m3) driveId = m3[1];
+  }
+
+  // https://drive.google.com/thumbnail?id=FILE_ID  (already thumbnail format)
+  if (!driveId) {
+    const m4 = url.match(/drive\.google\.com\/thumbnail\?.*[?&]id=([^&]+)/);
+    if (m4) driveId = m4[1];
+  }
+
+  if (driveId) {
+    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`;
+    return `/api/image-proxy?url=${encodeURIComponent(thumbnailUrl)}`;
+  }
+
   return url;
 }
 

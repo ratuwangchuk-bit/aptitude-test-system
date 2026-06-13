@@ -248,6 +248,56 @@ func UploadQuestionImage(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"image_url": relURL})
 }
 
+// ImageProxy fetches an external image URL server-side and streams it back to
+// the browser. This works around Google Drive's browser-side CORS restrictions
+// and ensures images load even when the client's network blocks direct access.
+// Only a small allowlist of trusted image-hosting domains is accepted to
+// prevent this endpoint from being used as a general SSRF proxy.
+func ImageProxy(w http.ResponseWriter, r *http.Request) {
+	raw := strings.TrimSpace(r.URL.Query().Get("url"))
+	if raw == "" {
+		utils.Error(w, http.StatusBadRequest, "url parameter is required")
+		return
+	}
+
+	allowed := []string{
+		"drive.google.com",
+		"lh3.googleusercontent.com",
+		"lh4.googleusercontent.com",
+		"lh5.googleusercontent.com",
+		"lh6.googleusercontent.com",
+		"i.imgur.com",
+		"imgur.com",
+	}
+	isAllowed := false
+	for _, host := range allowed {
+		if strings.Contains(raw, host) {
+			isAllowed = true
+			break
+		}
+	}
+	if !isAllowed {
+		utils.Error(w, http.StatusForbidden, "Image host not allowed")
+		return
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(raw)
+	if err != nil || resp.StatusCode >= 400 {
+		utils.Error(w, http.StatusBadGateway, "Could not fetch image")
+		return
+	}
+	defer resp.Body.Close()
+
+	ct := resp.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	io.Copy(w, resp.Body) //nolint:errcheck
+}
+
 // BulkUploadQuestionImages accepts multiple image files in a single request,
 // saves each under frontend/uploads/questions/, and returns the list of URLs.
 // The admin can then paste those URLs into the image_url column of the Excel template.
