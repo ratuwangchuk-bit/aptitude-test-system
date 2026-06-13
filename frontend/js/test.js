@@ -236,7 +236,7 @@ function showQuestion(idx) {
       <span>Overall ${idx + 1} of ${questions.length}</span>
     </p>
     <div class="q-text-card">${renderQuestionText(q.question_text)}</div>
-    ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(q.image_url)}" alt="Question image" class="q-img" onerror="this.closest('.q-img-wrap').style.display='none'"></div>` : ''}
+    ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(toDirectImageUrl(q.image_url))}" alt="Question image" class="q-img" onerror="this.closest('.q-img-wrap').style.display='none'"></div>` : ''}
     ${(q.question_type === 'fill_blank' || (!q.option_a && !q.option_b && !q.option_c && !q.option_d))
       ? `<div class="q-fill-wrap">
            <label class="block text-sm font-bold text-slate-600 mb-2">Your Answer</label>

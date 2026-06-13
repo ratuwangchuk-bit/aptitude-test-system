@@ -783,7 +783,7 @@ function showResultDetailModal(d) {
     const statusBadge = a.is_correct
       ? `<span class="rd-status correct">✓</span>`
       : (sel ? `<span class="rd-status wrong">✗</span>` : `<span class="rd-status skip">—</span>`);
-    const imgHtml = a.image_url ? `<img src="${escapeHtml(a.image_url)}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
+    const imgHtml = a.image_url ? `<img src="${escapeHtml(toDirectImageUrl(a.image_url))}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
     return `
       <tr class="${rowCls}">
         <td class="rd-qnum">${i + 1}</td>
@@ -1225,7 +1225,7 @@ function renderQuestions(rows) {
             ${optsPanel}
           </td>
           <td class="text-center" style="vertical-align:top;padding-top:10px">${q.image_url
-            ? `<img src="${escapeHtml(q.image_url)}" alt="img" style="max-height:40px;max-width:68px;border-radius:6px;object-fit:contain;cursor:pointer;border:1px solid #e2e8f0" onclick="window.open('${escapeHtml(q.image_url)}','_blank')">`
+            ? `<img src="${escapeHtml(toDirectImageUrl(q.image_url))}" alt="img" style="max-height:40px;max-width:68px;border-radius:6px;object-fit:contain;cursor:pointer;border:1px solid #e2e8f0" onclick="window.open('${escapeHtml(toDirectImageUrl(q.image_url))}','_blank')">`
             : '<span style="color:#cbd5e1;font-size:0.8rem">—</span>'}</td>
           ${isSuperAdmin() ? `<td style="vertical-align:top;padding-top:8px"><div class="flex gap-1.5 items-center">
             <button class="btn-icon" id="qchevron_${q.id}" title="Show options" onclick="toggleQOptions(${q.id})">${chevronSvg}</button>
@@ -1405,7 +1405,7 @@ function editQuestion(id) {
   const wrap = document.getElementById('imagePreviewWrap');
   const img  = document.getElementById('imagePreview');
   if (q.image_url && wrap && img) {
-    img.src = q.image_url;
+    img.src = toDirectImageUrl(q.image_url);
     wrap.classList.remove('hidden');
     document.getElementById('removeImageBtn')?.classList.remove('hidden');
   } else if (wrap) {

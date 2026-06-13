@@ -30,6 +30,22 @@ function escapeHtml(value) {
 }
 
 /**
+ * Converts common image-sharing links to a URL that works directly in an <img> tag.
+ * Google Drive share links (/file/d/ID/view) are page URLs, not image URLs, so the
+ * browser can't load them as <img src>. This maps them to the direct download form.
+ */
+function toDirectImageUrl(url) {
+  if (!url) return url;
+  // https://drive.google.com/file/d/FILE_ID/view?...
+  const m1 = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (m1) return `https://drive.google.com/uc?export=view&id=${m1[1]}`;
+  // https://drive.google.com/open?id=FILE_ID
+  const m2 = url.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
+  if (m2) return `https://drive.google.com/uc?export=view&id=${m2[1]}`;
+  return url;
+}
+
+/**
  * Converts a date string from the API into a human-readable local time string.
  * The backend stores timestamps in UTC and formats them as "YYYY-MM-DD HH:MM"
  * (no timezone marker). We normalise to ISO 8601 UTC before parsing so the
