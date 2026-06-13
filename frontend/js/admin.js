@@ -1542,6 +1542,67 @@ async function uploadQuestions() {
   } catch (err) { showError(err.message, 'Upload Failed'); }
 }
 
+/* ── Bulk image upload ─────────────────────────────────────── */
+
+let _bulkImageInput = null;
+
+function onBulkImageSelect(input) {
+  _bulkImageInput = input;
+  const count = input.files.length;
+  const preview = document.getElementById('bulkImagePreview');
+  const countEl = document.getElementById('bulkImageCount');
+  const btn     = document.getElementById('bulkImageUploadBtn');
+  const results = document.getElementById('bulkImageResults');
+  if (count > 0) {
+    countEl.textContent = count;
+    preview.classList.remove('hidden');
+    btn.classList.remove('hidden');
+    results.classList.add('hidden');
+    document.getElementById('bulkImageUrlList').value = '';
+  } else {
+    preview.classList.add('hidden');
+    btn.classList.add('hidden');
+  }
+}
+
+async function uploadBulkImages() {
+  if (!_bulkImageInput || _bulkImageInput.files.length === 0) return;
+  const fd = new FormData();
+  for (const f of _bulkImageInput.files) fd.append('images', f);
+  const btn = document.getElementById('bulkImageUploadBtn');
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try {
+    const res  = await fetch('/api/admin/questions/images/bulk', { method: 'POST', body: fd, credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
+    const uploaded = data.uploaded || [];
+    const urls   = uploaded.filter(r => r.url).map(r => r.url);
+    const errors = uploaded.filter(r => r.error);
+    const textarea = document.getElementById('bulkImageUrlList');
+    const baseUrl  = window.location.origin;
+    textarea.value = urls.map(u => baseUrl + u).join('\n');
+    document.getElementById('bulkImageResults').classList.remove('hidden');
+    if (errors.length > 0) {
+      const names = errors.map(e => `${e.filename}: ${e.error}`).join('\n');
+      showError(`${urls.length} uploaded, ${errors.length} failed:\n${names}`, 'Partial Upload');
+    } else {
+      await showSuccess(`${urls.length} image(s) uploaded successfully.`, 'Done');
+    }
+  } catch (err) {
+    showError(err.message, 'Upload Failed');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Images`;
+  }
+}
+
+function copyBulkImageUrls() {
+  const ta = document.getElementById('bulkImageUrlList');
+  if (!ta || !ta.value) return;
+  navigator.clipboard.writeText(ta.value).then(() => showSuccess('URLs copied to clipboard.', 'Copied'));
+}
+
 /* ── Answers ───────────────────────────────────────────────── */
 
 function renderAnswers(rows) {

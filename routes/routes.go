@@ -56,6 +56,7 @@ func RegisterRoutes(r *mux.Router) {
 	// /upload and collection POST must come before /{id} so gorilla/mux matches them first.
 	r.HandleFunc("/api/admin/questions/template", middleware.AdminAuth(handlers.QuestionsTemplate)).Methods("GET")
 	r.HandleFunc("/api/admin/questions/upload", middleware.SuperAdminOnly(handlers.UploadQuestions)).Methods("POST")
+	r.HandleFunc("/api/admin/questions/images/bulk", middleware.SuperAdminOnly(handlers.BulkUploadQuestionImages)).Methods("POST")
 	r.HandleFunc("/api/admin/questions", middleware.SuperAdminOnly(handlers.AddQuestion)).Methods("POST")
 	r.HandleFunc("/api/admin/questions/{id}/image", middleware.SuperAdminOnly(handlers.UploadQuestionImage)).Methods("POST")
 	r.HandleFunc("/api/admin/questions/{id}/image", middleware.SuperAdminOnly(handlers.RemoveQuestionImage)).Methods("DELETE")
