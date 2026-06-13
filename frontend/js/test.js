@@ -421,6 +421,57 @@ function showTimerWarning() {
   setTimeout(() => banner.remove(), 8000);
 }
 
+// playTick plays a short sharp click sound — used for the 10-second countdown.
+let _tickCtx = null;
+function playTick(isLast) {
+  try {
+    if (!_tickCtx) _tickCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx  = _tickCtx;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    // Higher pitch on the final tick (0s).
+    osc.type = 'square';
+    osc.frequency.value = isLast ? 1200 : 900;
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.08);
+  } catch { /* Audio not supported — skip. */ }
+}
+
+// showCountdownBanner shows (or updates) the 10-second fixed banner.
+function showCountdownBanner(remaining) {
+  let banner = document.getElementById('countdownBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'countdownBanner';
+    banner.style.cssText = [
+      'position:fixed', 'top:72px', 'left:50%', 'transform:translateX(-50%)',
+      'z-index:100000', 'background:#450a0a', 'color:#fca5a5',
+      'border:2px solid #dc2626', 'border-radius:12px',
+      'padding:0.8rem 1.6rem', 'font-weight:900', 'font-size:1.05rem',
+      'display:flex', 'align-items:center', 'gap:0.7rem',
+      'box-shadow:0 8px 40px rgba(0,0,0,0.6)',
+      'animation:slideDown 0.25s ease',
+    ].join(';');
+    banner.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;animation:pulse 1s infinite">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="countdownBannerText"></span>`;
+    document.body.appendChild(banner);
+  }
+  const n = remaining;
+  document.getElementById('countdownBannerText').innerHTML =
+    n > 0
+      ? `Submitting in <b style="font-size:1.3em;color:#f87171">${n}</b> second${n === 1 ? '' : 's'}!`
+      : `<b style="color:#f87171">Time\'s up! Submitting…</b>`;
+}
+
 /* ── Timer ─────────────────────────────────────────────────────────────────── */
 
 function startTimer() {
@@ -433,6 +484,7 @@ function startTimer() {
 
   const startTime = parseInt(localStorage.getItem('test_start_time'), 10);
   let fiveMinWarningShown = false;
+  let countdownStarted    = false;
 
   function tick() {
     const elapsed   = Math.floor((Date.now() - startTime) / 1000);
@@ -448,7 +500,20 @@ function startTimer() {
       fiveMinWarningShown = true;
       showTimerWarning();
     }
-    if (remaining <= 0) { clearInterval(interval); submitTest(true); }
+    // 10-second countdown: show banner and play a tick every second.
+    if (remaining <= 10 && remaining > 0) {
+      countdownStarted = true;
+      showCountdownBanner(remaining);
+      playTick(false);
+    }
+    if (remaining <= 0) {
+      if (countdownStarted) {
+        showCountdownBanner(0);
+        playTick(true);
+      }
+      clearInterval(interval);
+      submitTest(true);
+    }
   }
 
   tick();
