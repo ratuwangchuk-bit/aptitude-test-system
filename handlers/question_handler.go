@@ -70,10 +70,16 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
-// GetAllQuestions returns every question in insertion order for the admin panel.
+// GetAllQuestions returns questions from active sections for the admin panel.
+// Questions belonging to inactive sections are excluded — they are hidden
+// system-wide until the section is re-activated.
 func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
-	rows, err := config.DB.Query(
-		"SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'') FROM questions ORDER BY id ASC",
+	rows, err := config.DB.Query(`
+		SELECT q.id, q.section, q.question_text, COALESCE(q.question_type,'mcq'),
+		       q.option_a, q.option_b, q.option_c, q.option_d, COALESCE(q.option_e,''), COALESCE(q.image_url,'')
+		FROM questions q
+		JOIN test_sections ts ON ts.name = q.section AND ts.is_active = TRUE
+		ORDER BY q.id ASC`,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")

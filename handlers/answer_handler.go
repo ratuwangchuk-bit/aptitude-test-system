@@ -13,15 +13,14 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GetAnswers returns all questions with their correct answer (if one exists).
-// A LEFT JOIN from questions ensures every question appears — those without an
-// answer show id=0 and correct_option="" so the admin can see what still needs
-// to be configured.
+// GetAnswers returns questions with their correct answer for active sections only.
+// Questions in inactive sections are excluded system-wide until re-activated.
 func GetAnswers(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT COALESCE(a.id, 0), q.id, q.question_text, q.section,
 		       COALESCE(a.correct_option, '') AS correct_option
 		FROM questions q
+		JOIN test_sections ts ON ts.name = q.section AND ts.is_active = TRUE
 		LEFT JOIN answers a ON a.question_id = q.id
 		ORDER BY q.id ASC`)
 	if err != nil {
