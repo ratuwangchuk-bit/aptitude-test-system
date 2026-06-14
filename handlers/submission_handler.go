@@ -305,8 +305,9 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 		FROM participant_answers pa
 		JOIN questions q ON pa.question_id = q.id
 		LEFT JOIN answers a ON a.question_id = q.id
+		LEFT JOIN test_sections ts ON ts.name = q.section
 		WHERE pa.submission_id = $1
-		ORDER BY q.section, q.id`,
+		ORDER BY COALESCE(ts.sort_order, 9999), ts.id, q.id`,
 		id,
 	)
 	if err != nil {
