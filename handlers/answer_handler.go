@@ -62,8 +62,8 @@ func normaliseCorrectOption(questionID int, raw string) (string, string) {
 		return v, ""
 	}
 	v := strings.ToUpper(strings.TrimSpace(raw))
-	if v != "A" && v != "B" && v != "C" && v != "D" {
-		return "", "Correct option must be A, B, C, or D"
+	if v != "A" && v != "B" && v != "C" && v != "D" && v != "E" {
+		return "", "Correct option must be A, B, C, D, or E"
 	}
 	return v, ""
 }

@@ -234,12 +234,11 @@ function renderBankSummary() {
   const colors = ['orange', 'blue', 'green', 'purple', 'teal', 'rose'];
   const isSuper = isSuperAdmin();
   wrap.innerHTML = allSections.filter(s => s.is_active).map((s, i) => {
-    const col      = colors[i % colors.length];
-    const inactive = !s.is_active;
-    const bankQ    = allQuestions.filter(q => q.section === s.name).length;
+    const col   = colors[i % colors.length];
+    const bankQ = allQuestions.filter(q => q.section === s.name).length;
     const enough   = bankQ >= s.questions_per_test;
     const zero     = bankQ === 0;
-    const countCol = inactive ? 'text-slate-300' : (zero ? 'text-slate-400' : (enough ? 'text-slate-800' : 'text-red-600'));
+    const countCol = zero ? 'text-slate-400' : (enough ? 'text-slate-800' : 'text-red-600');
     const actionBtns = isSuper ? `
       <div class="flex gap-1 ml-auto flex-shrink-0 self-start">
         <button class="btn-icon btn-warning" style="width:1.75rem;height:1.75rem" title="Edit section" onclick="toggleBankCardEdit(${s.id})">${ICON.edit}</button>
@@ -279,16 +278,14 @@ function renderBankSummary() {
           <span id="bce_msg_${s.id}" class="text-xs font-semibold self-center ml-1"></span>
         </div>
       </div>` : '';
-    const statusHtml = inactive
-      ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 uppercase tracking-wide border border-slate-200">Inactive</span>`
-      : zero
+    const statusHtml = zero
         ? `<span class="text-xs text-slate-400 font-semibold">No questions yet</span>`
         : !enough
           ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-red-600"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Need ${s.questions_per_test - bankQ} more</span>`
           : `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-green-600"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Ready</span>`;
 
     return `
-      <div class="card p-4${inactive ? ' opacity-55' : ''}" id="bankCard_${s.id}">
+      <div class="card p-4" id="bankCard_${s.id}">
 
         <!-- Header row: number badge · label · name · actions -->
         <div class="flex items-start gap-3 mb-3">

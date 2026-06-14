@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -266,6 +267,12 @@ func ImageProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+		utils.Error(w, http.StatusBadRequest, "Invalid image URL")
+		return
+	}
+	hostname := strings.ToLower(parsed.Hostname())
 	allowed := []string{
 		"drive.google.com",
 		"lh3.googleusercontent.com",
@@ -277,7 +284,7 @@ func ImageProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	isAllowed := false
 	for _, host := range allowed {
-		if strings.Contains(raw, host) {
+		if hostname == host {
 			isAllowed = true
 			break
 		}

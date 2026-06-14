@@ -154,18 +154,6 @@ function updateSectionTabs() {
   });
 }
 
-/* ── Topbar subtitle ────────────────────────────────────────────────────────── */
-
-function updateTopbarMeta() {
-  const el = document.getElementById('testTopbarMeta');
-  if (!el || !testSections.length) return;
-  const sectionSummary = testSections
-    .filter(s => questions.some(q => q.section === s.name))
-    .map(s => `${s.questions_per_test} ${escapeHtml(s.label || s.name)}`)
-    .join(' · ');
-  el.textContent = sectionSummary;
-}
-
 /* ── Markdown table renderer ───────────────────────────────────────────────── */
 
 function renderQuestionText(raw) {
@@ -280,7 +268,7 @@ function showQuestion(idx) {
 
 function onOptionChange(qId, opt) {
   selectedAnswers[qId] = opt;
-  ['A','B','C','D'].forEach(o => {
+  ['A','B','C','D','E'].forEach(o => {
     document.getElementById(`qopt_${qId}_${o}`)?.classList.remove('q-selected');
   });
   document.getElementById(`qopt_${qId}_${opt}`)?.classList.add('q-selected');
