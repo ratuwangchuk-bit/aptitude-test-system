@@ -319,17 +319,19 @@
   <!-- ── Sticky test topbar (kept identical to previous design) ── -->
   <header class="test-topbar">
     <div class="max-w-none px-5 sm:px-7 py-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center justify-between relative">
 
-        <!-- Left: logo + title + answered count -->
+        <!-- Left: logo + title -->
         <div class="flex items-center gap-3">
           <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon flex-shrink-0">
-          <div>
-            <h1 class="text-xl sm:text-2xl font-black text-white leading-tight">Aptitude Test</h1>
-            <p class="text-white/50 text-xs font-semibold mt-0.5">
-              <span id="answeredCount" class="text-teal-300 font-black">0/0</span> answered
-            </p>
-          </div>
+          <h1 class="text-xl sm:text-2xl font-black text-white leading-tight">Aptitude Test</h1>
+        </div>
+
+        <!-- Center: answered count -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <p class="text-white/60 text-sm font-semibold">
+            <span id="answeredCount" class="text-teal-300 font-black">0/0</span> answered
+          </p>
         </div>
 
         <!-- Right: timer + submit -->
