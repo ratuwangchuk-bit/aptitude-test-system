@@ -247,7 +247,7 @@ function showQuestion(idx) {
                   autocomplete="off">
          </div>`
       : `<div class="q-options">
-           ${['A','B','C','D'].map(opt => {
+           ${['A','B','C','D','E'].filter(opt => q['option_' + opt.toLowerCase()]).map(opt => {
              const text   = q['option_' + opt.toLowerCase()];
              const selCls = saved === opt ? ' q-selected' : '';
              return `

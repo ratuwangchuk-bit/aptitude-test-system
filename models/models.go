@@ -74,6 +74,7 @@ type Question struct {
 	OptionB      string `json:"option_b"`
 	OptionC      string `json:"option_c"`
 	OptionD      string `json:"option_d"`
+	OptionE      string `json:"option_e"`
 	ImageURL     string `json:"image_url,omitempty"` // path served by the static file server
 }
 
@@ -130,6 +131,7 @@ type ParticipantAnswerDetail struct {
 	OptionB        string `json:"option_b"`
 	OptionC        string `json:"option_c"`
 	OptionD        string `json:"option_d"`
+	OptionE        string `json:"option_e"`
 	SelectedOption string `json:"selected_option"`
 	CorrectOption  string `json:"correct_option"`
 	IsCorrect      bool   `json:"is_correct"`

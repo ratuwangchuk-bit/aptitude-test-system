@@ -141,7 +141,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		// (correct_option='') would be misclassified as fill_blank and never scored.
 		correctTrimmed := strings.TrimSpace(key.correct)
 		isFillBlank := key.qtype == "fill_blank" ||
-			(key.correct != "" && (len(correctTrimmed) != 1 || (correctTrimmed != "A" && correctTrimmed != "B" && correctTrimmed != "C" && correctTrimmed != "D")))
+			(key.correct != "" && (len(correctTrimmed) != 1 || (correctTrimmed != "A" && correctTrimmed != "B" && correctTrimmed != "C" && correctTrimmed != "D" && correctTrimmed != "E")))
 
 		if isFillBlank && key.correct != "" {
 			// Match against any comma-separated keyword (case-insensitive, trimmed).
@@ -159,9 +159,9 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		} else if !isFillBlank {
-			// MCQ: expect A/B/C/D.
+			// MCQ: expect A/B/C/D/E.
 			upper := strings.ToUpper(selected)
-			if upper == "A" || upper == "B" || upper == "C" || upper == "D" {
+			if upper == "A" || upper == "B" || upper == "C" || upper == "D" || upper == "E" {
 				selVal = upper
 				isCorrect = key.correct != "" && key.correct == upper
 				if isCorrect {
@@ -299,7 +299,7 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := config.DB.Query(`
 		SELECT q.id, q.section, q.question_text, COALESCE(q.image_url,''),
-		       q.option_a, q.option_b, q.option_c, q.option_d,
+		       q.option_a, q.option_b, q.option_c, q.option_d, COALESCE(q.option_e,''),
 		       COALESCE(pa.selected_option, '') AS selected_option,
 		       COALESCE(a.correct_option, '')   AS correct_option, pa.is_correct
 		FROM participant_answers pa
@@ -320,7 +320,7 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 		var ans models.ParticipantAnswerDetail
 		if err := rows.Scan(
 			&ans.QuestionID, &ans.Section, &ans.QuestionText, &ans.ImageURL,
-			&ans.OptionA, &ans.OptionB, &ans.OptionC, &ans.OptionD,
+			&ans.OptionA, &ans.OptionB, &ans.OptionC, &ans.OptionD, &ans.OptionE,
 			&ans.SelectedOption, &ans.CorrectOption, &ans.IsCorrect,
 		); err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not read answers")

@@ -48,7 +48,7 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	for i, sec := range sections {
 		// $1,$2 for section 0; $3,$4 for section 1; etc.
 		parts[i] = fmt.Sprintf(
-			"(SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(image_url,'') FROM questions WHERE section=$%d ORDER BY random() LIMIT $%d)",
+			"(SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'') FROM questions WHERE section=$%d ORDER BY random() LIMIT $%d)",
 			i*2+1, i*2+2,
 		)
 		args[i*2] = sec.Name
@@ -73,7 +73,7 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 // GetAllQuestions returns every question in insertion order for the admin panel.
 func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(
-		"SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(image_url,'') FROM questions ORDER BY id ASC",
+		"SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'') FROM questions ORDER BY id ASC",
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not load questions")
@@ -92,7 +92,7 @@ func scanQuestions(rows *sql.Rows) ([]models.Question, error) {
 	qs := []models.Question{}
 	for rows.Next() {
 		var q models.Question
-		if err := rows.Scan(&q.ID, &q.Section, &q.QuestionText, &q.QuestionType, &q.OptionA, &q.OptionB, &q.OptionC, &q.OptionD, &q.ImageURL); err != nil {
+		if err := rows.Scan(&q.ID, &q.Section, &q.QuestionText, &q.QuestionType, &q.OptionA, &q.OptionB, &q.OptionC, &q.OptionD, &q.OptionE, &q.ImageURL); err != nil {
 			return nil, err
 		}
 		if q.QuestionType == "" {
@@ -115,9 +115,9 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 		q.QuestionType = "mcq"
 	}
 	err := config.DB.QueryRow(`
-		INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, image_url)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')) RETURNING id`,
-		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.ImageURL,
+		INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, option_e, image_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9,'')) RETURNING id`,
+		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.OptionE, q.ImageURL,
 	).Scan(&q.ID)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not add question")
@@ -140,9 +140,9 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := config.DB.Exec(`
 		UPDATE questions
-		SET section=$1, question_text=$2, question_type=$3, option_a=$4, option_b=$5, option_c=$6, option_d=$7, image_url=NULLIF($8,'')
-		WHERE id=$9`,
-		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.ImageURL, id,
+		SET section=$1, question_text=$2, question_type=$3, option_a=$4, option_b=$5, option_c=$6, option_d=$7, option_e=$8, image_url=NULLIF($9,'')
+		WHERE id=$10`,
+		q.Section, q.QuestionText, q.QuestionType, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.OptionE, q.ImageURL, id,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not update question")
@@ -440,6 +440,7 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			optionB := firstNonEmpty(valueByHeader(row, headerMap, "option_b"), valueByHeader(row, headerMap, "option b"), valueByHeader(row, headerMap, "b"))
 			optionC := firstNonEmpty(valueByHeader(row, headerMap, "option_c"), valueByHeader(row, headerMap, "option c"), valueByHeader(row, headerMap, "c"))
 			optionD := firstNonEmpty(valueByHeader(row, headerMap, "option_d"), valueByHeader(row, headerMap, "option d"), valueByHeader(row, headerMap, "d"))
+			optionE := firstNonEmpty(valueByHeader(row, headerMap, "option_e"), valueByHeader(row, headerMap, "option e"), valueByHeader(row, headerMap, "e"))
 
 			// Read correct_option raw — MCQ answers are uppercased (A/B/C/D) but
 			// fill-in-the-blank answers must preserve their original case so keyword
@@ -493,9 +494,9 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 
 			var questionID int
 			err := config.DB.QueryRow(`
-				INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, image_url)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')) RETURNING id`,
-				section, questionText, questionType, optionA, optionB, optionC, optionD, imageURL,
+				INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, option_e, image_url)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9,'')) RETURNING id`,
+				section, questionText, questionType, optionA, optionB, optionC, optionD, optionE, imageURL,
 			).Scan(&questionID)
 			if err != nil {
 				continue
@@ -505,7 +506,7 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			// Save the correct answer if one was provided.
 			// MCQ: only A/B/C/D are valid.
 			// fill_blank: any non-empty text is valid (comma-separated keywords accepted).
-			validMCQ := !isFillBlank && (correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D")
+			validMCQ := !isFillBlank && (correctOption == "A" || correctOption == "B" || correctOption == "C" || correctOption == "D" || correctOption == "E")
 			validFIB := isFillBlank && correctOption != ""
 			if validMCQ || validFIB {
 				_, err = config.DB.Exec(`
@@ -551,7 +552,7 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 
 	headers := []string{
 		"section", "question_text", "question_type",
-		"option_a", "option_b", "option_c", "option_d",
+		"option_a", "option_b", "option_c", "option_d", "option_e",
 		"correct_option", "image_url",
 	}
 
@@ -569,30 +570,30 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 			f.SetCellValue(sheetName, cell, h)
 		}
 
-		// Row 2 — MCQ example with an optional image URL.
+		// Row 2 — MCQ example (option_e left blank — it is optional).
 		mcqExample := []string{
 			sec.Name, "What is the capital of France?", "mcq",
-			"London", "Paris", "Berlin", "Rome", "B", "",
+			"London", "Paris", "Berlin", "Rome", "", "B", "",
 		}
 		for col, v := range mcqExample {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 2)
 			f.SetCellValue(sheetName, cell, v)
 		}
 
-		// Row 3 — Fill-in-the-blank example (image_url left blank).
+		// Row 3 — Fill-in-the-blank example (option_e and image_url left blank).
 		fibExample := []string{
 			sec.Name, "The process by which plants make food using sunlight is called ___.", "fill_blank",
-			"", "", "", "", "photosynthesis, Photosynthesis", "",
+			"", "", "", "", "", "photosynthesis, Photosynthesis", "",
 		}
 		for col, v := range fibExample {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 3)
 			f.SetCellValue(sheetName, cell, v)
 		}
 
-		// Row 4 — MCQ with image example.
+		// Row 4 — MCQ with 5 options and image example.
 		imgExample := []string{
 			sec.Name, "By looking at the graph, which colour has the highest value?", "mcq",
-			"Red", "Blue", "Green", "Yellow", "B",
+			"Red", "Blue", "Green", "Yellow", "Purple", "B",
 			"https://example.com/graph.png",
 		}
 		for col, v := range imgExample {

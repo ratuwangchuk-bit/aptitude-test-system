@@ -23,6 +23,9 @@ func main() {
 	config.ConnectDB()
 	log.Println("Database connected successfully")
 
+	// Apply idempotent column migrations for schema changes added after initial deploy.
+	config.MigrateDB()
+
 	r := mux.NewRouter()
 	routes.RegisterRoutes(r)
 

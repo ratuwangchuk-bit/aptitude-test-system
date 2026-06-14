@@ -773,7 +773,7 @@ function showResultDetailModal(d) {
   currentResultDetail = d;
   document.getElementById('resultDetailOverlay')?.remove();
 
-  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
+  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d, E: a.option_e });
   const answersHtml = (d.answers || []).map((a, i) => {
     const o   = opts(a);
     const sel = a.selected_option || '';
@@ -863,7 +863,7 @@ function closeResultDetail() {
 function downloadIndividualResult() {
   const d = currentResultDetail;
   if (!d) return;
-  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d });
+  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d, E: a.option_e });
   // All participant/question data is HTML-escaped before being written to the popup
   // via win.document.write(). Without escaping, a question saved with an HTML payload
   // (e.g. <script>…</script>) would execute in the admin-origin print window.
@@ -1201,6 +1201,7 @@ function renderQuestions(rows) {
              <div class="q-bank-opt-item"><span class="q-bank-opt-badge">B</span>${escapeHtml(q.option_b)}</div>
              <div class="q-bank-opt-item"><span class="q-bank-opt-badge">C</span>${escapeHtml(q.option_c)}</div>
              <div class="q-bank-opt-item"><span class="q-bank-opt-badge">D</span>${escapeHtml(q.option_d)}</div>
+             ${q.option_e ? `<div class="q-bank-opt-item"><span class="q-bank-opt-badge">E</span>${escapeHtml(q.option_e)}</div>` : ''}
            </div>`;
 
       // Warn when no answer has been configured yet
@@ -1314,7 +1315,7 @@ async function loadQuestionsAdmin() {
 document.getElementById('questionSearch')?.addEventListener('input', (e) => {
   const term = e.target.value.toLowerCase();
   renderQuestions(allQuestions.filter(q =>
-    `${q.id} ${q.section} ${q.question_text} ${q.option_a} ${q.option_b} ${q.option_c} ${q.option_d}`.toLowerCase().includes(term)
+    `${q.id} ${q.section} ${q.question_text} ${q.option_a} ${q.option_b} ${q.option_c} ${q.option_d} ${q.option_e}`.toLowerCase().includes(term)
   ));
 });
 
@@ -1382,6 +1383,7 @@ function editQuestion(id) {
   document.getElementById('option_b').value = q.option_b || '';
   document.getElementById('option_c').value = q.option_c || '';
   document.getElementById('option_d').value = q.option_d || '';
+  document.getElementById('option_e').value = q.option_e || '';
   document.getElementById('question_image_url').value = q.image_url || '';
   // Restore question type.
   const qType = q.question_type || 'mcq';
@@ -1466,6 +1468,7 @@ document.getElementById('questionForm')?.addEventListener('submit', async (e) =>
     option_b:      isFill ? '' : (document.getElementById('option_b').value || ''),
     option_c:      isFill ? '' : (document.getElementById('option_c').value || ''),
     option_d:      isFill ? '' : (document.getElementById('option_d').value || ''),
+    option_e:      isFill ? '' : (document.getElementById('option_e').value || ''),
     image_url:     document.getElementById('question_image_url').value || '',
   };
   const correctOpt = isFill

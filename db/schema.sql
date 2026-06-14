@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS participants (
 
 -- ── Questions ─────────────────────────────────────────────────────────────────
 -- question_type:
---   'mcq'        — four options (option_a … option_d); correct answer is A/B/C/D
+--   'mcq'        — four or five options (option_a … option_e); correct answer is A/B/C/D/E
 --   'fill_blank' — options are empty; correct answer is comma-separated keywords
 --                  (any single keyword match, case-insensitive, counts as correct)
 
@@ -92,9 +92,12 @@ CREATE TABLE IF NOT EXISTS questions (
     option_b      TEXT         NOT NULL DEFAULT '',
     option_c      TEXT         NOT NULL DEFAULT '',
     option_d      TEXT         NOT NULL DEFAULT '',
+    option_e      TEXT         NOT NULL DEFAULT '',
     image_url     TEXT,
     created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
+-- Idempotent migration for databases created before option_e was added.
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS option_e TEXT NOT NULL DEFAULT '';
 
 
 -- ── Answers ───────────────────────────────────────────────────────────────────

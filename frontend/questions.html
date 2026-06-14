@@ -173,6 +173,12 @@
               <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_d">Option D</label>
               <input id="option_d" class="input" placeholder="Option D">
             </div>
+            <div class="sm:col-span-2">
+              <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_e">
+                Option E <span class="text-xs font-normal text-slate-400 ml-1">— optional</span>
+              </label>
+              <input id="option_e" class="input" placeholder="Option E (leave blank if not needed)">
+            </div>
           </div>
 
           <!-- Inline correct answer — MCQ radio (hidden for fill_blank) -->
@@ -205,6 +211,11 @@
                 <input type="radio" name="correct_option_inline" value="D" class="sr-only" onchange="highlightCorrectOpt()">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
                 Option D
+              </label>
+              <label id="ca_E" class="correct-opt-btn">
+                <input type="radio" name="correct_option_inline" value="E" class="sr-only" onchange="highlightCorrectOpt()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+                Option E
               </label>
             </div>
           </div>

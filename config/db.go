@@ -104,3 +104,16 @@ func ConnectDB() {
 	DB = db
 	log.Println("Database connected successfully")
 }
+
+// MigrateDB applies idempotent ALTER TABLE statements for schema changes added
+// after the initial deployment. Safe to run on every startup.
+func MigrateDB() {
+	migrations := []string{
+		`ALTER TABLE questions ADD COLUMN IF NOT EXISTS option_e TEXT NOT NULL DEFAULT ''`,
+	}
+	for _, m := range migrations {
+		if _, err := DB.Exec(m); err != nil {
+			log.Printf("Migration warning: %v", err)
+		}
+	}
+}
