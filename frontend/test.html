@@ -33,9 +33,12 @@
       display: flex; flex-shrink: 0;
       background: #07101f;
       border-bottom: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
     }
+    .test-section-bar::-webkit-scrollbar { height: 3px; background: transparent; }
+    .test-section-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 999px; }
     .tab-btn {
-      flex: 1; display: flex; flex-direction: column;
+      flex: 1 0 auto; min-width: 5rem; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 0.2rem;
       padding: 0.75rem 0.5rem;
       border: none; border-bottom: 2px solid transparent;
@@ -323,10 +326,10 @@
     <div class="max-w-none px-5 sm:px-7 py-4">
       <div class="flex items-center justify-between relative">
 
-        <!-- Left: logo + title -->
+        <!-- Left: logo + title (title hidden on phones to give room for timer+submit) -->
         <div class="flex items-center gap-3">
           <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon flex-shrink-0">
-          <h1 class="text-xl sm:text-2xl font-black text-white leading-tight">Aptitude Test</h1>
+          <h1 class="text-xl sm:text-2xl font-black text-white leading-tight hidden sm:block">Aptitude Test</h1>
         </div>
 
         <!-- Center: answered count -->
@@ -350,9 +353,10 @@
             <span id="timer" class="text-white font-black text-base tracking-wide tabular-nums">–:––</span>
           </div>
           <button id="submitBtn" disabled
-                  class="btn flex items-center gap-2 py-2.5 px-5 text-sm whitespace-nowrap
+                  class="btn flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm whitespace-nowrap
                          opacity-40 cursor-not-allowed">
-            Submit Test
+            <span class="hidden sm:inline">Submit Test</span>
+            <span class="sm:hidden">Submit</span>
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>

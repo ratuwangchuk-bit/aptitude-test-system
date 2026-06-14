@@ -46,16 +46,6 @@ body.admin-body {
 }
 
 /* ── Admin page header — sticky dark stripe ─────────────────── */
-/* The header element itself IS the coloured bar */
-.admin-header {
-  position: sticky;
-  top: 0;
-  z-index: 200;
-  background: linear-gradient(135deg, #0b1220 0%, #1a2e6e 50%, #0a5c54 100%);
-  box-shadow: 0 4px 28px rgba(0,0,0,.28);
-}
-
-/* Legacy alias — kept so existing markup works unchanged */
 .admin-topbar { color: white; padding: .6rem 0; }
 .admin-topbar h1 { font-size: clamp(.95rem, 1.3vw + .4rem, 1.25rem); font-weight: 900; line-height: 1.2; }
 .admin-topbar p  { font-size: .72rem; }
@@ -619,8 +609,13 @@ body.modal-open { overflow: hidden; }
 
 @media (max-width: 760px) {
   .admin-topbar .nav-area { width: 100%; }
-  .auth-hero { display: none; }
   .btn, .btn-green, .btn-soft, .btn-outline { width: 100%; }
+  /* Keep icon buttons, table action buttons, and modal actions at natural width */
+  .btn-icon { width: 2.25rem !important; height: 2.25rem !important; }
+  .table-wrap .btn, .table-wrap .btn-danger, .table-wrap .btn-warning,
+  .table-wrap .btn-soft, .table-wrap .btn-outline { width: auto; }
+  .app-modal-actions .btn, .app-modal-actions .btn-soft,
+  .app-modal-actions .btn-outline { width: auto; }
   .section-banner  { flex-direction: column; align-items: flex-start; }
   .dashboard-hero  { flex-direction: column; align-items: flex-start; }
   .hero-actions    { width: 100%; }
@@ -631,4 +626,21 @@ body.modal-open { overflow: hidden; }
   .brand-logo-large, .brand-logo-large.compact, .brand-logo-page { width: 100%; max-width: 300px; }
   .logo-icon { width: 2.3rem; height: 2.3rem; }
   .passcode-generate-btn { width: 100%; min-width: 0; }
+}
+
+/* ── Test layout responsive ─────────────────────────────────── */
+@media (max-width: 767px) {
+  .test-sidebar { display: none; }
+  .rd-header { padding: .85rem 1rem; }
+  .rd-scores { padding: .65rem 1rem; }
+  .rd-table-wrap { max-height: 60vh; }
+  .rd-footer { padding: .7rem 1rem; font-size: .75rem; }
+}
+
+/* ── Table text scaling on narrow screens ───────────────────── */
+@media (max-width: 480px) {
+  .modern-table th, .modern-table td { padding: .6rem .65rem; font-size: .8rem; }
+  .rd-table th, .rd-table td { padding: .5rem .7rem; font-size: .8rem; }
+  .rd-name { font-size: 1rem; }
+  .rd-sub  { font-size: .72rem; }
 }
