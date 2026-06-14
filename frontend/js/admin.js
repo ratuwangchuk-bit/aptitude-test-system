@@ -232,7 +232,7 @@ function renderBankSummary() {
   if (!allSections.length) { wrap.innerHTML = '<p class="text-slate-400 text-sm col-span-full py-4">No sections yet. Use <b>Add New Section</b> above to create one.</p>'; return; }
   const colors = ['orange', 'blue', 'green', 'purple', 'teal', 'rose'];
   const isSuper = isSuperAdmin();
-  wrap.innerHTML = allSections.map((s, i) => {
+  wrap.innerHTML = allSections.filter(s => s.is_active).map((s, i) => {
     const col      = colors[i % colors.length];
     const inactive = !s.is_active;
     const bankQ    = allQuestions.filter(q => q.section === s.name).length;
