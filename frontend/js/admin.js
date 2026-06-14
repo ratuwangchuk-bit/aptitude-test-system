@@ -404,8 +404,8 @@ document.getElementById('configForm')?.addEventListener('submit', async (e) => {
 
 document.getElementById('sectionForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const id    = document.getElementById('section_id_edit').value;
-  const body  = {
+  const id   = document.getElementById('section_id_edit').value;
+  const body = {
     name:               document.getElementById('section_name').value.trim(),
     label:              document.getElementById('section_label').value.trim(),
     questions_per_test: Number(document.getElementById('section_qcount').value),
@@ -418,9 +418,7 @@ document.getElementById('sectionForm')?.addEventListener('submit', async (e) => 
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(body),
     });
-    if (msg) { msg.textContent = id ? '✓ Section updated.' : '✓ Section added.'; msg.style.color = '#16a34a'; }
-    setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
-    resetSectionForm();
+    closeEditSectionModal();
     loadSections();
   } catch (err) {
     if (msg) { msg.textContent = err.message; msg.style.color = '#dc2626'; }
@@ -430,25 +428,29 @@ document.getElementById('sectionForm')?.addEventListener('submit', async (e) => 
 function editSection(id) {
   const s = allSections.find(s => s.id === id);
   if (!s) return;
-  document.getElementById('section_id_edit').value = s.id;
-  document.getElementById('section_name').value    = s.name;
-  document.getElementById('section_label').value   = s.label;
-  document.getElementById('section_qcount').value  = s.questions_per_test;
-  document.getElementById('section_order').value   = s.sort_order;
+  document.getElementById('section_id_edit').value  = s.id;
+  document.getElementById('section_name').value     = s.name;
+  document.getElementById('section_label').value    = s.label;
+  document.getElementById('section_qcount').value   = s.questions_per_test;
+  document.getElementById('section_order').value    = s.sort_order;
   document.getElementById('section_active').checked = s.is_active;
-  document.getElementById('sectionFormTitle').textContent = `Edit Section`;
-  document.getElementById('sectionSubmitLabel').textContent = 'Update Section';
-  document.getElementById('cancelSectionEdit').classList.remove('hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const msg = document.getElementById('sectionMsg');
+  if (msg) msg.textContent = '';
+  document.getElementById('editSectionModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeEditSectionModal() {
+  document.getElementById('editSectionModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+  document.getElementById('sectionForm')?.reset();
+  document.getElementById('section_id_edit').value = '';
+  const msg = document.getElementById('sectionMsg');
+  if (msg) msg.textContent = '';
 }
 
 function resetSectionForm() {
-  document.getElementById('sectionForm')?.reset();
-  document.getElementById('section_id_edit').value = '';
-  document.getElementById('sectionFormTitle').textContent = 'Add Section';
-  document.getElementById('sectionSubmitLabel').textContent = 'Save Section';
-  document.getElementById('cancelSectionEdit')?.classList.add('hidden');
-  document.getElementById('section_active').checked = true;
+  closeEditSectionModal();
 }
 
 async function deleteSection(id) {
@@ -1775,8 +1777,10 @@ async function submitEditAnswerModal() {
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  const modal = document.getElementById('editAnswerModal');
-  if (modal && !modal.classList.contains('hidden')) closeEditAnswerModal();
+  const answerModal = document.getElementById('editAnswerModal');
+  if (answerModal && !answerModal.classList.contains('hidden')) { closeEditAnswerModal(); return; }
+  const sectionModal = document.getElementById('editSectionModal');
+  if (sectionModal && !sectionModal.classList.contains('hidden')) closeEditSectionModal();
 });
 
 async function deleteAnswer(id) {

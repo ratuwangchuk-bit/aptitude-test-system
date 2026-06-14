@@ -80,66 +80,14 @@
     </section>
 
     <!-- ── Section management ──────────────────────────────────── -->
-    <section class="grid lg:grid-cols-5 gap-5">
-
-      <!-- Add / edit section form (super admin only) -->
-      <div class="card p-6 lg:col-span-2 super-only">
-        <div class="flex items-center justify-between mb-5">
-          <div>
-            <h2 class="text-lg font-black text-slate-800" id="sectionFormTitle">Add Section</h2>
-            <p class="text-sm text-slate-500 font-semibold">Create a new question section for the test.</p>
-          </div>
-          <button id="cancelSectionEdit" type="button"
-                  class="btn-outline hidden text-sm px-4 py-2" onclick="resetSectionForm()">Cancel</button>
-        </div>
-
-        <form id="sectionForm" class="space-y-4">
-          <input id="section_id_edit" type="hidden">
-
-          <div>
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_name">Section Name</label>
-            <input id="section_name" class="input" placeholder="e.g. Logical Reasoning" required>
-            <p class="text-xs text-slate-400 mt-1.5 font-semibold">Must match the section value stored in questions exactly.</p>
-          </div>
-          <div>
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_label">Display Label</label>
-            <input id="section_label" class="input" placeholder="e.g. Section D">
-          </div>
-          <div>
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_qcount">Questions Shown per Test</label>
-            <input id="section_qcount" type="number" min="1" class="input" placeholder="e.g. 10" required>
-            <p class="text-xs text-slate-400 mt-1.5 font-semibold">Randomly drawn from this section's bank per participant. Any number is allowed.</p>
-          </div>
-          <div>
-            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_order">Sort Order</label>
-            <input id="section_order" type="number" min="0" class="input" placeholder="1">
-          </div>
-          <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <input id="section_active" type="checkbox" checked class="w-4 h-4 accent-blue-600">
-            <label for="section_active" class="text-sm font-bold text-slate-700 cursor-pointer">
-              Active — shown in tests
-            </label>
-          </div>
-          <div class="flex justify-end">
-            <button type="submit" class="btn px-6 flex items-center gap-2">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-              </svg>
-              <span id="sectionSubmitLabel">Save Section</span>
-            </button>
-          </div>
-          <p id="sectionMsg" class="text-sm font-semibold"></p>
-        </form>
-      </div>
-
-      <!-- All sections table — visible to all admins, edits super-only -->
-      <div class="card p-6 lg:col-span-3">
+    <section>
+      <div class="card p-6">
         <div class="mb-5">
           <h2 class="text-lg font-black text-slate-800">All Sections</h2>
           <p class="text-sm text-slate-500 font-semibold">
             Active sections appear in the test. Inactive ones are excluded.
             Total questions per test = sum of active section quotas.
+            Use the <b>Questions</b> page to add new sections.
           </p>
         </div>
         <div class="table-wrap">
@@ -158,12 +106,66 @@
             <tbody id="sectionsTable"></tbody>
           </table>
         </div>
-        <p id="sectionsEmpty" class="text-center text-slate-400 text-sm py-6 hidden">No sections configured yet. Use the form to add one.</p>
+        <p id="sectionsEmpty" class="text-center text-slate-400 text-sm py-6 hidden">No sections configured yet. Add one from the Questions page.</p>
       </div>
-
     </section>
 
   </main>
+
+  <!-- ── Edit Section Modal ─────────────────────────────────── -->
+  <div id="editSectionModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeEditSectionModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-black text-slate-800">Edit Section</h3>
+        <button onclick="closeEditSectionModal()" class="btn-icon btn-soft" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <form id="sectionForm" class="space-y-4">
+        <input id="section_id_edit" type="hidden">
+
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_name">Section Name</label>
+          <input id="section_name" class="input" placeholder="e.g. Logical Reasoning" required>
+          <p class="text-xs text-slate-400 mt-1.5 font-semibold">Must match the section value stored in questions exactly.</p>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_label">Display Label</label>
+          <input id="section_label" class="input" placeholder="e.g. Section D">
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_qcount">Questions Shown per Test</label>
+          <input id="section_qcount" type="number" min="1" class="input" placeholder="e.g. 10" required>
+          <p class="text-xs text-slate-400 mt-1.5 font-semibold">Randomly drawn from this section's bank per participant.</p>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_order">Sort Order</label>
+          <input id="section_order" type="number" min="0" class="input" placeholder="1">
+        </div>
+        <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <input id="section_active" type="checkbox" checked class="w-4 h-4 accent-blue-600">
+          <label for="section_active" class="text-sm font-bold text-slate-700 cursor-pointer">
+            Active — shown in tests
+          </label>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="closeEditSectionModal()" class="btn-outline px-5">Cancel</button>
+          <button type="submit" class="btn px-6 flex items-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Update Section
+          </button>
+        </div>
+        <p id="sectionMsg" class="text-sm font-semibold"></p>
+      </form>
+    </div>
+  </div>
 
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
