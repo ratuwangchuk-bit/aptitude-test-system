@@ -104,10 +104,13 @@ function buildSidebarAndTabs() {
     if (!sq.length) return;
     const meta = getSectionMeta(sectionName);
 
+    const tabLabel = meta.label && meta.label !== sectionName
+      ? `${escapeHtml(meta.label)}<span class="tab-section-name">${escapeHtml(sectionName)}</span>`
+      : escapeHtml(sectionName);
     tabsHtml += `
       <button class="tab-btn" data-tab-section="${escapeHtml(sectionName)}"
               onclick="jumpToSection(${JSON.stringify(sectionName)})">
-        ${escapeHtml(meta.label)}
+        ${tabLabel}
         <span class="tab-score" data-tab-score="${escapeHtml(sectionName)}">0/${sq.length}</span>
       </button>`;
 
@@ -224,10 +227,12 @@ function showQuestion(idx) {
   if (!form) return;
 
   form.innerHTML = `
-    <div class="q-section-badge">
+    <button class="q-section-badge" onclick="jumpToSection(${JSON.stringify(q.section)})" title="Switch to this section">
       <span class="q-badge-dot"></span>
-      ${escapeHtml(meta.label)}
-    </div>
+      ${meta.label && meta.label !== q.section
+        ? `${escapeHtml(meta.label)}<span style="opacity:.65;font-weight:700;letter-spacing:.05em;text-transform:none;font-size:.95em">: ${escapeHtml(q.section)}</span>`
+        : escapeHtml(q.section)}
+    </button>
     <p class="q-meta">
       <span>Question ${localIdx + 1} of ${sectionQs.length}</span>
       <span class="sep">|</span>
