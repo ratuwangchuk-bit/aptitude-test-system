@@ -174,12 +174,17 @@ function populateSectionDropdown(selectName) {
     sel.innerHTML = '<option value="" disabled selected>No sections yet — create one below</option>';
     return;
   }
+  const activeSections = allSections.filter(s => s.is_active);
+  if (!activeSections.length) {
+    sel.innerHTML = '<option value="" disabled selected>No active sections — enable one in Settings</option>';
+    return;
+  }
   const current = selectName || (sel.value && sel.value !== '' ? sel.value : null);
-  sel.innerHTML = allSections.map(s =>
+  sel.innerHTML = activeSections.map(s =>
     `<option value="${escapeHtml(s.name)}" ${s.name === current ? 'selected' : ''}>${escapeHtml(s.label ? s.label + ' — ' : '')}${escapeHtml(s.name)}</option>`
   ).join('');
   if (selectName) sel.value = selectName;
-  else if (!sel.value && allSections.length) sel.value = allSections[0].name;
+  else if (!sel.value && activeSections.length) sel.value = activeSections[0].name;
 }
 
 function toggleQuickAddSection() {
