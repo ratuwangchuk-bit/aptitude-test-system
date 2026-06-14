@@ -792,8 +792,14 @@ function showResultDetailModal(d) {
       // Insert a section header row whenever the section changes.
       if (a.section !== lastSection) {
         lastSection = a.section;
-        const [, , bg, accent] = sectionPalette(a.section);
-        html += `<tr><td colspan="6" style="padding:.55rem .9rem;background:${bg};color:${accent};font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid ${accent}30">${escapeHtml(a.section || 'General')}</td></tr>`;
+        const [grad, , bg] = sectionPalette(a.section);
+        const secMeta = allSections.find(s => s.name === a.section);
+        const dispName = secMeta
+          ? (secMeta.label && secMeta.label !== a.section
+              ? `${escapeHtml(secMeta.label)}: ${escapeHtml(a.section)}`
+              : escapeHtml(a.section))
+          : escapeHtml(a.section || 'General');
+        html += `<tr><td colspan="6" style="padding:.55rem .9rem;background:${grad};color:#fff;font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid ${bg}30">${dispName}</td></tr>`;
       }
       qNum++;
       const o   = opts(a);
