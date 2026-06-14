@@ -323,10 +323,6 @@ async function loadQuestions(savedAnswers = null) {
       return;
     }
 
-    const totalEl = document.getElementById('questionTotal');
-    if (totalEl) totalEl.textContent = questions.length;
-
-    updateTopbarMeta();
     buildSidebarAndTabs();
 
     if (savedAnswers) {
@@ -732,9 +728,6 @@ async function initTest() {
       const s = DURATION % 60;
       timerEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
     }
-    // Update topbar total from config.
-    const totalEl = document.getElementById('questionTotal');
-    if (totalEl && info.total_questions) totalEl.textContent = info.total_questions;
   } catch { /* Use fallback DURATION and empty testSections. */ }
 
   // Sync timer with server's authoritative start time.
