@@ -481,7 +481,7 @@ async function loadDashboard(showErrors = true) {
     const appeared   = s.appeared_participants || 0;
     const registered = s.total_participants    || 0;
     const turnout    = registered ? Math.round((appeared / registered) * 100) : 0;
-    const totalQ     = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
+    const totalQ     = allSections.filter(s => s.is_active).reduce((sum, s) => sum + s.questions_per_test, 0);
     const outOf      = totalQ ? `<small>/${totalQ}</small>` : '';
 
     document.getElementById('summary').innerHTML = `
@@ -550,7 +550,7 @@ function renderSectionChart(rows) {
     return;
   }
   // If sections haven't loaded yet, derive them from the results' section_score data.
-  const sections = allSections.length ? allSections : (() => {
+  const sections = allSections.length ? allSections.filter(s => s.is_active) : (() => {
     const seen = {}, derived = [];
     rows.forEach(r => (r.section_scores || []).forEach(ss => {
       if (!seen[ss.section_name]) {
@@ -779,31 +779,45 @@ function showResultDetailModal(d) {
   document.getElementById('resultDetailOverlay')?.remove();
 
   const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d, E: a.option_e });
-  const answersHtml = (d.answers || []).map((a, i) => {
-    const o   = opts(a);
-    const sel = a.selected_option || '';
-    const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : (sel || '—');
-    const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}` : (a.correct_option || '—');
-    const rowCls   = a.is_correct ? 'rd-row-correct' : (sel ? 'rd-row-wrong' : '');
-    const statusBadge = a.is_correct
-      ? `<span class="rd-status correct">✓</span>`
-      : (sel ? `<span class="rd-status wrong">✗</span>` : `<span class="rd-status skip">—</span>`);
-    const imgHtml = a.image_url ? `<img src="${escapeHtml(toDirectImageUrl(a.image_url))}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
-    return `
-      <tr class="${rowCls}">
-        <td class="rd-qnum">${i + 1}</td>
-        <td><span class="pill pill-teal" style="font-size:.72rem;padding:.28rem .55rem">${escapeHtml(a.section || '-')}</span></td>
-        <td class="rd-qtext">${escapeHtml(a.question_text)}${imgHtml}</td>
-        <td class="rd-ans ${a.is_correct ? 'correct' : (sel ? 'wrong' : '')}">${selText}</td>
-        <td class="rd-ans correct">${corrText}</td>
-        <td class="text-center">${statusBadge}</td>
-      </tr>`;
-  }).join('');
+  const answersHtml = (() => {
+    const answers = d.answers || [];
+    if (!answers.length) return '';
+    let html = '';
+    let qNum = 0;
+    let lastSection = null;
+    answers.forEach(a => {
+      // Insert a section header row whenever the section changes.
+      if (a.section !== lastSection) {
+        lastSection = a.section;
+        const [, , bg, accent] = sectionPalette(a.section);
+        html += `<tr><td colspan="6" style="padding:.55rem .9rem;background:${bg};color:${accent};font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid ${accent}30">${escapeHtml(a.section || 'General')}</td></tr>`;
+      }
+      qNum++;
+      const o   = opts(a);
+      const sel = a.selected_option || '';
+      const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : (sel || '—');
+      const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}` : (a.correct_option || '—');
+      const rowCls   = a.is_correct ? 'rd-row-correct' : (sel ? 'rd-row-wrong' : '');
+      const statusBadge = a.is_correct
+        ? `<span class="rd-status correct">✓</span>`
+        : (sel ? `<span class="rd-status wrong">✗</span>` : `<span class="rd-status skip">—</span>`);
+      const imgHtml = a.image_url ? `<img src="${escapeHtml(toDirectImageUrl(a.image_url))}" alt="" style="max-height:60px;border-radius:4px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
+      html += `
+        <tr class="${rowCls}">
+          <td class="rd-qnum">${qNum}</td>
+          <td class="rd-qtext" colspan="2">${escapeHtml(a.question_text)}${imgHtml}</td>
+          <td class="rd-ans ${a.is_correct ? 'correct' : (sel ? 'wrong' : '')}">${selText}</td>
+          <td class="rd-ans correct">${corrText}</td>
+          <td class="text-center">${statusBadge}</td>
+        </tr>`;
+    });
+    return html;
+  })();
 
   // Build dynamic section score cards
   const sectionScoreCards = (() => {
     const pct = Number(d.percentage || 0).toFixed(1);
-    const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
+    const totalQ = d.total_questions || allSections.filter(s => s.is_active).reduce((s, sec) => s + sec.questions_per_test, 0);
     let cards = `<div class="rd-score-item total"><span>Total</span><b>${d.score}${totalQ ? `/${totalQ}` : ''}</b></div>`;
     if (d.section_scores && d.section_scores.length) {
       d.section_scores.forEach(ss => {
@@ -842,7 +856,7 @@ function showResultDetailModal(d) {
       <div class="rd-scores">${sectionScoreCards}</div>
       <div class="rd-table-wrap">
         <table class="rd-table">
-          <thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr></thead>
+          <thead><tr><th>#</th><th colspan="2">Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr></thead>
           <tbody>${noAnswers}</tbody>
         </table>
       </div>
