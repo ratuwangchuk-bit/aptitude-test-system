@@ -72,9 +72,10 @@ const SECTION_PALETTE = [
   ['linear-gradient(90deg,#0891b2,#67e8f9)', '#ecfeff', '#155e75', '#155e75'],
 ];
 
-// Returns the palette entry for a section by its position in allSections.
+// Returns the palette entry for a section by its position among active sections.
 function sectionPalette(sectionName) {
-  const idx = allSections.findIndex(s => s.name === sectionName);
+  const active = allSections.filter(s => s.is_active);
+  const idx = active.findIndex(s => s.name === sectionName);
   return SECTION_PALETTE[(idx >= 0 ? idx : 0) % SECTION_PALETTE.length];
 }
 
@@ -584,7 +585,7 @@ function renderSectionChart(rows) {
 
   const subtitle = document.getElementById('sectionChartSubtitle');
   if (subtitle && allSections.length) {
-    const qs = allSections.map(s => s.questions_per_test).join('/');
+    const qs = allSections.filter(s => s.is_active).map(s => s.questions_per_test).join('/');
     subtitle.textContent = `${qs} per section`;
   }
 }
@@ -624,7 +625,7 @@ function renderDistributionChart(rows) {
   const el = document.getElementById('distributionChart');
   if (!el) return;
   if (!rows.length) { el.innerHTML = `<div class="empty-chart">No score distribution yet.</div>`; return; }
-  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0)
+  const totalQ = allSections.filter(s => s.is_active).reduce((sum, s) => sum + s.questions_per_test, 0)
     || Math.max(10, ...rows.map(r => Number(r.score || 0)));
   const step = Math.ceil(totalQ / 5);
   const buckets = [];
@@ -648,9 +649,10 @@ function renderDistributionChart(rows) {
 function renderResultsTableHeader() {
   const header = document.getElementById('resultsTableHeader');
   if (!header) return;
-  const totalQ = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
-  const sectionHeaders = allSections.length
-    ? allSections.map(s => {
+  const activeSecs = allSections.filter(s => s.is_active);
+  const totalQ = activeSecs.reduce((sum, s) => sum + s.questions_per_test, 0);
+  const sectionHeaders = activeSecs.length
+    ? activeSecs.map(s => {
         const [, bg, color] = sectionPalette(s.name);
         return `<th>${escapeHtml(s.label || s.name)}<br><span style="color:${color}">${s.questions_per_test} questions</span></th>`;
       }).join('')
@@ -672,16 +674,17 @@ function renderResults(rows) {
   if (!tbody) return;
   const selectAll = document.getElementById('selectAllResults');
   if (selectAll) selectAll.checked = false;
-  const totalQ    = allSections.reduce((sum, s) => sum + s.questions_per_test, 0);
-  const colSpan   = 6 + (isSuperAdmin() ? 2 : 0) + allSections.length;
+  const activeSections = allSections.filter(s => s.is_active);
+  const totalQ    = activeSections.reduce((sum, s) => sum + s.questions_per_test, 0);
+  const colSpan   = 6 + (isSuperAdmin() ? 2 : 0) + activeSections.length;
 
   const sectionScoreCols = (r) => {
     const scoreByName = {};
     (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
     const hasNew = r.section_scores && r.section_scores.length > 0;
 
-    if (allSections.length) {
-      return allSections.map(sec => {
+    if (activeSections.length) {
+      return activeSections.map(sec => {
         const [, bg, color] = sectionPalette(sec.name);
         if (hasNew) {
           const ss = scoreByName[sec.name];
@@ -908,7 +911,7 @@ function downloadIndividualResult() {
 
   const pct = Number(d.percentage || 0).toFixed(1);
   const submittedAt = d.submitted_at ? formatDate(d.submitted_at) : '—';
-  const totalQ = d.total_questions || allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
+  const totalQ = d.total_questions || allSections.filter(s => s.is_active).reduce((s, sec) => s + sec.questions_per_test, 0);
 
   const scoreHtml = (() => {
     let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}${totalQ ? `/${totalQ}` : ''}</span></div>`;
@@ -977,10 +980,11 @@ function printAllResults() {
   const avgScore  = results.length
     ? (results.reduce((s, r) => s + (r.score || 0), 0) / results.length).toFixed(1)
     : '—';
-  const totalQ = allSections.reduce((s, sec) => s + sec.questions_per_test, 0);
+  const exportSecs = allSections.filter(s => s.is_active);
+  const totalQ = exportSecs.reduce((s, sec) => s + sec.questions_per_test, 0);
 
-  const sectionHeaders = allSections.length
-    ? allSections.map(s => `<th class="c">${escapeHtml(s.label || s.name)}<br>/${s.questions_per_test}</th>`).join('')
+  const sectionHeaders = exportSecs.length
+    ? exportSecs.map(s => `<th class="c">${escapeHtml(s.label || s.name)}<br>/${s.questions_per_test}</th>`).join('')
     : '';
 
   const rows = results.map((r, i) => {
@@ -992,8 +996,8 @@ function printAllResults() {
       const scoreByName = {};
       (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
       const hasNew = r.section_scores && r.section_scores.length > 0;
-      if (allSections.length) {
-        return allSections.map(sec => {
+      if (exportSecs.length) {
+        return exportSecs.map(sec => {
           if (hasNew) {
             const ss = scoreByName[sec.name];
             return `<td class="c">${ss ? ss.score : 0}/${ss ? ss.questions_count : sec.questions_per_test}</td>`;
@@ -1016,8 +1020,8 @@ function printAllResults() {
     </tr>`;
   }).join('');
 
-  const colCount = 4 + allSections.length;
-  const sectionNames = allSections.map(s => s.label || s.name).join(' / ');
+  const colCount = 4 + exportSecs.length;
+  const sectionNames = exportSecs.map(s => s.label || s.name).join(' / ');
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>DAES — All Results</title>
 <style>
@@ -1158,8 +1162,8 @@ function renderQuestions(rows) {
   // Rebuild bank summary now that questions are known.
   renderBankSummary();
 
-  const useSections = allSections.length
-    ? allSections
+  const useSections = allSections.filter(s => s.is_active).length
+    ? allSections.filter(s => s.is_active)
     : [
         { name: 'Analytical Ability',  label: 'Section A · Analytical Ability',  sort_order: 1 },
         { name: 'Verbal Ability',      label: 'Section B · Verbal Ability',       sort_order: 2 },
