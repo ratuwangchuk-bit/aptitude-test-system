@@ -107,7 +107,7 @@ function buildSidebarAndTabs() {
     tabsHtml += `
       <button class="tab-btn" data-tab-section="${escapeHtml(sectionName)}"
               onclick="jumpToSection(${JSON.stringify(sectionName)})">
-        ${escapeHtml(meta.letter)} &middot; ${escapeHtml(meta.label)}
+        ${escapeHtml(meta.label)}
         <span class="tab-score" data-tab-score="${escapeHtml(sectionName)}">0/${sq.length}</span>
       </button>`;
 
@@ -216,8 +216,6 @@ function showQuestion(idx) {
 
   const q      = questions[idx];
   const meta   = getSectionMeta(q.section || '');
-  const badgeLabel = `${meta.label}  ·  ${q.section}`;
-
   const sectionQs = questions.filter(sq => sq.section === q.section);
   const localIdx  = sectionQs.indexOf(q);
   const saved     = selectedAnswers[q.id] || '';
@@ -228,7 +226,7 @@ function showQuestion(idx) {
   form.innerHTML = `
     <div class="q-section-badge">
       <span class="q-badge-dot"></span>
-      ${escapeHtml(meta.label !== q.section ? badgeLabel : meta.label)}
+      ${escapeHtml(meta.label)}
     </div>
     <p class="q-meta">
       <span>Question ${localIdx + 1} of ${sectionQs.length}</span>
