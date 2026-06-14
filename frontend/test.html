@@ -157,19 +157,20 @@
       border-radius: 0.9rem; padding: 1.4rem 1.6rem;
       color: #f1f5f9; font-size: 1rem; font-weight: 600;
       line-height: 1.8; margin-bottom: 1.35rem;
-      word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap;
+      word-break: break-word; overflow-wrap: break-word; white-space: normal;
     }
 
     /* Option tiles */
     .q-options { display: flex; flex-direction: column; gap: 0.5rem; }
     .q-opt {
-      display: flex; align-items: flex-start; gap: 1rem;
+      display: flex; align-items: center; gap: 1rem;
       padding: 0.95rem 1.15rem;
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 0.825rem;
       cursor: pointer; background: rgba(0,0,0,0.22);
       transition: all 0.15s;
       color: rgba(255,255,255,0.78); font-weight: 600; font-size: 0.9rem;
+      line-height: 1.55;
       -webkit-user-select: none; user-select: none;
       word-break: break-word; overflow-wrap: break-word;
     }
@@ -237,11 +238,13 @@
       background: rgba(249,115,22,0.2); color: #fff; border-color: rgba(249,115,22,0.5);
     }
 
+    /* Scrollable wrapper for question tables — allows horizontal scroll on narrow screens */
+    .q-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0.75rem 0; border-radius: 0.5rem; }
+
     /* Markdown table rendered inside a question card */
     .q-table {
       width: 100%; border-collapse: collapse;
-      margin: 0.75rem 0; font-size: 0.88rem;
-      border-radius: 0.5rem; overflow: hidden;
+      font-size: 0.88rem; min-width: 26rem;
     }
     .q-table th, .q-table td {
       border: 1px solid rgba(255,255,255,0.1);

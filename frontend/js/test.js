@@ -189,10 +189,10 @@ function renderQuestionText(raw) {
         ).join('') + '</tbody>';
       }
       html += '</table>';
-      parts.push(html);
+      parts.push(`<div class="q-table-scroll">${html}</div>`);
     } else {
-      const text = escapeHtml(lines[i]);
-      parts.push(text.trim() ? `<p class="q-text-para">${text}</p>` : '');
+      const trimmed = lines[i].trim();
+      if (trimmed) parts.push(`<p class="q-text-para">${escapeHtml(trimmed)}</p>`);
       i++;
     }
   }
@@ -231,7 +231,7 @@ function showQuestion(idx) {
     ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(toDirectImageUrl(q.image_url))}" alt="Question image" class="q-img" onerror="this.closest('.q-img-wrap').style.display='none'"></div>` : ''}
     ${(q.question_type === 'fill_blank' || (!q.option_a && !q.option_b && !q.option_c && !q.option_d))
       ? `<div class="q-fill-wrap">
-           <label class="block text-sm font-bold text-slate-600 mb-2">Your Answer</label>
+           <label class="block text-sm font-semibold mb-2" style="color:rgba(255,255,255,.5)">Your Answer</label>
            <input id="qfill_${q.id}" type="text" class="q-fill-input"
                   placeholder="Type your answer here…"
                   value="${escapeHtml(saved)}"
@@ -240,7 +240,7 @@ function showQuestion(idx) {
          </div>`
       : `<div class="q-options">
            ${['A','B','C','D','E'].filter(opt => q['option_' + opt.toLowerCase()]).map(opt => {
-             const text   = q['option_' + opt.toLowerCase()];
+             const text   = (q['option_' + opt.toLowerCase()] || '').trim();
              const selCls = saved === opt ? ' q-selected' : '';
              return `
                <label class="q-opt${selCls}" id="qopt_${q.id}_${opt}"
