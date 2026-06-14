@@ -244,8 +244,12 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 
 // loadSectionScores fetches submission_section_scores rows for one submission.
 func loadSectionScores(submissionID int) []models.SectionScore {
-	rows, err := config.DB.Query(
-		"SELECT section_name, score, questions_count FROM submission_section_scores WHERE submission_id=$1 ORDER BY section_name",
+	rows, err := config.DB.Query(`
+		SELECT sss.section_name, sss.score, sss.questions_count
+		FROM submission_section_scores sss
+		LEFT JOIN test_sections ts ON ts.name = sss.section_name
+		WHERE sss.submission_id = $1
+		ORDER BY COALESCE(ts.sort_order, 9999), ts.id, sss.section_name`,
 		submissionID,
 	)
 	if err != nil {

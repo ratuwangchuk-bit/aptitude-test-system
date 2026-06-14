@@ -173,10 +173,11 @@ func loadSectionScoresBatch(ids []int) map[int][]models.SectionScore {
 		return out
 	}
 	rows, err := config.DB.Query(
-		`SELECT submission_id, section_name, score, questions_count
-		 FROM submission_section_scores
-		 WHERE submission_id = ANY($1)
-		 ORDER BY submission_id, section_name`,
+		`SELECT sss.submission_id, sss.section_name, sss.score, sss.questions_count
+		 FROM submission_section_scores sss
+		 LEFT JOIN test_sections ts ON ts.name = sss.section_name
+		 WHERE sss.submission_id = ANY($1)
+		 ORDER BY sss.submission_id, COALESCE(ts.sort_order, 9999), ts.id, sss.section_name`,
 		pq.Array(ids),
 	)
 	if err != nil {
