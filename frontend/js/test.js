@@ -109,7 +109,7 @@ function buildSidebarAndTabs() {
       : escapeHtml(sectionName);
     tabsHtml += `
       <button class="tab-btn" data-tab-section="${escapeHtml(sectionName)}"
-              onclick="jumpToSection(${JSON.stringify(sectionName)})">
+              onclick="jumpToSection(this.dataset.tabSection)">
         ${tabLabel}
         <span class="tab-score" data-tab-score="${escapeHtml(sectionName)}">0/${sq.length}</span>
       </button>`;
@@ -227,7 +227,8 @@ function showQuestion(idx) {
   if (!form) return;
 
   form.innerHTML = `
-    <button class="q-section-badge" onclick="jumpToSection(${JSON.stringify(q.section)})" title="Switch to this section">
+    <button class="q-section-badge" data-section="${escapeHtml(q.section)}"
+            onclick="jumpToSection(this.dataset.section)" title="Click to switch to this section">
       <span class="q-badge-dot"></span>
       ${meta.label && meta.label !== q.section
         ? `${escapeHtml(meta.label)}<span style="opacity:.65;font-weight:700;letter-spacing:.05em;text-transform:none;font-size:.95em">: ${escapeHtml(q.section)}</span>`
