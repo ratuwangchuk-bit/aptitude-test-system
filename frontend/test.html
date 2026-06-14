@@ -154,12 +154,13 @@
       border-radius: 0.9rem; padding: 1.4rem 1.6rem;
       color: #f1f5f9; font-size: 1rem; font-weight: 600;
       line-height: 1.8; margin-bottom: 1.35rem;
+      word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap;
     }
 
     /* Option tiles */
     .q-options { display: flex; flex-direction: column; gap: 0.5rem; }
     .q-opt {
-      display: flex; align-items: center; gap: 1rem;
+      display: flex; align-items: flex-start; gap: 1rem;
       padding: 0.95rem 1.15rem;
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 0.825rem;
@@ -167,6 +168,7 @@
       transition: all 0.15s;
       color: rgba(255,255,255,0.78); font-weight: 600; font-size: 0.9rem;
       -webkit-user-select: none; user-select: none;
+      word-break: break-word; overflow-wrap: break-word;
     }
     .q-opt:hover {
       border-color: rgba(249,115,22,0.3);
