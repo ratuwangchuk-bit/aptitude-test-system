@@ -1072,16 +1072,23 @@ async function printAllResults() {
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>DAES — All Results</title>
 <style>
-  @page{size:A4 landscape;margin:32mm 12mm 24mm}
+  @page{size:A4 landscape;margin:0}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#0f172a}
-  .pg-header{position:fixed;top:0;left:0;right:0;height:30mm;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 58%,#0f766e 100%);display:flex;align-items:center;justify-content:space-between;padding:0 14mm;border-bottom:3px solid #2dd4bf}
-  .pg-header .hl .org-name{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#2dd4bf;margin-bottom:4px}
-  .pg-header .hl .test-title{font-size:18px;font-weight:900;color:#fff;line-height:1}
-  .pg-header .hr{text-align:right}.pg-header .hr .lbl{font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.09em;display:block;margin-bottom:3px}
+  body{font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#0f172a;padding:33mm 14mm 26mm}
+  .pg-header{position:fixed;top:0;left:0;right:0;height:31mm;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 58%,#0f766e 100%);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14mm;gap:8mm;border-bottom:3px solid #2dd4bf}
+  .pg-header .hl{display:flex;flex-direction:column;gap:3px}
+  .pg-header .hl .org-name{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#2dd4bf}
+  .pg-header .hl .test-title{font-size:17px;font-weight:900;color:#fff;line-height:1.1}
+  .pg-header .hc{text-align:center}
+  .pg-header .hc .center-org{font-size:11px;font-weight:800;color:#fff;line-height:1.3}
+  .pg-header .hr{text-align:right}
+  .pg-header .hr .lbl{font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.09em;display:block;margin-bottom:3px}
   .pg-header .hr .val{font-size:10.5px;color:rgba(255,255,255,.85);font-weight:700}
-  .pg-footer{position:fixed;bottom:0;left:0;right:0;height:22mm;border-top:1.5px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;padding:0 14mm}
-  .pg-footer .fc{font-size:8.5px;color:#475569;font-weight:700}.pg-footer .fr{font-size:8px;color:#94a3b8;text-align:right}
+  .pg-footer{position:fixed;bottom:0;left:0;right:0;height:24mm;border-top:1.5px solid #e2e8f0;background:#f8fafc;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 14mm}
+  .pg-footer .f-row{display:flex;justify-content:space-between;align-items:center}
+  .pg-footer .fc{font-size:8.5px;color:#475569;font-weight:700}
+  .pg-footer .fr{font-size:8px;color:#94a3b8;text-align:right}
+  .pg-footer .f-note{font-size:7.5px;color:#94a3b8;font-style:italic}
   .intro{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
   .intro-left .doc-title{font-size:14px;font-weight:900;margin-bottom:3px}.intro-left .doc-sub{font-size:9.5px;color:#64748b;line-height:1.5}
   .intro-stats{display:flex;gap:1px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;flex-shrink:0}
@@ -1101,12 +1108,23 @@ async function printAllResults() {
   .stotal{font-weight:900;font-size:12px}.pct{font-weight:800}
 </style></head><body>
   <div class="pg-header">
-    <div class="hl"><div class="org-name">DHI Group of Company</div><div class="test-title">${escapeHtml(testTitle)}</div></div>
-    <div class="hr"><span class="lbl">Date Printed</span><span class="val">${printDate}</span></div>
+    <div class="hl">
+      <div class="org-name">Digital Aptitude Evaluation System</div>
+      <div class="test-title">${escapeHtml(testTitle)}</div>
+    </div>
+    <div class="hc">
+      <div class="center-org">Druk Holding and Investments Limited</div>
+    </div>
+    <div class="hr"><span class="lbl">Test Date</span><span class="val">${printDate}</span></div>
   </div>
   <div class="pg-footer">
-    <span class="fc">Confidential &mdash; For Internal Use Only &nbsp;&middot;&nbsp; DHI Group of Company</span>
-    <span class="fr">${escapeHtml(testTitle)} &nbsp;&middot;&nbsp; ${printDate}</span>
+    <div class="f-row">
+      <span class="fc">Confidential &mdash; For Internal Use Only &nbsp;&middot;&nbsp; Digital Aptitude Evaluation System</span>
+      <span class="fr">${escapeHtml(testTitle)} &nbsp;&middot;&nbsp; ${printDate}</span>
+    </div>
+    <div class="f-row">
+      <span class="f-note">This result is the system generated result.</span>
+    </div>
   </div>
   <div class="intro">
     <div class="intro-left">
