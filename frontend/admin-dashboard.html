@@ -89,7 +89,7 @@
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div>
             <h2 class="text-lg font-black text-slate-800">Section Performance</h2>
-            <p class="text-sm text-slate-500 font-semibold">Average score per section across all submissions.</p>
+            <!-- <p class="text-sm text-slate-500 font-semibold">Average score per section across all submissions.</p> -->
           </div>
           <span id="sectionChartSubtitle" class="pill pill-teal shrink-0">Loading…</span>
         </div>
@@ -98,13 +98,13 @@
 
       <div class="card p-5 sm:p-6">
         <h2 class="text-lg font-black text-slate-800 mb-1">Participation Rate</h2>
-        <p class="text-sm text-slate-500 font-semibold mb-4">Registered vs. appeared turnout.</p>
+        <!-- <p class="text-sm text-slate-500 font-semibold mb-4">Registered vs. appeared turnout.</p> -->
         <div id="turnoutChart"></div>
       </div>
 
       <div class="card p-5 sm:p-6">
         <h2 class="text-lg font-black text-slate-800 mb-1">Score Distribution</h2>
-        <p class="text-sm text-slate-500 font-semibold mb-4">Participants by score range.</p>
+        <!-- <p class="text-sm text-slate-500 font-semibold mb-4">Participants by score range.</p> -->
         <div id="distributionChart" class="mini-chart"></div>
       </div>
 
@@ -115,7 +115,7 @@
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
           <h2 class="text-lg font-black text-slate-800">Final Result Summary</h2>
-          <p class="text-sm text-slate-500 font-semibold">All submitted test results with section-wise breakdown.</p>
+          <!-- <p class="text-sm text-slate-500 font-semibold">All submitted test results with section-wise breakdown.</p> -->
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <button onclick="printAllResults()" class="btn-icon btn-soft" title="Print results as PDF">
@@ -123,13 +123,6 @@
               <polyline points="6 9 6 2 18 2 18 9"/>
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
               <rect x="6" y="14" width="12" height="8"/>
-            </svg>
-          </button>
-          <button onclick="exportAllResults()" class="btn-icon btn-soft" title="Export as Excel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
         </div>

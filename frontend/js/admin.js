@@ -1012,140 +1012,187 @@ function downloadIndividualResult() {
 /* ── Print All Results ─────────────────────────────────────── */
 
 async function printAllResults() {
-  let results;
+  /* ── Fetch all data fresh from the API ── */
+  let results, exportSecs, testTitle, cfg;
   try {
-    const fresh = await api('/api/admin/results');
-    results = (fresh || []).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+    [results, exportSecs, cfg] = await Promise.all([
+      api('/api/admin/results'),
+      api('/api/admin/settings/sections'),
+      api('/api/admin/settings/config'),
+    ]);
+    results     = (results || []).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+    exportSecs  = (exportSecs || []).filter(s => s.is_active);
+    testTitle   = cfg?.test_title || 'Online Aptitude Test';
   } catch {
-    results = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+    results    = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+    exportSecs = allSections.filter(s => s.is_active);
+    testTitle  = 'Online Aptitude Test';
   }
   if (!results.length) { showError('No results to print yet.', 'No Results'); return; }
-  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  let testTitle = 'Online Aptitude Test';
-  try { const cfg = await api('/api/admin/settings/config'); testTitle = cfg.test_title || testTitle; } catch { /* use default */ }
-  const topScore  = results[0]?.score ?? '—';
-  const avgScore  = results.length
-    ? (results.reduce((s, r) => s + (r.score || 0), 0) / results.length).toFixed(1)
-    : '—';
-  const exportSecs = allSections.filter(s => s.is_active);
-  const totalQ = exportSecs.reduce((s, sec) => s + sec.questions_per_test, 0);
 
-  const sectionHeaders = exportSecs.length
-    ? exportSecs.map(s => `<th class="c">${escapeHtml(s.label || s.name)}<br>/${s.questions_per_test}</th>`).join('')
-    : '';
+  const printDate  = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const totalQ     = exportSecs.reduce((s, sec) => s + sec.questions_per_test, 0);
+  const topScore   = results[0]?.score ?? '—';
+  const avgScore   = (results.reduce((s, r) => s + (r.score || 0), 0) / results.length).toFixed(1);
+  const passCount  = results.filter(r => ((r.score / (totalQ || r.total_questions || 1)) * 100) >= 50).length;
+  const passRate   = Math.round((passCount / results.length) * 100);
+  const sectionNames = exportSecs.map(s => s.label || s.name).join(' / ');
+  const colCount   = 4 + exportSecs.length;
+
+  const sectionHeaders = exportSecs.map(s =>
+    `<th class="c">${escapeHtml(s.label || s.name)}<br><small>/${s.questions_per_test}</small></th>`
+  ).join('');
 
   const rows = results.map((r, i) => {
     const denom  = totalQ || r.total_questions || 1;
     const pct    = ((r.score / denom) * 100).toFixed(1);
     const pctN   = parseFloat(pct);
-    const scoreCol = pctN >= 70 ? '#15803d' : pctN >= 50 ? '#1d4ed8' : '#b91c1c';
-    const secCols = (() => {
-      const scoreByName = {};
-      (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
-      const hasNew = r.section_scores && r.section_scores.length > 0;
-      if (exportSecs.length) {
-        return exportSecs.map(sec => {
-          if (hasNew) {
-            const ss = scoreByName[sec.name];
-            return `<td class="c">${ss ? ss.score : 0}/${ss ? ss.questions_count : sec.questions_per_test}</td>`;
-          }
-          if (sec.name === 'Analytical Ability')  return `<td class="c">${r.analytical_score}/16</td>`;
-          if (sec.name === 'Verbal Ability')       return `<td class="c">${r.verbal_score}/16</td>`;
-          if (sec.name === 'Quantitative Skills')  return `<td class="c">${r.quantitative_score}/16</td>`;
-          return `<td class="c">—</td>`;
-        }).join('');
-      }
-      return '';
-    })();
+    const pill   = pctN >= 70 ? 'pill-hi' : pctN >= 50 ? 'pill-mid' : 'pill-lo';
+    const rankCls = i === 0 ? 'rk-gold' : i === 1 ? 'rk-silver' : i === 2 ? 'rk-bronze' : 'rk-n';
+    const scoreByName = {};
+    (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
+    const hasNew = r.section_scores && r.section_scores.length > 0;
+    const secCols = exportSecs.map(sec => {
+      let score = 0, total = sec.questions_per_test;
+      if (hasNew) { const ss = scoreByName[sec.name]; score = ss ? ss.score : 0; total = ss ? ss.questions_count : sec.questions_per_test; }
+      else if (sec.name === 'Analytical Ability')  score = r.analytical_score || 0;
+      else if (sec.name === 'Verbal Ability')       score = r.verbal_score || 0;
+      else if (sec.name === 'Quantitative Skills')  score = r.quantitative_score || 0;
+      return `<td class="c sec">${score}<span class="of">/${total}</span></td>`;
+    }).join('');
     return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
-      <td class="c serial">${i + 1}</td>
-      <td class="name-cell"><b>${escapeHtml(r.full_name)}</b><br><span class="cid">${escapeHtml(r.cid_number || '—')}</span></td>
-      <td>${escapeHtml(r.contact_number || '—')}</td>
-      <td class="c stotal" style="color:${scoreCol}">${r.score}/${totalQ || r.total_questions}</td>
+      <td class="c"><span class="rk ${rankCls}">${i + 1}</span></td>
+      <td><span class="nm">${escapeHtml(r.full_name)}</span><span class="cid">${escapeHtml(r.cid_number || '—')}</span></td>
+      <td class="contact">${escapeHtml(r.contact_number || '—')}</td>
+      <td class="c"><span class="pill ${pill}">${r.score}<span class="of">/${denom}</span></span></td>
       ${secCols}
-      <td class="c pct" style="color:${scoreCol}">${pct}%</td>
+      <td class="c"><span class="pill ${pill}">${pct}%</span></td>
     </tr>`;
   }).join('');
 
-  const colCount = 4 + exportSecs.length;
-  const sectionNames = exportSecs.map(s => s.label || s.name).join(' / ');
-
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>DAES — All Results</title>
+  /* ── Uses <thead>/<tfoot> on a wrapper table so header+footer repeat on every printed page ── */
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>${escapeHtml(testTitle)} — Results</title>
 <style>
   @page{size:A4 landscape;margin:0}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#0f172a;padding:33mm 14mm 26mm}
-  .pg-header{position:fixed;top:0;left:0;right:0;height:31mm;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 58%,#0f766e 100%);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14mm;gap:8mm;border-bottom:3px solid #2dd4bf}
-  .pg-header .hl{display:flex;flex-direction:column;gap:3px}
-  .pg-header .hl .org-name{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#2dd4bf}
-  .pg-header .hl .test-title{font-size:17px;font-weight:900;color:#fff;line-height:1.1}
-  .pg-header .hc{text-align:center}
-  .pg-header .hc .center-org{font-size:11px;font-weight:800;color:#fff;line-height:1.3}
-  .pg-header .hr{text-align:right}
-  .pg-header .hr .lbl{font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.09em;display:block;margin-bottom:3px}
-  .pg-header .hr .val{font-size:10.5px;color:rgba(255,255,255,.85);font-weight:700}
-  .pg-footer{position:fixed;bottom:0;left:0;right:0;height:24mm;border-top:1.5px solid #e2e8f0;background:#f8fafc;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 14mm}
-  .pg-footer .f-row{display:flex;justify-content:space-between;align-items:center}
-  .pg-footer .fc{font-size:8.5px;color:#475569;font-weight:700}
-  .pg-footer .fr{font-size:8px;color:#94a3b8;text-align:right}
-  .pg-footer .f-note{font-size:7.5px;color:#94a3b8;font-style:italic}
-  .intro{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-  .intro-left .doc-title{font-size:14px;font-weight:900;margin-bottom:3px}.intro-left .doc-sub{font-size:9.5px;color:#64748b;line-height:1.5}
-  .intro-stats{display:flex;gap:1px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;flex-shrink:0}
-  .istat{text-align:center;padding:8px 16px;background:#f8fafc;border-right:1px solid #e2e8f0}.istat:last-child{border-right:none}
-  .istat .lbl{font-size:7.5px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;display:block;margin-bottom:3px}
-  .istat .val{font-size:16px;font-weight:900;color:#1e3a8a}
-  table{width:100%;border-collapse:collapse;font-size:10.5px}thead{display:table-header-group}
-  thead tr{background:#1e3a8a}
-  th{padding:7px 8px;text-align:left;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#fff;white-space:nowrap;border:none}
-  th.c{text-align:center}
-  .tbl-caption{background:#0f172a;padding:8px 10px 7px;border-bottom:2px solid #2dd4bf;text-align:left}
-  .tbl-caption-title{display:block;font-size:10px;font-weight:900;color:#fff;margin-bottom:2px}
-  .tbl-caption-sub{display:block;font-size:7.5px;font-weight:600;color:rgba(255,255,255,.5)}
-  td{padding:5px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
-  tr.even td{background:#fff}tr.odd td{background:#f8fafc}.c{text-align:center}
-  .serial{color:#94a3b8;font-weight:700}.name-cell b{font-size:11px;font-weight:800}.name-cell .cid{font-size:8.5px;color:#94a3b8}
-  .stotal{font-weight:900;font-size:12px}.pct{font-weight:800}
-</style></head><body>
-  <div class="pg-header">
-    <div class="hl">
-      <div class="org-name">Digital Aptitude Evaluation System</div>
-      <div class="test-title">${escapeHtml(testTitle)}</div>
+  body{font-family:Helvetica,Arial,sans-serif;background:#fff;color:#1e293b}
+
+  /* wrapper table: thead/tfoot repeat on every printed page */
+  .pw{width:100%;border-collapse:collapse;table-layout:fixed}
+  .pw>thead>tr>td,.pw>tfoot>tr>td,.pw>tbody>tr>td{padding:0;border:none}
+
+  /* ── Header ── */
+  .hd{background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 55%,#0d6b60 100%);border-bottom:3px solid #2dd4bf;padding:5mm 13mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8mm}
+  .hd-l{display:flex;flex-direction:column;gap:2px}
+  .hd-org{font-size:7px;font-weight:800;text-transform:uppercase;letter-spacing:.13em;color:#2dd4bf}
+  .hd-title{font-size:16px;font-weight:900;color:#fff;line-height:1.15}
+  .hd-c{text-align:center}
+  .hd-co{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.9);line-height:1.4}
+  .hd-r{text-align:right}
+  .hd-lbl{font-size:7px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:2px}
+  .hd-val{font-size:10px;color:rgba(255,255,255,.9);font-weight:700}
+
+  /* ── Footer ── */
+  .ft{background:#f8fafc;border-top:1px solid #cbd5e1;padding:3mm 13mm;display:flex;flex-direction:column;gap:2mm}
+  .ft-row{display:flex;justify-content:space-between;align-items:center}
+  .ft-l{font-size:7.5px;color:#475569;font-weight:600}
+  .ft-r{font-size:7.5px;color:#94a3b8}
+  .ft-note{font-size:7px;color:#94a3b8;font-style:italic}
+
+  /* ── Content ── */
+  .content{padding:5mm 13mm 4mm}
+
+  /* ── Summary bar ── */
+  .sb{display:flex;margin-bottom:5mm;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+  .sb-item{flex:1;text-align:center;padding:3.5mm 2mm;background:#fff;border-right:1px solid #e2e8f0}
+  .sb-item:last-child{border-right:none}
+  .sb-lbl{font-size:6.5px;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;display:block;margin-bottom:1.5mm}
+  .sb-val{font-size:17px;font-weight:900;color:#1e3a8a;line-height:1}
+  .sb-unit{font-size:9px;font-weight:600;color:#64748b}
+
+  /* ── Results table ── */
+  .rt{width:100%;border-collapse:collapse;font-size:9.5px}
+  .rt thead{display:table-header-group}
+  .rt thead .cap td{background:#0f172a;padding:4px 8px;border-bottom:2px solid #2dd4bf}
+  .cap-t{font-size:9px;font-weight:900;color:#fff;display:block;margin-bottom:1px}
+  .cap-s{font-size:7px;font-weight:600;color:rgba(255,255,255,.5)}
+  .rt thead .cols th{background:#1e3a8a;padding:5px 7px;font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;white-space:nowrap;border:none;text-align:left}
+  .rt thead .cols th.c{text-align:center}
+  .rt thead .cols th small{font-size:6.5px;opacity:.7;font-weight:600}
+  .rt tbody tr.even td{background:#fff}
+  .rt tbody tr.odd td{background:#f8fafc}
+  .rt td{padding:4.5px 7px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+  .rt td.c{text-align:center}
+
+  /* rank badge */
+  .rk{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;font-size:8.5px;font-weight:800}
+  .rk-gold{background:#fef3c7;color:#92400e}
+  .rk-silver{background:#f1f5f9;color:#475569}
+  .rk-bronze{background:#fde8d0;color:#92400e}
+  .rk-n{background:#f1f5f9;color:#64748b;font-size:8px}
+
+  /* name */
+  .nm{font-size:10px;font-weight:700;color:#1e293b;display:block}
+  .cid{font-size:7.5px;color:#94a3b8;display:block;margin-top:1px}
+  .contact{font-size:9px;color:#475569}
+
+  /* score pill */
+  .pill{display:inline-block;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:800}
+  .pill-hi{background:#dcfce7;color:#15803d}
+  .pill-mid{background:#dbeafe;color:#1d4ed8}
+  .pill-lo{background:#fee2e2;color:#b91c1c}
+  .of{font-size:7.5px;font-weight:600;opacity:.7}
+
+  /* section score */
+  .sec{font-size:9.5px;font-weight:700;color:#334155}
+</style>
+</head><body>
+<table class="pw">
+  <thead><tr><td>
+    <div class="hd">
+      <div class="hd-l">
+        <span class="hd-org">Digital Aptitude Evaluation System</span>
+        <span class="hd-title">${escapeHtml(testTitle)}</span>
+      </div>
+      <div class="hd-c"><div class="hd-co">Druk Holding and Investments Limited</div></div>
+      <div class="hd-r"><span class="hd-lbl">Test Date</span><span class="hd-val">${printDate}</span></div>
     </div>
-    <div class="hc">
-      <div class="center-org">Druk Holding and Investments Limited</div>
+  </td></tr></thead>
+  <tfoot><tr><td>
+    <div class="ft">
+      <div class="ft-row">
+        <span class="ft-l">Confidential &mdash; For Internal Use Only &nbsp;&middot;&nbsp; Digital Aptitude Evaluation System</span>
+        <span class="ft-r">${escapeHtml(testTitle)} &nbsp;&middot;&nbsp; ${printDate}</span>
+      </div>
+      <div class="ft-row"><span class="ft-note">This result is the system generated result.</span></div>
     </div>
-    <div class="hr"><span class="lbl">Test Date</span><span class="val">${printDate}</span></div>
-  </div>
-  <div class="pg-footer">
-    <div class="f-row">
-      <span class="fc">Confidential &mdash; For Internal Use Only &nbsp;&middot;&nbsp; Digital Aptitude Evaluation System</span>
-      <span class="fr">${escapeHtml(testTitle)} &nbsp;&middot;&nbsp; ${printDate}</span>
+  </td></tr></tfoot>
+  <tbody><tr><td class="content">
+    <div class="sb">
+      <div class="sb-item"><span class="sb-lbl">Total Participants</span><span class="sb-val">${results.length}</span></div>
+      <div class="sb-item"><span class="sb-lbl">Max Score</span><span class="sb-val">${totalQ}<span class="sb-unit"> pts</span></span></div>
+      <div class="sb-item"><span class="sb-lbl">Top Score</span><span class="sb-val">${topScore}<span class="sb-unit"> pts</span></span></div>
+      <div class="sb-item"><span class="sb-lbl">Average Score</span><span class="sb-val">${avgScore}<span class="sb-unit"> pts</span></span></div>
+      <div class="sb-item"><span class="sb-lbl">Pass Rate (&ge;50%)</span><span class="sb-val">${passRate}<span class="sb-unit">%</span></span></div>
     </div>
-    <div class="f-row">
-      <span class="f-note">This result is the system generated result.</span>
-    </div>
-  </div>
-  <div class="intro">
-    <div class="intro-left">
-      <div class="doc-title">Final Result Summary &mdash; All Participants</div>
-      <div class="doc-sub">Sections: ${sectionNames}<br>${totalQ} Questions &nbsp;&middot;&nbsp; 1 Mark Per Question &nbsp;&middot;&nbsp; No Negative Marking &nbsp;&middot;&nbsp; Ranked by Total Score</div>
-    </div>
-    <div class="intro-stats">
-      <div class="istat"><span class="lbl">Participants</span><span class="val">${results.length}</span></div>
-      <div class="istat"><span class="lbl">Max Score</span><span class="val">${totalQ}</span></div>
-      <div class="istat"><span class="lbl">Top Score</span><span class="val">${topScore}</span></div>
-      <div class="istat"><span class="lbl">Avg Score</span><span class="val">${avgScore}</span></div>
-    </div>
-  </div>
-  <table>
-    <thead>
-      <tr><th colspan="${colCount}" class="tbl-caption"><span class="tbl-caption-title">Participant Results — Ranked by Total Score</span><span class="tbl-caption-sub">${totalQ} Questions &nbsp;·&nbsp; Sections: ${sectionNames} &nbsp;·&nbsp; 1 Mark Each &nbsp;·&nbsp; No Negative Marking</span></th></tr>
-      <tr><th class="c">SL No.</th><th>Name &amp; CID</th><th>Contact</th><th class="c">Total<br>/${totalQ}</th>${sectionHeaders}<th class="c">Score %</th></tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <script>window.onload=()=>{window.print()}<\/script>
+    <table class="rt">
+      <thead>
+        <tr class="cap"><td colspan="${colCount}"><span class="cap-t">Participant Results &mdash; Ranked by Total Score</span><span class="cap-s">${totalQ} Questions &nbsp;&middot;&nbsp; ${sectionNames} &nbsp;&middot;&nbsp; 1 Mark Each &nbsp;&middot;&nbsp; No Negative Marking</span></td></tr>
+        <tr class="cols">
+          <th class="c" style="width:30px">Rank</th>
+          <th style="width:26%">Name &amp; CID</th>
+          <th style="width:90px">Contact</th>
+          <th class="c">Total<br><small>/${totalQ}</small></th>
+          ${sectionHeaders}
+          <th class="c">Score %</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </td></tr></tbody>
+</table>
+<script>window.onload=()=>{setTimeout(()=>window.print(),300)}<\/script>
 </body></html>`;
 
   const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
