@@ -1175,7 +1175,7 @@ async function printAllResults() {
     </div>
     <table class="rt">
       <thead>
-        <tr class="cap"><td colspan="${colCount}"><span class="cap-t">Participant Results &mdash; Ranked by Total Score</span><span class="cap-s">${totalQ} Questions &nbsp;&middot;&nbsp; ${sectionNames} &nbsp;&middot;&nbsp; 1 Mark Each &nbsp;&middot;&nbsp; No Negative Marking</span></td></tr>
+        <tr class="cap"><td colspan="${colCount}"><span class="cap-t">Participant Results &mdash; Ranked by Total Score</span><span class="cap-s">${totalQ} Questions &nbsp;&middot;&nbsp; ${sectionNames} &nbsp;&middot;&nbsp; 1 Mark Each</span></td></tr>
         <tr class="cols">
           <th class="c" style="width:30px">Rank</th>
           <th style="width:26%">Name &amp; CID</th>
