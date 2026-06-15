@@ -1037,7 +1037,7 @@ async function printAllResults() {
   const passCount  = results.filter(r => ((r.score / (totalQ || r.total_questions || 1)) * 100) >= 50).length;
   const passRate   = Math.round((passCount / results.length) * 100);
   const sectionNames = exportSecs.map(s => s.label || s.name).join(' / ');
-  const colCount   = 4 + exportSecs.length;
+  const colCount   = 5 + exportSecs.length;
 
   const sectionHeaders = exportSecs.map(s =>
     `<th class="c">${escapeHtml(s.label || s.name)}<br><small>/${s.questions_per_test}</small></th>`
@@ -1048,7 +1048,7 @@ async function printAllResults() {
     const pct    = ((r.score / denom) * 100).toFixed(1);
     const pctN   = parseFloat(pct);
     const pill   = pctN >= 70 ? 'pill-hi' : pctN >= 50 ? 'pill-mid' : 'pill-lo';
-    const rankCls = i === 0 ? 'rk-gold' : i === 1 ? 'rk-silver' : i === 2 ? 'rk-bronze' : 'rk-n';
+    const rankCls = 'rk-n';
     const scoreByName = {};
     (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
     const hasNew = r.section_scores && r.section_scores.length > 0;
@@ -1127,10 +1127,7 @@ async function printAllResults() {
 
   /* rank badge */
   .rk{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;font-size:8.5px;font-weight:800}
-  .rk-gold{background:#fef3c7;color:#92400e}
-  .rk-silver{background:#f1f5f9;color:#475569}
-  .rk-bronze{background:#fde8d0;color:#92400e}
-  .rk-n{background:#f1f5f9;color:#64748b;font-size:8px}
+  .rk-n{background:#e2e8f0;color:#475569;font-size:8.5px;font-weight:800}
 
   /* name */
   .nm{font-size:10px;font-weight:700;color:#1e293b;display:block}
