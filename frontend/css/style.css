@@ -588,6 +588,27 @@ body.modal-open { overflow: hidden; }
 .super-only.hidden,
 .management-panel.hidden { display: none !important; }
 
+/* ── Card title with gradient underline accent ──────────────── */
+.card-title {
+  display: inline-block;
+  padding-bottom: .45rem;
+  position: relative;
+}
+.card-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 2.4rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+.card-title.centered::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 /* ── Page-level section divider heading ────────────────────── */
 .section-heading {
   display: flex; align-items: center; gap: .6rem;
