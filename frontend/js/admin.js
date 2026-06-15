@@ -376,23 +376,49 @@ async function deleteSectionFromCard(id) {
 
 async function loadTestConfigForm() {
   const form = document.getElementById('configForm');
-  if (!form) return;
+  if (!form && !document.getElementById('titleForm')) return;
   try {
     const cfg = await api('/api/admin/settings/config');
-    document.getElementById('test_duration').value   = cfg.test_duration_minutes   || 60;
-    document.getElementById('passcode_validity').value = cfg.passcode_validity_minutes || 90;
+    if (document.getElementById('test_duration'))
+      document.getElementById('test_duration').value = cfg.test_duration_minutes || 60;
+    if (document.getElementById('passcode_validity'))
+      document.getElementById('passcode_validity').value = cfg.passcode_validity_minutes || 90;
+    if (document.getElementById('test_title'))
+      document.getElementById('test_title').value = cfg.test_title || 'Online Aptitude Test';
   } catch { /* leave defaults */ }
 }
+
+document.getElementById('titleForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('titleMsg');
+  try {
+    const cfg = await api('/api/admin/settings/config');
+    await api('/api/admin/settings/config', {
+      method: 'PUT',
+      body: JSON.stringify({
+        test_duration_minutes:     cfg.test_duration_minutes     || 60,
+        passcode_validity_minutes: cfg.passcode_validity_minutes || 90,
+        test_title:                document.getElementById('test_title').value.trim() || 'Online Aptitude Test',
+      }),
+    });
+    if (msg) { msg.textContent = '✓ Title saved.'; msg.style.color = '#16a34a'; }
+    setTimeout(() => { if (msg) msg.textContent = ''; }, 4000);
+  } catch (err) {
+    if (msg) { msg.textContent = err.message; msg.style.color = '#dc2626'; }
+  }
+});
 
 document.getElementById('configForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('configMsg');
   try {
+    const cfg = await api('/api/admin/settings/config');
     await api('/api/admin/settings/config', {
       method: 'PUT',
       body: JSON.stringify({
         test_duration_minutes:     Number(document.getElementById('test_duration').value),
         passcode_validity_minutes: Number(document.getElementById('passcode_validity').value),
+        test_title:                cfg.test_title || 'Online Aptitude Test',
       }),
     });
     if (msg) { msg.textContent = '✓ Configuration saved.'; msg.style.color = '#16a34a'; }
@@ -575,9 +601,16 @@ function renderSectionChart(rows) {
     const percent = Math.min(100, (avg / sec.questions_per_test) * 100);
     const label   = sec.label || sec.name;
     const [barGrad] = sectionPalette(sec.name);
+    const showName = sec.name && sec.name !== label;
     return `
       <div class="chart-row">
-        <div class="chart-row-head"><span>${escapeHtml(label)}</span><b>${avg.toFixed(1)}/${sec.questions_per_test}</b></div>
+        <div class="chart-row-head">
+          <div class="chart-row-label">
+            <span>${escapeHtml(label)}</span>
+            ${showName ? `<small class="chart-section-name">${escapeHtml(sec.name)}</small>` : ''}
+          </div>
+          <b>${avg.toFixed(1)}/${sec.questions_per_test}</b>
+        </div>
         <div class="bar-track"><span class="bar-fill" style="width:${percent}%;background:${barGrad}"></span></div>
       </div>`;
   }).join('');
@@ -969,18 +1002,21 @@ function downloadIndividualResult() {
   <script>window.onload=()=>{window.print()}<\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank');
-  if (!win) { showError('Could not open print window. Please allow pop-ups for this site.', 'Popup Blocked'); return; }
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) { URL.revokeObjectURL(url); showError('Could not open print window. Please allow pop-ups for this site.', 'Popup Blocked'); return; }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 /* ── Print All Results ─────────────────────────────────────── */
 
-function printAllResults() {
+async function printAllResults() {
   const results = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
   if (!results.length) { showError('No results to print yet.', 'No Results'); return; }
   const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  let testTitle = 'Online Aptitude Test';
+  try { const cfg = await api('/api/admin/settings/config'); testTitle = cfg.test_title || testTitle; } catch { /* use default */ }
   const topScore  = results[0]?.score ?? '—';
   const avgScore  = results.length
     ? (results.reduce((s, r) => s + (r.score || 0), 0) / results.length).toFixed(1)
@@ -1059,12 +1095,12 @@ function printAllResults() {
   .stotal{font-weight:900;font-size:12px}.pct{font-weight:800}
 </style></head><body>
   <div class="pg-header">
-    <div class="hl"><div class="org-name">DHI Group of Company</div><div class="test-title">HiPo Aptitude Test</div></div>
+    <div class="hl"><div class="org-name">DHI Group of Company</div><div class="test-title">${escapeHtml(testTitle)}</div></div>
     <div class="hr"><span class="lbl">Date Printed</span><span class="val">${printDate}</span></div>
   </div>
   <div class="pg-footer">
     <span class="fc">Confidential &mdash; For Internal Use Only &nbsp;&middot;&nbsp; DHI Group of Company</span>
-    <span class="fr">HiPo Aptitude Test &nbsp;&middot;&nbsp; ${printDate}</span>
+    <span class="fr">${escapeHtml(testTitle)} &nbsp;&middot;&nbsp; ${printDate}</span>
   </div>
   <div class="intro">
     <div class="intro-left">
@@ -1088,10 +1124,11 @@ function printAllResults() {
   <script>window.onload=()=>{window.print()}<\/script>
 </body></html>`;
 
-  const win = window.open('', '_blank');
-  if (!win) { showError('Could not open print window. Please allow pop-ups for this site.', 'Popup Blocked'); return; }
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) { URL.revokeObjectURL(url); showError('Could not open print window. Please allow pop-ups for this site.', 'Popup Blocked'); return; }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 /* ── Passcodes ─────────────────────────────────────────────── */

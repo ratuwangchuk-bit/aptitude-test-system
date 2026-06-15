@@ -170,14 +170,17 @@ CREATE TABLE IF NOT EXISTS submission_section_scores (
 
 CREATE TABLE IF NOT EXISTS test_config (
     id                        INT PRIMARY KEY DEFAULT 1,
-    test_duration_minutes     INT NOT NULL DEFAULT 60,
-    passcode_validity_minutes INT NOT NULL DEFAULT 90,
+    test_duration_minutes     INT  NOT NULL DEFAULT 60,
+    passcode_validity_minutes INT  NOT NULL DEFAULT 90,
+    test_title                TEXT NOT NULL DEFAULT 'Online Aptitude Test',
     updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_by                INT REFERENCES admins(id)
 );
 
-INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes)
-VALUES (1, 60, 90)
+ALTER TABLE test_config ADD COLUMN IF NOT EXISTS test_title TEXT NOT NULL DEFAULT 'Online Aptitude Test';
+
+INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes, test_title)
+VALUES (1, 60, 90, 'Online Aptitude Test')
 ON CONFLICT (id) DO NOTHING;
 
 

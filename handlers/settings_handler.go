@@ -17,10 +17,10 @@ import (
 // Falls back to safe defaults if the row is missing so the app never crashes
 // on a fresh database before migrations run.
 func loadTestConfig() models.TestConfig {
-	cfg := models.TestConfig{TestDurationMinutes: 60, PasscodeValidityMinutes: 90}
+	cfg := models.TestConfig{TestDurationMinutes: 60, PasscodeValidityMinutes: 90, TestTitle: "Online Aptitude Test"}
 	config.DB.QueryRow(
-		"SELECT test_duration_minutes, passcode_validity_minutes FROM test_config WHERE id=1",
-	).Scan(&cfg.TestDurationMinutes, &cfg.PasscodeValidityMinutes)
+		"SELECT test_duration_minutes, passcode_validity_minutes, test_title FROM test_config WHERE id=1",
+	).Scan(&cfg.TestDurationMinutes, &cfg.PasscodeValidityMinutes, &cfg.TestTitle)
 	return cfg
 }
 
@@ -83,12 +83,15 @@ func UpdateTestConfig(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Passcode validity must be between 10 and 1440 minutes")
 		return
 	}
+	if cfg.TestTitle == "" {
+		cfg.TestTitle = "Online Aptitude Test"
+	}
 	_, err := config.DB.Exec(`
-		INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes, updated_at)
-		VALUES (1, $1, $2, $3)
+		INSERT INTO test_config (id, test_duration_minutes, passcode_validity_minutes, test_title, updated_at)
+		VALUES (1, $1, $2, $3, $4)
 		ON CONFLICT (id) DO UPDATE
-		  SET test_duration_minutes=$1, passcode_validity_minutes=$2, updated_at=$3`,
-		cfg.TestDurationMinutes, cfg.PasscodeValidityMinutes, time.Now(),
+		  SET test_duration_minutes=$1, passcode_validity_minutes=$2, test_title=$3, updated_at=$4`,
+		cfg.TestDurationMinutes, cfg.PasscodeValidityMinutes, cfg.TestTitle, time.Now(),
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save configuration")

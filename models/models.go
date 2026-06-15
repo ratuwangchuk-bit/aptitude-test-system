@@ -15,8 +15,9 @@ type Admin struct {
 // All time values are in minutes. The row is read on every relevant request so
 // changes made in the admin UI take effect immediately without a restart.
 type TestConfig struct {
-	TestDurationMinutes      int `json:"test_duration_minutes"`
-	PasscodeValidityMinutes  int `json:"passcode_validity_minutes"`
+	TestDurationMinutes     int    `json:"test_duration_minutes"`
+	PasscodeValidityMinutes int    `json:"passcode_validity_minutes"`
+	TestTitle               string `json:"test_title"`
 }
 
 // TestSection represents one configurable section of the aptitude test.
