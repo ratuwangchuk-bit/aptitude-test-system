@@ -1012,7 +1012,13 @@ function downloadIndividualResult() {
 /* ── Print All Results ─────────────────────────────────────── */
 
 async function printAllResults() {
-  const results = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  let results;
+  try {
+    const fresh = await api('/api/admin/results');
+    results = (fresh || []).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  } catch {
+    results = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  }
   if (!results.length) { showError('No results to print yet.', 'No Results'); return; }
   const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   let testTitle = 'Online Aptitude Test';
@@ -1129,6 +1135,26 @@ async function printAllResults() {
   const win  = window.open(url, '_blank');
   if (!win) { URL.revokeObjectURL(url); showError('Could not open print window. Please allow pop-ups for this site.', 'Popup Blocked'); return; }
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function exportAllResults() {
+  try {
+    const res = await fetch('/api/admin/results/export', {
+      credentials: 'include',
+    });
+    if (!res.ok) { showError('Could not export results. Please try again.', 'Export Failed'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'DAES_Results.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch {
+    showError('Could not export results. Please try again.', 'Export Failed');
+  }
 }
 
 /* ── Passcodes ─────────────────────────────────────────────── */
