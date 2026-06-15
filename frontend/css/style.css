@@ -604,6 +604,23 @@ body.modal-open { overflow: hidden; }
   border-radius: 999px;
   background: linear-gradient(90deg, var(--primary), var(--accent));
 }
+.card-title-center {
+  display: block;
+  text-align: center;
+  padding-bottom: .45rem;
+  position: relative;
+}
+.card-title-center::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 2.4rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
 
 /* ── Page-level section divider heading ────────────────────── */
 .section-heading {
