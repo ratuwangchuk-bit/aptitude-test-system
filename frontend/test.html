@@ -312,16 +312,38 @@
   <div id="screenshotShield" class="hidden" aria-hidden="true">
     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171"
          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
     </svg>
-    <p style="color:#f1f5f9;font-size:1rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.5;">
-      Please re-enter fullscreen to continue the test.
+    <p style="color:#f87171;font-size:1.2rem;font-weight:900;text-align:center;max-width:24rem;line-height:1.4;letter-spacing:-0.01em;">
+      ⚠ Fullscreen Exited
     </p>
+    <p style="color:#f1f5f9;font-size:0.95rem;font-weight:700;text-align:center;max-width:22rem;line-height:1.6;margin-top:0.25rem;">
+      Do <u>not</u> exit fullscreen during the test.<br>
+      Your test will be <strong style="color:#f87171">automatically submitted</strong> if you do not return.
+    </p>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;margin-top:0.5rem;">
+      <span style="color:#94a3b8;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+        Auto-submitting in
+      </span>
+      <span id="fsCountdown"
+            style="font-size:3.2rem;font-weight:900;color:#f87171;line-height:1;
+                   text-shadow:0 0 24px rgba(248,113,113,0.5);font-variant-numeric:tabular-nums;">
+        30
+      </span>
+      <span style="color:#94a3b8;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+        seconds
+      </span>
+    </div>
     <button id="reenterFsBtn"
-            style="margin-top:0.5rem;padding:0.7rem 1.5rem;background:#2dd4bf;
-                   color:#0f172a;font-weight:800;border-radius:0.75rem;border:none;cursor:pointer;font-size:0.9rem;">
-      Re-enter Fullscreen
+            style="margin-top:0.75rem;padding:0.8rem 2rem;background:#2dd4bf;
+                   color:#0f172a;font-weight:900;border-radius:0.75rem;border:none;
+                   cursor:pointer;font-size:0.95rem;letter-spacing:0.01em;">
+      ↩ Re-enter Fullscreen
     </button>
+    <p style="color:#475569;font-size:0.72rem;font-weight:600;text-align:center;max-width:18rem;line-height:1.5;margin-top:0.25rem;">
+      Exiting fullscreen is treated as a test violation and may result in disqualification.
+    </p>
   </div>
 
   <!-- ── Sticky test topbar (kept identical to previous design) ── -->
@@ -403,14 +425,63 @@
 
   <script>
     (function () {
-      const shield     = document.getElementById('screenshotShield');
-      const reenterBtn = document.getElementById('reenterFsBtn');
-      const fsPrompt   = document.getElementById('fullscreenPrompt');
-      const enterFsBtn = document.getElementById('enterFsBtn');
-      let testStarted  = false;
+      const shield        = document.getElementById('screenshotShield');
+      const reenterBtn    = document.getElementById('reenterFsBtn');
+      const fsPrompt      = document.getElementById('fullscreenPrompt');
+      const enterFsBtn    = document.getElementById('enterFsBtn');
+      const countdownEl   = document.getElementById('fsCountdown');
+      const FS_GRACE      = 30; // seconds before auto-submit
+      let testStarted     = false;
+      let countdownTimer  = null;
+      let countdownVal    = FS_GRACE;
 
-      function showShield() { shield.classList.remove('hidden'); }
-      function hideShield() { shield.classList.add('hidden'); }
+      function showShield() {
+        shield.classList.remove('hidden');
+        startCountdown();
+      }
+
+      function hideShield() {
+        shield.classList.add('hidden');
+        stopCountdown();
+      }
+
+      function startCountdown() {
+        stopCountdown();
+        countdownVal = FS_GRACE;
+        countdownEl.textContent = countdownVal;
+
+        countdownTimer = setInterval(() => {
+          countdownVal--;
+          countdownEl.textContent = countdownVal;
+
+          // Turn redder as time runs out
+          if (countdownVal <= 10) {
+            countdownEl.style.color = '#ef4444';
+            countdownEl.style.textShadow = '0 0 32px rgba(239,68,68,0.8)';
+            countdownEl.style.animation = 'pulse 0.8s infinite';
+          }
+
+          if (countdownVal <= 0) {
+            stopCountdown();
+            // Call submitTest from test.js (auto=true skips confirmation dialog)
+            if (typeof submitTest === 'function') submitTest(true);
+          }
+        }, 1000);
+      }
+
+      function stopCountdown() {
+        if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+        countdownVal = FS_GRACE;
+        countdownEl.textContent = FS_GRACE;
+        countdownEl.style.color = '#f87171';
+        countdownEl.style.textShadow = '0 0 24px rgba(248,113,113,0.5)';
+        countdownEl.style.animation = '';
+      }
+
+      // Inject pulse keyframe
+      const s = document.createElement('style');
+      s.textContent = '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}';
+      document.head.appendChild(s);
 
       enterFsBtn.addEventListener('click', async () => {
         try {
@@ -428,7 +499,11 @@
 
       document.addEventListener('fullscreenchange', () => {
         if (!testStarted) return;
-        document.fullscreenElement ? hideShield() : showShield();
+        if (document.fullscreenElement) {
+          hideShield();
+        } else {
+          showShield();
+        }
       });
     })();
   </script>
