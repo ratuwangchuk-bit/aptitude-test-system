@@ -219,6 +219,10 @@ async function api(url, options = {}) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && url.startsWith('/api/admin/')) {
+    window.location.href = 'admin-login.html';
+    return;
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
