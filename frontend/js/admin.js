@@ -537,9 +537,10 @@ async function loadDashboard(showErrors = true) {
     renderResults(filterResults(allResults));
     renderCharts(allResults, appeared, registered);
   } catch (err) {
-    if (showErrors) {
-      showError('Session expired or dashboard failed to load.', 'Dashboard Error')
-        .then(() => window.location.href = 'admin-login.html');
+    // "Session expired" is thrown by api() after it has already redirected to
+    // admin-login.html — showing a modal here would just flash before navigation.
+    if (showErrors && err?.message !== 'Session expired') {
+      showError(err?.message || 'Dashboard failed to load.', 'Dashboard Error');
     }
   }
 }
@@ -2165,6 +2166,7 @@ function showPasswordModal(title) {
 /* ── Initialisation ────────────────────────────────────────── */
 
 async function initAdminPages() {
+  if (document.getElementById('adminLoginForm')) return;
   await loadCurrentAdmin();
   const page = location.pathname.split('/').pop();
   if (!isSuperAdmin() && (page === 'passcodes.html' || page === 'admins.html' || page === 'test-settings.html')) return;

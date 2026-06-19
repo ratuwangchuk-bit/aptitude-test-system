@@ -221,7 +221,7 @@ async function api(url, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && url.startsWith('/api/admin/') && !window.location.pathname.endsWith('admin-login.html')) {
     window.location.href = 'admin-login.html';
-    return;
+    throw new Error('Session expired');
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
