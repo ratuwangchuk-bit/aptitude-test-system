@@ -79,8 +79,8 @@ func CreateAdminUser(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Role must be super_admin or general_admin")
 		return
 	}
-	if req.Username == "" || len(req.Password) < 6 {
-		utils.Error(w, http.StatusBadRequest, "Username is required and password must be at least 6 characters")
+	if req.Username == "" || len(req.Password) < 12 {
+		utils.Error(w, http.StatusBadRequest, "Username is required and password must be at least 12 characters")
 		return
 	}
 
@@ -111,6 +111,15 @@ func DeleteAdminUser(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid admin id")
 		return
 	}
+
+	// Prevent a super admin from deleting their own account, which would lock
+	// them out with no other super admin able to undo it.
+	callerID, _, _, _ := currentAdminFromRequest(r)
+	if callerID != 0 && callerID == id {
+		utils.Error(w, http.StatusForbidden, "You cannot delete your own account")
+		return
+	}
+
 	res, err := config.DB.Exec("DELETE FROM admins WHERE id=$1", id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not delete admin")
@@ -140,6 +149,14 @@ func SetAdminActive(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Prevent a super admin from deactivating their own account, which would lock
+	// them out with no other super admin able to undo it.
+	callerID, _, _, _ := currentAdminFromRequest(r)
+	if callerID != 0 && callerID == id && !payload.IsActive {
+		utils.Error(w, http.StatusForbidden, "You cannot deactivate your own account")
 		return
 	}
 
@@ -216,7 +233,7 @@ func ChangeAdminRole(w http.ResponseWriter, r *http.Request) {
 
 // ChangeAdminPassword replaces an admin's password hash and immediately invalidates
 // all their existing sessions, forcing a re-login with the new credentials.
-// The minimum password length (6 characters) is enforced here to match the
+// The minimum password length (12 characters) is enforced here to match the
 // creation constraint.
 func ChangeAdminPassword(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
@@ -230,8 +247,8 @@ func ChangeAdminPassword(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	if len(strings.TrimSpace(req.Password)) < 6 {
-		utils.Error(w, http.StatusBadRequest, "Password must be at least 6 characters")
+	if len(strings.TrimSpace(req.Password)) < 12 {
+		utils.Error(w, http.StatusBadRequest, "Password must be at least 12 characters")
 		return
 	}
 

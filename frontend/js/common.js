@@ -135,54 +135,71 @@ function ensureAppModal() {
  * @param {string}  opts.cancelText  - Label for the cancel button (hidden if empty).
  * @param {boolean} opts.allowHtml   - Set true to inject message as innerHTML (use carefully).
  */
-function showModal({ title = 'Message', message = '', type = 'info', confirmText = 'OK', cancelText = '', allowHtml = false } = {}) {
+let _modalActive = false;
+let _modalQueue  = [];
+
+// Only one #appModal exists in the DOM. Calling showModal again while one is
+// already open would overwrite its button handlers and stack a second keydown
+// listener, leaving the first caller's promise unresolved if the user clicks a
+// button instead of pressing a key. Queue overlapping calls instead so each
+// modal fully resolves before the next one takes over the shared element.
+function showModal(opts = {}) {
   return new Promise((resolve) => {
-    const modal      = ensureAppModal();
-    const icon       = document.getElementById('appModalIcon');
-    const titleEl    = document.getElementById('appModalTitle');
-    const bodyEl     = document.getElementById('appModalBody');
-    const confirmBtn = document.getElementById('appModalConfirm');
-    const cancelBtn  = document.getElementById('appModalCancel');
-
-    const iconMap = { success: '✓', error: '!', warning: '!', confirm: '?', info: 'i' };
-    icon.className   = `app-modal-icon ${type}`;
-    icon.textContent = iconMap[type] || 'i';
-    titleEl.textContent = title;
-
-    if (allowHtml) bodyEl.innerHTML = message;
-    else           bodyEl.textContent = message;
-
-    confirmBtn.textContent = confirmText || 'OK';
-    cancelBtn.textContent  = cancelText  || 'Cancel';
-    // Hide the cancel button for informational modals that only need an "OK".
-    cancelBtn.classList.toggle('hidden', !cancelText);
-
-    modal.classList.remove('hidden');
-    document.body.classList.add('modal-open');
-
-    const cleanup = (result) => {
-      modal.classList.add('hidden');
-      document.body.classList.remove('modal-open');
-      confirmBtn.onclick = null;
-      cancelBtn.onclick  = null;
-      document.removeEventListener('keydown', onKey);
-      resolve(result);
-    };
-
-    // Keyboard shortcuts: Enter confirms, Escape cancels.
-    const onKey = (e) => {
-      if (e.key === 'Escape') cleanup(false);
-      if (e.key === 'Enter')  cleanup(true);
-    };
-    document.addEventListener('keydown', onKey);
-
-    confirmBtn.onclick = () => cleanup(true);
-    cancelBtn.onclick  = () => cleanup(false);
-
-    // Focus the confirm button after a short delay so the user can press Enter
-    // immediately without needing to click.
-    setTimeout(() => confirmBtn.focus(), 50);
+    const job = () => runModal(opts, resolve);
+    if (_modalActive) _modalQueue.push(job);
+    else { _modalActive = true; job(); }
   });
+}
+
+function runModal({ title = 'Message', message = '', type = 'info', confirmText = 'OK', cancelText = '', allowHtml = false }, resolve) {
+  const modal      = ensureAppModal();
+  const icon       = document.getElementById('appModalIcon');
+  const titleEl    = document.getElementById('appModalTitle');
+  const bodyEl     = document.getElementById('appModalBody');
+  const confirmBtn = document.getElementById('appModalConfirm');
+  const cancelBtn  = document.getElementById('appModalCancel');
+
+  const iconMap = { success: '✓', error: '!', warning: '!', confirm: '?', info: 'i' };
+  icon.className   = `app-modal-icon ${type}`;
+  icon.textContent = iconMap[type] || 'i';
+  titleEl.textContent = title;
+
+  if (allowHtml) bodyEl.innerHTML = message;
+  else           bodyEl.textContent = message;
+
+  confirmBtn.textContent = confirmText || 'OK';
+  cancelBtn.textContent  = cancelText  || 'Cancel';
+  // Hide the cancel button for informational modals that only need an "OK".
+  cancelBtn.classList.toggle('hidden', !cancelText);
+
+  modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  const cleanup = (result) => {
+    modal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+    confirmBtn.onclick = null;
+    cancelBtn.onclick  = null;
+    document.removeEventListener('keydown', onKey);
+    resolve(result);
+    const next = _modalQueue.shift();
+    if (next) next();
+    else _modalActive = false;
+  };
+
+  // Keyboard shortcuts: Enter confirms, Escape cancels.
+  const onKey = (e) => {
+    if (e.key === 'Escape') cleanup(false);
+    if (e.key === 'Enter')  cleanup(true);
+  };
+  document.addEventListener('keydown', onKey);
+
+  confirmBtn.onclick = () => cleanup(true);
+  cancelBtn.onclick  = () => cleanup(false);
+
+  // Focus the confirm button after a short delay so the user can press Enter
+  // immediately without needing to click.
+  setTimeout(() => confirmBtn.focus(), 50);
 }
 
 /** Shows an informational modal with only an "OK" button. */

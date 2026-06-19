@@ -2152,12 +2152,12 @@ function showPasswordModal(title) {
     document.getElementById('appModalIcon').className   = 'app-modal-icon info';
     document.getElementById('appModalIcon').textContent = '🔐';
     document.getElementById('appModalTitle').textContent = title;
-    document.getElementById('appModalBody').innerHTML = `<input id="modalPasswordInput" type="password" class="input" placeholder="New password (min 6 characters)" minlength="6">`;
+    document.getElementById('appModalBody').innerHTML = `<input id="modalPasswordInput" type="password" class="input" placeholder="New password (min 12 characters)" minlength="12">`;
     confirmBtn.textContent = 'Change Password'; cancelBtn.textContent = 'Cancel';
     cancelBtn.classList.remove('hidden'); modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
     const close = (val) => { modal.classList.add('hidden'); document.body.classList.remove('modal-open'); confirmBtn.onclick = null; cancelBtn.onclick = null; resolve(val); };
-    confirmBtn.onclick = () => { const val = document.getElementById('modalPasswordInput').value.trim(); if (val.length >= 6) close(val); };
+    confirmBtn.onclick = () => { const val = document.getElementById('modalPasswordInput').value.trim(); if (val.length >= 12) close(val); };
     cancelBtn.onclick  = () => close('');
     setTimeout(() => document.getElementById('modalPasswordInput')?.focus(), 50);
   });
