@@ -2056,7 +2056,7 @@ function renderAdminUsers(rows) {
     const isSelf      = a.id === currentAdmin.id;
     const uName     = escapeHtml(a.username);
     const roleEditBtn = isSelf ? '' :
-      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', '${uName}')">${ICON.shield}</button>`;
+      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${escapeHtml(a.role)}', '${uName}')">${ICON.shield}</button>`;
     return `
       <tr>
         <td><span class="pill">${idx + 1}</span></td>
