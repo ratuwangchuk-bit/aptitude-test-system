@@ -292,60 +292,6 @@
         </button>
       </div>
 
-      <!-- Bulk image upload -->
-      <div class="card p-6 md:col-span-2 lg:col-span-2 flex flex-col">
-        <div class="mb-3">
-          <h2 class="text-lg font-black text-slate-800">Bulk Image Upload</h2>
-          <p class="text-sm text-slate-500 font-semibold mt-0.5">Upload a folder or multiple images at once and get their URLs.</p>
-        </div>
-
-        <div class="rounded-xl bg-blue-50 border border-blue-200 p-3 mb-4">
-          <p class="text-xs text-blue-800 font-semibold leading-relaxed">
-            Select a folder or multiple image files. Each image is uploaded and you get back a URL to paste into the <strong>image_url</strong> column of the Excel template.
-          </p>
-        </div>
-
-        <div class="flex gap-2 mb-4">
-          <label class="btn-outline flex-1 text-center cursor-pointer flex items-center justify-center gap-2 text-sm py-2 px-3">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            Select Files
-            <input id="bulkImageFiles" type="file" accept="image/*" multiple class="hidden" onchange="onBulkImageSelect(this)">
-          </label>
-          <label class="btn-outline flex-1 text-center cursor-pointer flex items-center justify-center gap-2 text-sm py-2 px-3">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            Select Folder
-            <input id="bulkImageFolder" type="file" accept="image/*" multiple webkitdirectory class="hidden" onchange="onBulkImageSelect(this)">
-          </label>
-        </div>
-
-        <div id="bulkImagePreview" class="text-xs text-slate-500 mb-3 hidden">
-          <span id="bulkImageCount"></span> file(s) selected
-        </div>
-
-        <button id="bulkImageUploadBtn" onclick="uploadBulkImages()" class="btn flex items-center gap-2 justify-center mb-4 hidden">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Upload Images
-        </button>
-
-        <div id="bulkImageResults" class="hidden">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-xs font-semibold text-slate-600">Uploaded URLs — paste these into the <code class="text-blue-600">image_url</code> column:</p>
-            <button onclick="copyBulkImageUrls()" class="btn-outline text-xs px-2 py-1">Copy All</button>
-          </div>
-          <textarea id="bulkImageUrlList" rows="6" readonly
-            class="input w-full text-xs font-mono resize-y"></textarea>
-        </div>
-      </div>
-
     </section>
 
     <!-- ── Bank summary ──────────────────────────────────────── -->
