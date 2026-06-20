@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/lib/pq"
 	"github.com/xuri/excelize/v2"
 
 	"digital-aptitude-evaluation-system/config"
@@ -51,7 +50,7 @@ func ExportResults(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT p.full_name, p.cid_number, p.company_name, p.contact_number,
 		       s.score, s.total_questions, s.percentage,
-		       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+		       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at,
 		       s.id AS submission_id
 		FROM submissions s
@@ -172,13 +171,17 @@ func loadSectionScoresBatch(ids []int) map[int][]models.SectionScore {
 	if len(ids) == 0 {
 		return out
 	}
+	idArg := make([]int64, len(ids))
+	for i, id := range ids {
+		idArg[i] = int64(id)
+	}
 	rows, err := config.DB.Query(
 		`SELECT sss.submission_id, sss.section_name, sss.score, sss.questions_count
 		 FROM submission_section_scores sss
 		 LEFT JOIN test_sections ts ON ts.name = sss.section_name
 		 WHERE sss.submission_id = ANY($1)
 		 ORDER BY sss.submission_id, COALESCE(ts.sort_order, 9999), ts.id, sss.section_name`,
-		pq.Array(ids),
+		idArg,
 	)
 	if err != nil {
 		return out
@@ -202,7 +205,7 @@ func GetResults(w http.ResponseWriter, r *http.Request) {
 		       s.score, s.total_questions,
 		       COALESCE(s.analytical_score,0), COALESCE(s.verbal_score,0), COALESCE(s.quantitative_score,0),
 		       s.percentage,
-		       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+		       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 		FROM submissions s
 		JOIN participants p ON s.participant_id=p.id

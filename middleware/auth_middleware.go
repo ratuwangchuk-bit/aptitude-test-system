@@ -34,11 +34,25 @@ func getSessionInfo(r *http.Request) (adminSessionInfo, error) {
 	return info, err
 }
 
+// hasCSRFHeader reports whether the request carries the custom header the
+// admin frontend always sends (see api() in common.js). A cross-site HTML
+// form — the classic CSRF vector — cannot add custom headers, so requiring
+// one here is a cheap defense-in-depth layer on top of the SameSite=Lax
+// session cookie. GET requests are exempt since every admin route is
+// read-only over GET; only state-changing methods need the check.
+func hasCSRFHeader(r *http.Request) bool {
+	return r.Method == http.MethodGet || r.Header.Get("X-Requested-With") != ""
+}
+
 // AdminAuth is a middleware that protects routes requiring any valid admin session.
 // It rejects requests whose session cookie is missing, expired, or belongs to a
 // deactivated account. The handler is only called when all checks pass.
 func AdminAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !hasCSRFHeader(r) {
+			utils.Error(w, http.StatusForbidden, "Request rejected: missing required header")
+			return
+		}
 		info, err := getSessionInfo(r)
 		if err != nil || !info.IsActive {
 			utils.Error(w, http.StatusUnauthorized, "Session expired or unauthorized")
@@ -53,6 +67,10 @@ func AdminAuth(next http.HandlerFunc) http.HandlerFunc {
 // manage admin users, etc.) that should never be accessible to general admins.
 func SuperAdminOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !hasCSRFHeader(r) {
+			utils.Error(w, http.StatusForbidden, "Request rejected: missing required header")
+			return
+		}
 		info, err := getSessionInfo(r)
 		if err != nil || !info.IsActive {
 			utils.Error(w, http.StatusUnauthorized, "Session expired or unauthorized")

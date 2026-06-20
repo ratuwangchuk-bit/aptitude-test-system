@@ -40,7 +40,8 @@ type SectionScore struct {
 	QuestionsCount int    `json:"questions_count"`
 }
 
-// Passcode is a single-use entry token generated for each participant batch.
+// Passcode is a shared entry token generated for a participant batch and
+// reused by every participant in that batch until it expires.
 // It expires after the configured passcode_validity_minutes. Status is computed
 // by the database ("Active" / "Expired") and is read-only.
 type Passcode struct {

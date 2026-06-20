@@ -11,6 +11,7 @@ let allParticipants     = [];
 let allSections         = []; // from /api/admin/settings/sections
 let currentAdmin        = { id: 0, role: '', username: '' };
 let dashboardTimer      = null;
+let passcodesTimer      = null;
 
 let selectedResultIds      = new Set();
 let selectedParticipantIds = new Set();
@@ -1028,6 +1029,14 @@ async function printAllResults() {
     results    = [...allResults].sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
     exportSecs = allSections.filter(s => s.is_active);
     testTitle  = 'Online Aptitude Test';
+    // The fresh fetch failed — warn before printing a possibly stale,
+    // previously-cached snapshot instead of silently passing it off as current.
+    await showModal({
+      title: 'Using Cached Data',
+      message: 'Could not fetch the latest results from the server. The print preview will use the most recently loaded data on this page, which may be out of date.',
+      type: 'warning',
+      confirmText: 'Continue',
+    });
   }
   if (!results.length) { showError('No results to print yet.', 'No Results'); return; }
 
@@ -1640,7 +1649,7 @@ document.getElementById('questionForm')?.addEventListener('submit', async (e) =>
       const fd = new FormData();
       fd.append('image', imageFile);
       try {
-        await fetch(`/api/admin/questions/${newQId}/image`, { method: 'POST', body: fd, credentials: 'include' });
+        await fetch(`/api/admin/questions/${newQId}/image`, { method: 'POST', body: fd, credentials: 'include', headers: { 'X-Requested-With': 'DAES' } });
       } catch { /* non-fatal */ }
     }
     // Save correct answer inline if chosen.
@@ -1691,7 +1700,7 @@ async function uploadQuestions() {
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const res  = await fetch('/api/admin/questions/upload', { method: 'POST', body: fd, credentials: 'include' });
+    const res  = await fetch('/api/admin/questions/upload', { method: 'POST', body: fd, credentials: 'include', headers: { 'X-Requested-With': 'DAES' } });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
     await showSuccess(`${data.questions || 0} questions and ${data.answers || 0} answers uploaded.`, 'Upload Complete');
@@ -1730,7 +1739,7 @@ async function uploadBulkImages() {
   btn.disabled = true;
   btn.textContent = 'Uploading…';
   try {
-    const res  = await fetch('/api/admin/questions/images/bulk', { method: 'POST', body: fd, credentials: 'include' });
+    const res  = await fetch('/api/admin/questions/images/bulk', { method: 'POST', body: fd, credentials: 'include', headers: { 'X-Requested-With': 'DAES' } });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
     const uploaded = data.uploaded || [];
@@ -1994,7 +2003,7 @@ async function uploadParticipants() {
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const res  = await fetch('/api/admin/participants/upload', { method: 'POST', body: fd, credentials: 'include' });
+    const res  = await fetch('/api/admin/participants/upload', { method: 'POST', body: fd, credentials: 'include', headers: { 'X-Requested-With': 'DAES' } });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
     await showSuccess(`${data.added || 0} added, ${data.skipped || 0} skipped (duplicate CIDs).`, 'Upload Complete');
@@ -2177,7 +2186,10 @@ async function initAdminPages() {
   loadDashboard();
   startDashboardAutoRefresh();
   loadPasscodes();
-  if (document.getElementById('passcodesTable')) setInterval(loadPasscodes, 15000);
+  if (document.getElementById('passcodesTable')) {
+    if (passcodesTimer) clearInterval(passcodesTimer);
+    passcodesTimer = setInterval(loadPasscodes, 15000);
+  }
   loadQuestionsAndAnswers();
   loadParticipantsAdmin();
   loadAdminUsers();

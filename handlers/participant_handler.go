@@ -3,10 +3,12 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/xuri/excelize/v2"
 
 	"digital-aptitude-evaluation-system/config"
@@ -255,24 +257,21 @@ func AddAdminParticipant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check for a duplicate CID before inserting to return a clear error message.
-	var existingID int
-	err := config.DB.QueryRow("SELECT id FROM participants WHERE cid_number=$1", p.CIDNumber).Scan(&existingID)
-	if err == nil {
-		utils.Error(w, http.StatusConflict, "A participant with this CID number is already registered")
-		return
-	}
-	if err != sql.ErrNoRows {
-		utils.Error(w, http.StatusInternalServerError, "Could not check CID number")
-		return
-	}
-
-	err = config.DB.QueryRow(
+	// Rely on the cid_number UNIQUE constraint rather than a separate SELECT
+	// check beforehand — a SELECT-then-INSERT here would race two concurrent
+	// requests for the same CID (both could pass the check before either
+	// inserts), producing a generic 500 instead of a friendly 409.
+	err := config.DB.QueryRow(
 		`INSERT INTO participants (full_name, cid_number, company_name, contact_number)
 		 VALUES ($1,$2,$3,$4) RETURNING id`,
 		p.FullName, p.CIDNumber, p.CompanyName, p.ContactNumber,
 	).Scan(&p.ID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			utils.Error(w, http.StatusConflict, "A participant with this CID number is already registered")
+			return
+		}
 		utils.Error(w, http.StatusInternalServerError, "Could not add participant")
 		return
 	}

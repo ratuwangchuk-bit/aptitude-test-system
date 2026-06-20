@@ -73,8 +73,14 @@ CREATE TABLE IF NOT EXISTS participants (
     contact_number VARCHAR(50)  NOT NULL,
     passcode_id    INT REFERENCES passcodes(id),
     started_at     TIMESTAMP,
+    assigned_question_ids INT[],
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Idempotent migration for databases created before assigned_question_ids was
+-- added. Stores the exact set of question IDs served to this participant by
+-- GetQuestions, so a reload returns the same set and SubmitTest can reject
+-- answers for questions that were never actually served to them.
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_question_ids INT[];
 
 
 -- ── Questions ─────────────────────────────────────────────────────────────────

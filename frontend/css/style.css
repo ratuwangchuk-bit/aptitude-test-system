@@ -665,8 +665,11 @@ body.modal-open { overflow: hidden; }
 }
 
 /* ── Test layout responsive ─────────────────────────────────── */
+/* .test-sidebar itself is overridden for mobile in test.html's own <style>
+   block (it owns the base .test-sidebar rule, so the override lives there
+   too — keeping it here would lose a cascade tie to that later, unconditional
+   rule and the drawer would never visually open). */
 @media (max-width: 767px) {
-  .test-sidebar { display: none; }
   .rd-header { padding: .85rem 1rem; }
   .rd-scores { padding: .65rem 1rem; }
   .rd-table-wrap { max-height: 60vh; }

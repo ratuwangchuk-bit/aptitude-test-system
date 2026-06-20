@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"digital-aptitude-evaluation-system/config"
+	"digital-aptitude-evaluation-system/middleware"
 	"digital-aptitude-evaluation-system/routes"
 )
 
@@ -27,17 +28,21 @@ func main() {
 	config.MigrateDB()
 
 	r := mux.NewRouter()
-	routes.RegisterRoutes(r)
 
 	// Health check — Render polls this path to confirm the service is live.
+	// Must be registered before RegisterRoutes: its trailing PathPrefix("/")
+	// static file handler matches every path, so anything added after it is
+	// unreachable under gorilla/mux's registration-order matching.
 	r.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}).Methods("GET")
 
+	routes.RegisterRoutes(r)
+
 	srv := &http.Server{
 		Addr:         "0.0.0.0:" + port,
-		Handler:      r,
+		Handler:      middleware.EnforceHTTPS(r),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,

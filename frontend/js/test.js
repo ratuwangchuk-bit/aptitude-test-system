@@ -2,6 +2,7 @@ let questions           = [];
 let submitted           = false;
 let testStarted         = false; // true only after /api/start-test succeeds
 let currentQuestionIdx  = 0;
+let timerInterval       = null; // the countdown tick() interval — cleared on submit so it doesn't keep running on the post-submit screen
 const selectedAnswers   = {}; // { [question_id]: 'A'|'B'|'C'|'D' }
 
 // These are set dynamically from /api/test-info before the test starts.
@@ -288,6 +289,7 @@ function onFillChange(qId, value) {
 function goToQuestion(idx) {
   if (idx < 0 || idx >= questions.length) return;
   showQuestion(idx);
+  closeMobileSidebar(); // no-op on desktop widths
 }
 
 function jumpToSection(section) {
@@ -295,11 +297,24 @@ function jumpToSection(section) {
   if (idx !== -1) goToQuestion(idx);
 }
 
+/* ── Mobile sidebar drawer ─────────────────────────────────────────────────── */
+
+function toggleMobileSidebar() {
+  document.getElementById('testSidebar')?.classList.toggle('sidebar-open');
+  document.getElementById('sidebarBackdrop')?.classList.toggle('show');
+}
+
+function closeMobileSidebar() {
+  document.getElementById('testSidebar')?.classList.remove('sidebar-open');
+  document.getElementById('sidebarBackdrop')?.classList.remove('show');
+}
+
 /* ── Question loading ──────────────────────────────────────────────────────── */
 
 async function loadQuestions(savedAnswers = null) {
   try {
-    questions = (await api('/api/questions')) || [];
+    const participantId = Number(localStorage.getItem('participant_id'));
+    questions = (await api(`/api/questions?participant_id=${participantId}`)) || [];
     const form = document.getElementById('testForm');
 
     if (!questions.length) {
@@ -499,13 +514,13 @@ function startTimer() {
         showCountdownBanner(0);
         playTick(true);
       }
-      clearInterval(interval);
+      clearInterval(timerInterval);
       submitTest(true);
     }
   }
 
   tick();
-  const interval = setInterval(tick, 1000);
+  timerInterval = setInterval(tick, 1000);
 }
 
 /* ── Submission ────────────────────────────────────────────────────────────── */
@@ -520,6 +535,7 @@ async function submitTest(auto = false) {
     if (!ok) return;
   }
   submitted = true;
+  clearInterval(timerInterval); // stop the countdown tick — a manual/early submit doesn't go through tick()'s own clearInterval
 
   const participantId = Number(localStorage.getItem('participant_id'));
   const answers = questions.map(q => ({
@@ -690,6 +706,8 @@ async function initTest() {
         <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
         <h2 class="text-2xl font-black text-red-600 mt-4">Test Already Open</h2>
         <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab. Please close this tab and continue in your original tab.</p>
+        <p class="text-slate-400 text-sm mt-2">If your original tab was closed, click below to try again.</p>
+        <button class="btn inline-flex mt-6" onclick="location.reload()">Try Again</button>
       </div>`;
     document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
     submitted = true;

@@ -232,7 +232,10 @@ function showConfirm(message, title = 'Please Confirm', confirmText = 'Confirm')
 async function api(url, options = {}) {
   const res  = await fetch(url, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    // X-Requested-With can only be set by same-origin script (a plain cross-site
+    // <form> CSRF submission cannot add it), so the server uses its presence as
+    // a defense-in-depth CSRF check on top of the SameSite=Lax session cookie.
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'DAES', ...(options.headers || {}) },
     ...options,
   });
   const data = await res.json().catch(() => ({}));

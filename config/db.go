@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq" // PostgreSQL driver — imported for its side-effect of registering itself.
+	_ "github.com/jackc/pgx/v5/stdlib" // PostgreSQL driver — imported for its side-effect of registering itself.
 )
 
 // DB is the shared database connection pool used by all handlers.
@@ -79,7 +79,7 @@ func buildDSN() string {
 func ConnectDB() {
 	loadEnvFile()
 
-	db, err := sql.Open("postgres", buildDSN())
+	db, err := sql.Open("pgx", buildDSN())
 	if err != nil {
 		log.Fatal("Database configuration error: ", err)
 	}

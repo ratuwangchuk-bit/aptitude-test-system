@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -11,13 +12,16 @@ import (
 
 // RegisterRoutes attaches all HTTP handlers to the router.
 func RegisterRoutes(r *mux.Router) {
+	// Throttles brute-force/enumeration attempts against the public passcode
+	// and CID gates (e.g. sweeping CID numbers to see which are registered).
+	gateLimit := middleware.RateLimit(20, time.Minute)
 
 	// ── Participant-facing public routes ──────────────────────────────────────
 	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
 	r.HandleFunc("/api/image-proxy", handlers.ImageProxy).Methods("GET")
-	r.HandleFunc("/api/validate-passcode", handlers.ValidatePasscode).Methods("POST")
+	r.HandleFunc("/api/validate-passcode", gateLimit(handlers.ValidatePasscode)).Methods("POST")
 	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
-	r.HandleFunc("/api/validate-cid", handlers.ValidateCID).Methods("POST")
+	r.HandleFunc("/api/validate-cid", gateLimit(handlers.ValidateCID)).Methods("POST")
 	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
 	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
 	r.HandleFunc("/api/questions", handlers.GetQuestions).Methods("GET")

@@ -17,9 +17,13 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GeneratePasscode creates a new single-use entry passcode that expires after
-// 90 minutes. The code is formatted as "DAES-XXXXXXXX" (8 random hex characters)
-// and is guaranteed to be unique in the passcodes table by the uniquePasscode helper.
+// GeneratePasscode creates a new shared entry passcode that expires after
+// 90 minutes (by default; see test_config.passcode_validity_minutes). The code
+// is meant to be distributed to and reused by an entire cohort of participants
+// for a single test session — it is not consumed or invalidated after first
+// use, only after it expires. The code is formatted as "DAES-XXXXXXXX" (8
+// random hex characters) and is guaranteed to be unique in the passcodes
+// table by the uniquePasscode helper.
 func GeneratePasscode(w http.ResponseWriter, r *http.Request) {
 	code, err := uniquePasscode()
 	if err != nil {

@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"digital-aptitude-evaluation-system/config"
 	"digital-aptitude-evaluation-system/models"
@@ -39,6 +40,39 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		sectionSet[s.Name] = true
 	}
 
+	// Validate submitted answers against the exact question set GetQuestions
+	// served to this participant. This rejects forged/foreign question IDs and
+	// duplicate-question submissions that would otherwise let a participant
+	// inflate their score by repeating one known-correct question ID. The
+	// all-blank "time expired before questions ever loaded" auto-submit (see
+	// test.js) sends an empty answers array and is exempt from this check,
+	// since no question set was ever assigned in that case.
+	var assignedIDs []int64
+	if len(req.Answers) > 0 {
+		if err := config.DB.QueryRow(
+			"SELECT assigned_question_ids FROM participants WHERE id=$1", req.ParticipantID,
+		).Scan(utils.IntArrayScanner(&assignedIDs)); err != nil || len(assignedIDs) == 0 {
+			utils.Error(w, http.StatusBadRequest, "No questions were assigned to this participant")
+			return
+		}
+		assignedSet := make(map[int]bool, len(assignedIDs))
+		for _, id := range assignedIDs {
+			assignedSet[int(id)] = true
+		}
+		seen := make(map[int]bool, len(req.Answers))
+		for _, ans := range req.Answers {
+			if !assignedSet[ans.QuestionID] {
+				utils.Error(w, http.StatusBadRequest, "Submission contains a question that was not assigned to you")
+				return
+			}
+			if seen[ans.QuestionID] {
+				utils.Error(w, http.StatusBadRequest, "Submission contains a duplicate question answer")
+				return
+			}
+			seen[ans.QuestionID] = true
+		}
+	}
+
 	tx, err := config.DB.Begin()
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not start submission")
@@ -46,11 +80,17 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	// Use the full assigned-set size (not just how many the participant chose
+	// to answer) so leaving questions blank lowers the percentage instead of
+	// shrinking the denominator and letting a 1/1 partial submission read as 100%.
 	total := len(req.Answers)
+	if len(assignedIDs) > 0 {
+		total = len(assignedIDs)
+	}
 	var submissionID int
 
 	// Guard against duplicate submissions. The SELECT inside the same transaction
-	// is sufficient for the common case. The pq unique-violation handler below
+	// is sufficient for the common case. The unique-violation handler below
 	// covers the rare concurrent race (works both with and without a UNIQUE
 	// constraint on participant_id, so this is safe on older DB schemas too).
 	var alreadySubmitted bool
@@ -72,7 +112,8 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	).Scan(&submissionID)
 	if err != nil {
 		// 23505 = unique_violation — concurrent duplicate submission
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			utils.Error(w, http.StatusConflict, "You have already submitted this test")
 			return
 		}
@@ -86,9 +127,9 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		qtype   string
 	}
 	answerMap := make(map[int]answerKey, len(req.Answers))
-	qIDs := make([]int, 0, len(req.Answers))
+	qIDs := make([]int64, 0, len(req.Answers))
 	for _, ans := range req.Answers {
-		qIDs = append(qIDs, ans.QuestionID)
+		qIDs = append(qIDs, int64(ans.QuestionID))
 	}
 
 	if len(qIDs) > 0 {
@@ -96,7 +137,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 			SELECT a.question_id, a.correct_option, q.section, COALESCE(q.question_type,'mcq')
 			FROM answers a JOIN questions q ON a.question_id=q.id
 			WHERE a.question_id = ANY($1)`,
-			pq.Array(qIDs),
+			qIDs,
 		)
 		if err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not load answer key")
@@ -282,7 +323,7 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 			       COALESCE(s.verbal_score,0)     AS verbal_score,
 			       COALESCE(s.quantitative_score,0) AS quantitative_score,
 			       s.percentage,
-			       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+			       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 			       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 			FROM submissions s JOIN participants p ON s.participant_id=p.id
 		) ranked
@@ -365,7 +406,7 @@ func GetParticipantResult(w http.ResponseWriter, r *http.Request) {
 			       COALESCE(s.verbal_score,0)         AS verbal_score,
 			       COALESCE(s.quantitative_score,0)   AS quantitative_score,
 			       s.percentage,
-			       DENSE_RANK() OVER (ORDER BY s.score DESC) AS rank,
+			       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 			       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 			FROM submissions s JOIN participants p ON s.participant_id=p.id
 		) ranked

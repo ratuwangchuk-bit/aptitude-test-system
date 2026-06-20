@@ -21,10 +21,43 @@ import (
 	"digital-aptitude-evaluation-system/utils"
 )
 
-// GetQuestions returns random questions for the participant test, drawing the
-// configured number of questions per active section. Section configuration is
-// read from test_sections at request time so admins can change it without restart.
+// GetQuestions returns the question set for a participant's test, drawing the
+// configured number of questions per active section on first call. The drawn
+// question IDs are persisted on the participant row (assigned_question_ids) so
+// that reloading the test page returns the exact same set rather than a fresh
+// random draw, and so SubmitTest can reject answers for questions that were
+// never actually served to this participant.
 func GetQuestions(w http.ResponseWriter, r *http.Request) {
+	participantID, err := strconv.Atoi(r.URL.Query().Get("participant_id"))
+	if err != nil || participantID <= 0 {
+		utils.Error(w, http.StatusBadRequest, "A valid participant_id is required")
+		return
+	}
+
+	// Fast path: this participant already has a persisted set (e.g. a page
+	// reload) — return those exact questions, in their original order.
+	var assigned []int64
+	err = config.DB.QueryRow(
+		"SELECT assigned_question_ids FROM participants WHERE id=$1", participantID,
+	).Scan(utils.IntArrayScanner(&assigned))
+	if err == sql.ErrNoRows {
+		utils.Error(w, http.StatusNotFound, "Participant not found")
+		return
+	}
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load participant")
+		return
+	}
+	if len(assigned) > 0 {
+		qs, err := fetchQuestionsByIDs(assigned)
+		if err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not load questions")
+			return
+		}
+		utils.JSON(w, http.StatusOK, qs)
+		return
+	}
+
 	sections, err := loadActiveSections()
 	if err != nil || len(sections) == 0 {
 		utils.Error(w, http.StatusServiceUnavailable, "The question bank is not ready. Please contact the administrator.")
@@ -68,7 +101,76 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusInternalServerError, "Could not read questions")
 		return
 	}
+
+	ids := make([]int64, len(qs))
+	for i, q := range qs {
+		ids[i] = int64(q.ID)
+	}
+
+	// Atomically claim this draw unless a concurrent request (e.g. a
+	// double-fired reload) already claimed one first — COALESCE keeps
+	// whichever set was set first and returns it, so both requests end up
+	// agreeing on a single served set.
+	var finalIDs []int64
+	err = config.DB.QueryRow(`
+		UPDATE participants
+		SET assigned_question_ids = COALESCE(assigned_question_ids, $1)
+		WHERE id = $2
+		RETURNING assigned_question_ids`,
+		ids, participantID,
+	).Scan(utils.IntArrayScanner(&finalIDs))
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not save question assignment")
+		return
+	}
+
+	if !sameInt64Set(ids, finalIDs) {
+		// Lost the race — re-fetch the set the other request persisted.
+		qs, err = fetchQuestionsByIDs(finalIDs)
+		if err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not load questions")
+			return
+		}
+	}
+
 	utils.JSON(w, http.StatusOK, qs)
+}
+
+// fetchQuestionsByIDs loads questions matching the given IDs, preserving the
+// order of ids so the participant sees a stable question sequence.
+func fetchQuestionsByIDs(ids []int64) ([]models.Question, error) {
+	rows, err := config.DB.Query(`
+		SELECT id, section, question_text, COALESCE(question_type,'mcq'),
+		       option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'')
+		FROM questions
+		WHERE id = ANY($1::int[])
+		ORDER BY array_position($1::int[], id)`,
+		ids,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuestions(rows)
+}
+
+// sameInt64Set reports whether two int64 slices contain the same values,
+// ignoring order — used to detect whether a concurrent request won the race
+// to assign a participant's question set.
+func sameInt64Set(a, b []int64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[int64]bool, len(a))
+	for _, v := range a {
+		set[v] = true
+	}
+	for _, v := range b {
+		if !set[v] {
+			return false
+		}
+	}
+	return true
 }
 
 // GetAllQuestions returns questions from active sections for the admin panel.
@@ -551,6 +653,24 @@ func excelSheetName(name string) string {
 	return name
 }
 
+// uniqueExcelSheetName truncates name to Excel's 31-character sheet-name limit
+// and, if that truncated name collides with one already used in this workbook
+// (e.g. two section names sharing a long common prefix), appends a numeric
+// suffix so every sheet in the workbook still gets a distinct name.
+func uniqueExcelSheetName(name string, used map[string]bool) string {
+	candidate := excelSheetName(name)
+	for n := 2; used[candidate]; n++ {
+		suffix := fmt.Sprintf("~%d", n)
+		runes := []rune(excelSheetName(name))
+		if maxBase := 31 - len(suffix); len(runes) > maxBase {
+			runes = runes[:maxBase]
+		}
+		candidate = string(runes) + suffix
+	}
+	used[candidate] = true
+	return candidate
+}
+
 // QuestionsTemplate generates a blank Excel upload template with one sheet per
 // active section so admins always get a template that matches the current DB setup.
 func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
@@ -570,8 +690,9 @@ func QuestionsTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	first := true
+	usedSheetNames := make(map[string]bool, len(sections))
 	for _, sec := range sections {
-		sheetName := excelSheetName(sec.Name)
+		sheetName := uniqueExcelSheetName(sec.Name, usedSheetNames)
 		if first {
 			f.SetSheetName("Sheet1", sheetName)
 			first = false
