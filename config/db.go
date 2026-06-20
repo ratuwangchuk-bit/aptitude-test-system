@@ -111,6 +111,7 @@ func MigrateDB() {
 	migrations := []string{
 		`ALTER TABLE questions ADD COLUMN IF NOT EXISTS option_e TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE test_config ADD COLUMN IF NOT EXISTS test_title TEXT NOT NULL DEFAULT 'Online Aptitude Test'`,
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_question_ids INT[]`,
 	}
 	for _, m := range migrations {
 		if _, err := DB.Exec(m); err != nil {
