@@ -1875,16 +1875,22 @@ async function submitEditAnswerModal() {
   } catch (err) { showError(err.message, 'Save Failed'); }
 }
 
+const ESCAPABLE_MODALS = [
+  ['editAnswerModal', closeEditAnswerModal],
+  ['editSectionModal', closeEditSectionModal],
+  ['questionModal', closeQuestionModal],
+  ['uploadExcelModal', closeUploadExcelModal],
+  ['participantModal', closeParticipantModal],
+  ['uploadParticipantsModal', closeUploadParticipantsModal],
+  ['adminUserModal', closeAdminUserModal],
+];
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  const answerModal = document.getElementById('editAnswerModal');
-  if (answerModal && !answerModal.classList.contains('hidden')) { closeEditAnswerModal(); return; }
-  const sectionModal = document.getElementById('editSectionModal');
-  if (sectionModal && !sectionModal.classList.contains('hidden')) { closeEditSectionModal(); return; }
-  const questionModal = document.getElementById('questionModal');
-  if (questionModal && !questionModal.classList.contains('hidden')) { closeQuestionModal(); return; }
-  const uploadModal = document.getElementById('uploadExcelModal');
-  if (uploadModal && !uploadModal.classList.contains('hidden')) closeUploadExcelModal();
+  for (const [id, close] of ESCAPABLE_MODALS) {
+    const modal = document.getElementById(id);
+    if (modal && !modal.classList.contains('hidden')) { close(); return; }
+  }
 });
 
 async function deleteAnswer(id) {
@@ -1933,6 +1939,27 @@ document.getElementById('participantSearch')?.addEventListener('input', (e) => {
   ));
 });
 
+function openParticipantModal() {
+  document.getElementById('participantForm')?.reset();
+  document.getElementById('participantModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeParticipantModal() {
+  document.getElementById('participantModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+function openUploadParticipantsModal() {
+  document.getElementById('uploadParticipantsModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeUploadParticipantsModal() {
+  document.getElementById('uploadParticipantsModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
 document.getElementById('participantForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
@@ -1946,6 +1973,7 @@ document.getElementById('participantForm')?.addEventListener('submit', async (e)
       }),
     });
     await showSuccess('Participant added.', 'Added');
+    closeParticipantModal();
     document.getElementById('participantForm').reset();
     loadParticipantsAdmin();
   } catch (err) { showError(err.message, 'Add Failed'); }
@@ -1976,6 +2004,7 @@ async function uploadParticipants() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
     await showSuccess(`${data.added || 0} added, ${data.skipped || 0} skipped (duplicate CIDs).`, 'Upload Complete');
+    closeUploadParticipantsModal();
     if (input) input.value = '';
     loadParticipantsAdmin();
   } catch (err) { showError(err.message, 'Upload Failed'); }
@@ -2050,6 +2079,17 @@ async function loadAdminUsers() {
   catch (err) { showError(err.message, 'Could Not Load Admins'); }
 }
 
+function openAdminUserModal() {
+  document.getElementById('adminUserForm')?.reset();
+  document.getElementById('adminUserModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeAdminUserModal() {
+  document.getElementById('adminUserModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
 document.getElementById('adminUserForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
@@ -2062,6 +2102,7 @@ document.getElementById('adminUserForm')?.addEventListener('submit', async (e) =
       }),
     });
     await showSuccess('Admin user created.', 'Created');
+    closeAdminUserModal();
     document.getElementById('adminUserForm').reset();
     loadAdminUsers();
   } catch (err) { showError(err.message, 'Create Failed'); }

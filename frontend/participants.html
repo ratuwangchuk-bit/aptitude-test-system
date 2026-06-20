@@ -42,11 +42,28 @@
 
   <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
-    <!-- ── Add form + bulk upload (super admin only) ──────────── -->
-    <section class="grid md:grid-cols-2 lg:grid-cols-5 gap-5 super-only management-panel">
+    <!-- ── Participants toolbar (super admin only) ───────────── -->
+    <section class="card p-5 flex flex-wrap items-center justify-between gap-4 super-only management-panel">
+      <div>
+        <h2 class="text-lg font-black text-slate-800">Participant Tools</h2>
+        <p class="text-sm text-slate-500 font-semibold">Register a participant or bulk-import from Excel.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-icon btn-soft" title="Upload via Excel" aria-label="Upload via Excel"
+                onclick="openUploadParticipantsModal()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <button type="button" class="btn-icon btn" title="Add Participant" aria-label="Add Participant"
+                onclick="openParticipantModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </section>
 
-      <!-- Add participant form -->
-      <div class="card p-6 lg:col-span-3">
+    <!-- ── Add Participant Modal (super admin only) ──────────── -->
+    <div id="participantModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="participantFormTitle">
+      <div class="app-modal-backdrop" onclick="closeParticipantModal()"></div>
+      <div class="app-modal-card" style="max-width:600px;text-align:left">
         <div class="mb-5">
           <h2 class="text-lg font-black text-slate-800" id="participantFormTitle">Add Participant</h2>
           <p class="text-sm text-slate-500 font-semibold">Register a participant so they can verify their CID and sit the test.</p>
@@ -70,7 +87,8 @@
             <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_contact_number">Contact Number</label>
             <input id="p_contact_number" class="input" placeholder="e.g. +975 17000000" minlength="5" required>
           </div>
-          <div class="sm:col-span-2 flex justify-end">
+          <div class="sm:col-span-2 flex justify-end gap-3">
+            <button type="button" class="btn-outline" onclick="closeParticipantModal()">Cancel</button>
             <button id="participantSubmitBtn" class="btn flex items-center gap-2 px-6" type="submit">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -83,36 +101,37 @@
         </form>
         <p id="message" class="mt-2"></p>
       </div>
+    </div>
 
-      <!-- Bulk upload -->
-      <div class="card p-6 lg:col-span-2 flex flex-col">
+    <!-- ── Upload via Excel Modal (super admin only) ─────────── -->
+    <div id="uploadParticipantsModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uploadParticipantsModalTitle">
+      <div class="app-modal-backdrop" onclick="closeUploadParticipantsModal()"></div>
+      <div class="app-modal-card" style="max-width:480px;text-align:left">
         <div class="flex items-start justify-between mb-3">
           <div>
-            <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
+            <h3 id="uploadParticipantsModalTitle" class="text-lg font-black text-slate-800">Upload via Excel</h3>
             <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import participants from a spreadsheet.</p>
           </div>
           <a class="btn-icon btn-soft shrink-0" href="/api/admin/participants/template"
              download title="Download participants template">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </a>
         </div>
         <p class="text-sm text-slate-500 font-semibold mb-2">Download the template and fill in: <strong>Full Name, CID Number, Company, Contact Number</strong>. Duplicate CIDs are skipped automatically.</p>
         <input id="participantFile" type="file" accept=".xlsx" class="input text-sm mb-4 mt-2">
-        <button onclick="uploadParticipants()" class="btn flex items-center gap-2 justify-center">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Upload Excel
-        </button>
+        <div class="app-modal-actions" style="justify-content:flex-end">
+          <button type="button" class="btn-outline" onclick="closeUploadParticipantsModal()">Cancel</button>
+          <button onclick="uploadParticipants()" class="btn flex items-center gap-2 justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload Excel
+          </button>
+        </div>
       </div>
-
-    </section>
+    </div>
 
     <!-- ── All participants table ─────────────────────────────── -->
     <section class="card p-6">

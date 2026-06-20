@@ -42,12 +42,39 @@
 
   <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 super-only">
 
-    <section class="grid md:grid-cols-5 gap-5">
+    <section class="card p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <h2 class="text-lg font-black text-slate-800">Admin Accounts</h2>
+          <p class="text-sm text-slate-500 font-semibold">Manage roles and enable/disable access.</p>
+        </div>
+        <button type="button" class="btn-icon btn" title="Add Admin Account" aria-label="Add Admin Account"
+                onclick="openAdminUserModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th style="width:4rem">ID</th>
+              <th>Username</th>
+              <th style="width:10rem">Role</th>
+              <th style="width:7rem">Status</th>
+              <th style="width:9rem">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminsTable"></tbody>
+        </table>
+      </div>
+    </section>
 
-      <!-- Create admin form -->
-      <div class="card p-6 md:col-span-2">
+    <!-- ── Add Admin Account Modal ────────────────────────────── -->
+    <div id="adminUserModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminUserModalTitle">
+      <div class="app-modal-backdrop" onclick="closeAdminUserModal()"></div>
+      <div class="app-modal-card" style="max-width:480px;text-align:left">
         <span class="eyebrow mb-3 inline-flex">Super Admin Only</span>
-        <h2 class="text-lg font-black text-slate-800 mt-1">Add Admin Account</h2>
+        <h2 id="adminUserModalTitle" class="text-lg font-black text-slate-800 mt-1">Add Admin Account</h2>
         <p class="text-sm text-slate-500 font-semibold mt-1 mb-5">
           Create a general result-viewer or a full super admin account.
         </p>
@@ -76,40 +103,20 @@
             </p>
           </div>
 
-          <button class="btn w-full flex items-center gap-2 justify-center" type="submit">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-            </svg>
-            Create Admin Account
-          </button>
+          <div class="flex gap-3 justify-end">
+            <button type="button" class="btn-outline" onclick="closeAdminUserModal()">Cancel</button>
+            <button class="btn flex items-center gap-2 justify-center px-6" type="submit">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+              Create Admin Account
+            </button>
+          </div>
         </form>
       </div>
-
-      <!-- Admin accounts table -->
-      <div class="card p-6 md:col-span-3">
-        <div class="mb-5">
-          <h2 class="text-lg font-black text-slate-800">Admin Accounts</h2>
-          <p class="text-sm text-slate-500 font-semibold">Manage roles and enable/disable access.</p>
-        </div>
-        <div class="table-wrap">
-          <table class="modern-table">
-            <thead>
-              <tr>
-                <th style="width:4rem">ID</th>
-                <th>Username</th>
-                <th style="width:10rem">Role</th>
-                <th style="width:7rem">Status</th>
-                <th style="width:9rem">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="adminsTable"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </section>
+    </div>
 
   </main>
 
