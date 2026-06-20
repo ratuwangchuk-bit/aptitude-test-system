@@ -1536,6 +1536,31 @@ function onQuestionTypeChange() {
   document.getElementById('qt_fill_lbl')?.classList.toggle('active', isFill);
 }
 
+function showQuestionModal() {
+  document.getElementById('questionModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeQuestionModal() {
+  document.getElementById('questionModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+function openQuestionModal() {
+  resetQuestionForm();
+  showQuestionModal();
+}
+
+function openUploadExcelModal() {
+  document.getElementById('uploadExcelModal')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeUploadExcelModal() {
+  document.getElementById('uploadExcelModal')?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
 function editQuestion(id) {
   const q = allQuestions.find(q => Number(q.id) === Number(id));
   if (!q) return;
@@ -1580,9 +1605,8 @@ function editQuestion(id) {
   document.getElementById('imageFileName').textContent = q.image_url ? 'Existing image' : '';
   document.getElementById('questionFormTitle').textContent = `Edit Question #${q.id}`;
   document.getElementById('questionSubmitBtn').querySelector('span').textContent = 'Update Question';
-  document.getElementById('cancelQuestionEdit').classList.remove('hidden');
   document.getElementById('saveAndAddAnotherBtn')?.classList.add('hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showQuestionModal();
 }
 
 function resetQuestionForm(keepSection = false) {
@@ -1611,7 +1635,6 @@ function resetQuestionForm(keepSection = false) {
   if (fbInput) fbInput.value = '';
   document.getElementById('questionFormTitle').textContent = 'Add Question';
   document.getElementById('questionSubmitBtn').querySelector('span').textContent = 'Save Question';
-  document.getElementById('cancelQuestionEdit').classList.add('hidden');
   document.getElementById('saveAndAddAnotherBtn')?.classList.remove('hidden');
   pendingSaveMode = 'save';
 }
@@ -1677,6 +1700,7 @@ document.getElementById('questionForm')?.addEventListener('submit', async (e) =>
       }
     } else {
       await showSuccess(id ? 'Question updated.' : `Question #${newQId} saved${correctOpt ? ' (correct: ' + correctOpt + ')' : ''}.`, 'Saved');
+      closeQuestionModal();
       resetQuestionForm();
       loadQuestionsAndAnswers();
     }
@@ -1704,6 +1728,8 @@ async function uploadQuestions() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
     await showSuccess(`${data.questions || 0} questions and ${data.answers || 0} answers uploaded.`, 'Upload Complete');
+    closeUploadExcelModal();
+    document.getElementById('questionFile').value = '';
     loadQuestionsAdmin();
   } catch (err) { showError(err.message, 'Upload Failed'); }
 }
@@ -1854,7 +1880,11 @@ document.addEventListener('keydown', (e) => {
   const answerModal = document.getElementById('editAnswerModal');
   if (answerModal && !answerModal.classList.contains('hidden')) { closeEditAnswerModal(); return; }
   const sectionModal = document.getElementById('editSectionModal');
-  if (sectionModal && !sectionModal.classList.contains('hidden')) closeEditSectionModal();
+  if (sectionModal && !sectionModal.classList.contains('hidden')) { closeEditSectionModal(); return; }
+  const questionModal = document.getElementById('questionModal');
+  if (questionModal && !questionModal.classList.contains('hidden')) { closeQuestionModal(); return; }
+  const uploadModal = document.getElementById('uploadExcelModal');
+  if (uploadModal && !uploadModal.classList.contains('hidden')) closeUploadExcelModal();
 });
 
 async function deleteAnswer(id) {

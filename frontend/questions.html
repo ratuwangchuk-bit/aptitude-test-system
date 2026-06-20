@@ -42,20 +42,39 @@
 
   <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
-    <!-- ── Question form + bulk upload (super admin only) ──── -->
-    <section class="grid md:grid-cols-2 lg:grid-cols-5 gap-5 super-only management-panel">
+    <!-- ── Question bank toolbar (super admin only) ──────────── -->
+    <section class="card p-5 flex flex-wrap items-center justify-between gap-4 super-only management-panel">
+      <div>
+        <h2 class="text-lg font-black text-slate-800">Question Bank Tools</h2>
+        <p class="text-sm text-slate-500 font-semibold">Create a question or bulk-import from Excel.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-icon btn-soft" title="Upload via Excel" aria-label="Upload via Excel"
+                onclick="openUploadExcelModal()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <button type="button" class="btn-icon btn" title="Add Question" aria-label="Add Question"
+                onclick="openQuestionModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </section>
 
-      <!-- Add / edit question form -->
-      <div class="card p-6 lg:col-span-3">
-        <div class="flex items-center justify-between mb-5">
+    <!-- ── Add / Edit Question Modal (super admin only) ──────── -->
+    <div id="questionModal" class="rd-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="questionFormTitle">
+      <div class="rd-backdrop" onclick="closeQuestionModal()"></div>
+      <div class="rd-panel" style="max-width:780px">
+        <div class="rd-header">
           <div>
-            <h2 class="text-lg font-black text-slate-800" id="questionFormTitle">Add Question</h2>
-            <p class="text-sm text-slate-500 font-semibold">Fill in the question details and options below.</p>
+            <h2 class="rd-name" id="questionFormTitle">Add Question</h2>
+            <p class="rd-sub">Fill in the question details and options below.</p>
           </div>
-          <button id="cancelQuestionEdit" type="button"
-                  class="btn-outline hidden text-sm px-4 py-2" onclick="resetQuestionForm()">Cancel Edit</button>
+          <button class="rd-close" type="button" onclick="closeQuestionModal()" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
+        <div style="padding:1.5rem 1.6rem .25rem">
         <form id="questionForm" class="grid sm:grid-cols-2 gap-4">
           <input id="question_id_edit" type="hidden">
 
@@ -232,10 +251,15 @@
             </p>
           </div>
 
-          <!-- Submit buttons -->
-          <div class="sm:col-span-2 flex gap-3 justify-end flex-wrap">
+        </form>
+        <p id="message" class="mt-2"></p>
+        </div>
+
+        <div class="rd-footer">
+          <button type="button" class="btn-outline" onclick="closeQuestionModal()">Cancel</button>
+          <div style="display:flex;gap:.65rem;flex-wrap:wrap">
             <button class="btn-outline flex items-center gap-2 px-5 text-sm"
-                    id="saveAndAddAnotherBtn" onclick="pendingSaveMode='add_another'" type="submit"
+                    id="saveAndAddAnotherBtn" form="questionForm" onclick="pendingSaveMode='add_another'" type="submit"
                     title="Save and add another question in the same section">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -244,7 +268,7 @@
               </svg>
               Save &amp; Add Another
             </button>
-            <button class="btn flex items-center gap-2 px-6" id="questionSubmitBtn" onclick="pendingSaveMode='save'">
+            <button class="btn flex items-center gap-2 px-6" id="questionSubmitBtn" form="questionForm" onclick="pendingSaveMode='save'" type="submit">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
@@ -253,25 +277,23 @@
               <span>Save Question</span>
             </button>
           </div>
-        </form>
-        <p id="message" class="mt-2"></p>
+        </div>
       </div>
+    </div>
 
-      <!-- Bulk upload -->
-      <div class="card p-6 lg:col-span-2 flex flex-col">
+    <!-- ── Upload via Excel Modal (super admin only) ─────────── -->
+    <div id="uploadExcelModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uploadExcelModalTitle">
+      <div class="app-modal-backdrop" onclick="closeUploadExcelModal()"></div>
+      <div class="app-modal-card" style="max-width:480px;text-align:left">
         <div class="flex items-start justify-between mb-3">
           <div>
-            <h2 class="text-lg font-black text-slate-800">Upload via Excel</h2>
+            <h3 id="uploadExcelModalTitle" class="text-lg font-black text-slate-800">Upload via Excel</h3>
             <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import questions and answers.</p>
           </div>
           <button type="button" class="btn-icon btn-soft shrink-0"
                   onclick="downloadTemplate('/api/admin/questions/template','questions_template.xlsx')"
                   title="Download questions template (auto-generated for your sections)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
         </div>
 
@@ -282,17 +304,20 @@
         </div>
 
         <input id="questionFile" type="file" accept=".xlsx" class="input text-sm mb-4">
-        <button onclick="uploadQuestions()" class="btn flex items-center gap-2 justify-center">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Upload Excel
-        </button>
-      </div>
 
-    </section>
+        <div class="app-modal-actions" style="justify-content:flex-end">
+          <button type="button" class="btn-outline" onclick="closeUploadExcelModal()">Cancel</button>
+          <button onclick="uploadQuestions()" class="btn flex items-center gap-2 justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload Excel
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Bank summary ──────────────────────────────────────── -->
     <section id="bankSummary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>

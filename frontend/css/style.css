@@ -530,6 +530,7 @@ body.modal-open { overflow: hidden; }
 
 /* ── Result detail overlay ─────────────────────────────────── */
 .rd-overlay  { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto; }
+.rd-overlay.hidden { display: none; }
 .rd-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(8px); }
 .rd-panel    { position: relative; background: #fff; border-radius: 1.35rem; width: 100%; max-width: 960px; margin: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--line); animation: modalPop .16s ease-out; }
 
