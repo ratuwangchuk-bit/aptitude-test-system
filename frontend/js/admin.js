@@ -2054,9 +2054,9 @@ function renderAdminUsers(rows) {
   const sorted = [...rows.filter(a => a.id === currentAdmin.id), ...rows.filter(a => a.id !== currentAdmin.id)];
   tbody.innerHTML = sorted.map((a, idx) => {
     const isSelf      = a.id === currentAdmin.id;
-    const uJson     = JSON.stringify(a.username);
+    const uName     = escapeHtml(a.username);
     const roleEditBtn = isSelf ? '' :
-      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', ${uJson})">${ICON.shield}</button>`;
+      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${a.role}', '${uName}')">${ICON.shield}</button>`;
     return `
       <tr>
         <td><span class="pill">${idx + 1}</span></td>
@@ -2065,9 +2065,9 @@ function renderAdminUsers(rows) {
         <td><span class="status-pill ${a.is_active ? 'active' : 'expired'}">${a.is_active ? 'Active' : 'Revoked'}</span></td>
         <td><div class="flex gap-2 flex-wrap">
           ${roleEditBtn}
-          <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, ${uJson})">${ICON.key}</button>
+          <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, '${uName}')">${ICON.key}</button>
           <button class="btn-icon ${a.is_active ? 'btn-danger' : 'btn-small'}" title="${a.is_active ? 'Revoke' : 'Activate'}" onclick="setAdminAccess(${a.id}, ${!a.is_active})">${a.is_active ? ICON.lock : ICON.unlock}</button>
-          ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, ${uJson})">${ICON.trash}</button>`}
+          ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${uName}')">${ICON.trash}</button>`}
         </div></td>
       </tr>`;
   }).join('');
