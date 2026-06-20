@@ -136,11 +136,13 @@ textarea.input {
   box-shadow: 0 0 0 3px rgba(37,99,235,.12);
 }
 
-/* Single-line inputs/selects get a fixed height so they line up exactly
+/* Single-line inputs/selects get a baseline height so they line up exactly
    with adjacent .btn/.btn-outline buttons in the same row (e.g. a title
-   field with a "Save" button beside it). Excludes textarea, which needs
-   to stay free to grow with its rows attribute. */
-input.input, select.input { height: 3rem; }
+   field with a "Save" button beside it). min-height (not height) so inputs
+   with bigger font/padding overrides (e.g. #code, #cid_number) can still
+   grow taller instead of having their text clipped. Excludes textarea,
+   which needs to stay free to grow with its rows attribute. */
+input.input, select.input { min-height: 3rem; }
 
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn,
@@ -172,9 +174,10 @@ input.input, select.input { height: 3rem; }
 .btn-outline { background: #fff; border: 1.5px solid #dde3ea; color: #374151; }
 .btn-outline:hover { border-color: #b0bec5; }
 
-/* Matches input.input's fixed height so a "Save"/"Cancel" button sitting
-   beside a text field (or another .btn in a modal footer) lines up exactly. */
-.btn, .btn-outline { height: 3rem; }
+/* Matches input.input's baseline height so a "Save"/"Cancel" button sitting
+   beside a text field (or another .btn in a modal footer) lines up exactly.
+   min-height (not height) so it never clips a button's own content either. */
+.btn, .btn-outline { min-height: 3rem; }
 
 .btn-small {
   display: inline-flex; align-items: center; justify-content: center;
