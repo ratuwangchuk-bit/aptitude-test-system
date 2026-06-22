@@ -49,6 +49,13 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(assigned) > 0 {
+		// An admin disabling a section is a kill switch: it must end this
+		// participant's test immediately, even if they're already mid-exam,
+		// not just block fresh starts.
+		if !assignedSetStillActive(assigned) {
+			utils.Error(w, http.StatusServiceUnavailable, "This test is no longer available. Please contact the administrator.")
+			return
+		}
 		qs, err := fetchQuestionsByIDs(assigned)
 		if err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not load questions")
@@ -134,6 +141,47 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, http.StatusOK, qs)
+}
+
+// assignedSetStillActive reports whether every section the given question IDs
+// belong to is still active. A section that was deleted entirely (no matching
+// test_sections row) also counts as inactive. Used both by GetQuestions and by
+// CheckTestAvailability so disabling a section interrupts an in-progress exam,
+// not just blocks a fresh start.
+func assignedSetStillActive(ids []int64) bool {
+	if len(ids) == 0 {
+		return true
+	}
+	var allActive bool
+	err := config.DB.QueryRow(`
+		SELECT NOT EXISTS (
+			SELECT 1 FROM questions q
+			LEFT JOIN test_sections ts ON ts.name = q.section
+			WHERE q.id = ANY($1) AND ts.is_active IS NOT TRUE
+		)`,
+		ids,
+	).Scan(&allActive)
+	return err == nil && allActive
+}
+
+// CheckTestAvailability reports whether a participant's already-assigned
+// question set is still valid. Polled periodically by the test page (like the
+// passcode-expiry watcher) so an admin disabling a section ends an
+// in-progress exam within seconds rather than only on the next page load.
+func CheckTestAvailability(w http.ResponseWriter, r *http.Request) {
+	participantID, err := strconv.Atoi(r.URL.Query().Get("participant_id"))
+	if err != nil || participantID <= 0 {
+		utils.JSON(w, http.StatusOK, map[string]bool{"available": false})
+		return
+	}
+	var assigned []int64
+	if err := config.DB.QueryRow(
+		"SELECT assigned_question_ids FROM participants WHERE id=$1", participantID,
+	).Scan(utils.IntArrayScanner(&assigned)); err != nil {
+		utils.JSON(w, http.StatusOK, map[string]bool{"available": false})
+		return
+	}
+	utils.JSON(w, http.StatusOK, map[string]bool{"available": assignedSetStillActive(assigned)})
 }
 
 // fetchQuestionsByIDs loads questions matching the given IDs, preserving the

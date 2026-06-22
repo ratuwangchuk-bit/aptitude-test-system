@@ -341,32 +341,58 @@ async function loadQuestions(savedAnswers = null) {
   }
 }
 
-/* ── Passcode expiry watcher ───────────────────────────────────────────────── */
+/* ── Mid-test availability watchers ───────────────────────────────────────── */
+// Both the passcode and the participant's assigned section set can be
+// invalidated by an admin while a participant is already mid-exam (passcode
+// expiry/deletion, or disabling a section as a kill switch). Either case ends
+// the test immediately: show a banner and auto-submit, rather than waiting
+// for the participant's next page load to discover it.
+
+function showAutoSubmitBanner(message) {
+  const banner = document.createElement('div');
+  banner.style.cssText = [
+    'position:fixed','top:0','left:0','right:0','z-index:99999',
+    'background:#7f1d1d','border-bottom:2px solid #ef4444',
+    'color:#fca5a5','font-weight:800','font-size:0.9rem',
+    'padding:0.9rem 1.5rem','text-align:center',
+  ].join(';');
+  banner.textContent = message;
+  document.body.prepend(banner);
+  setTimeout(() => submitTest(true), 3000);
+}
+
+// Polls checkValid() every 30s; the first time it resolves false, shows the
+// banner and auto-submits.
+function startAvailabilityWatcher(checkValid, message) {
+  const interval = setInterval(async () => {
+    if (submitted) { clearInterval(interval); return; }
+    try {
+      if (!(await checkValid())) {
+        clearInterval(interval);
+        showAutoSubmitBanner(message);
+      }
+    } catch { /* Network error — wait for next tick. */ }
+  }, 30000);
+}
 
 function startPasscodeWatcher() {
   const passcodeId = Number(localStorage.getItem('passcode_id'));
   if (!passcodeId) return;
+  startAvailabilityWatcher(async () => {
+    const res  = await fetch(`/api/passcode-status/${passcodeId}`);
+    const data = await res.json().catch(() => ({}));
+    return !!data.valid;
+  }, '⚠  The session passcode has expired. Your answers are being submitted automatically…');
+}
 
-  const interval = setInterval(async () => {
-    if (submitted) { clearInterval(interval); return; }
-    try {
-      const res  = await fetch(`/api/passcode-status/${passcodeId}`);
-      const data = await res.json().catch(() => ({}));
-      if (!data.valid) {
-        clearInterval(interval);
-        const banner = document.createElement('div');
-        banner.style.cssText = [
-          'position:fixed','top:0','left:0','right:0','z-index:99999',
-          'background:#7f1d1d','border-bottom:2px solid #ef4444',
-          'color:#fca5a5','font-weight:800','font-size:0.9rem',
-          'padding:0.9rem 1.5rem','text-align:center',
-        ].join(';');
-        banner.textContent = '⚠  The session passcode has expired. Your answers are being submitted automatically…';
-        document.body.prepend(banner);
-        setTimeout(() => submitTest(true), 3000);
-      }
-    } catch { /* Network error — wait for next tick. */ }
-  }, 30000);
+function startSectionAvailabilityWatcher() {
+  const participantId = Number(localStorage.getItem('participant_id'));
+  if (!participantId) return;
+  startAvailabilityWatcher(async () => {
+    const res  = await fetch(`/api/test-availability?participant_id=${participantId}`);
+    const data = await res.json().catch(() => ({}));
+    return !!data.available;
+  }, '⚠  This test has been disabled by the administrator. Your answers are being submitted automatically…');
 }
 
 /* ── 5-minute warning toast ────────────────────────────────────────────────── */
@@ -773,4 +799,5 @@ async function initTest() {
   loadQuestions(savedAnswersForRestore);
   startTimer();
   startPasscodeWatcher();
+  startSectionAvailabilityWatcher();
 }

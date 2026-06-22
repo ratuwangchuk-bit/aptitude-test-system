@@ -25,6 +25,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
 	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
 	r.HandleFunc("/api/questions", handlers.GetQuestions).Methods("GET")
+	r.HandleFunc("/api/test-availability", handlers.CheckTestAvailability).Methods("GET")
 	r.HandleFunc("/api/submit-test", handlers.SubmitTest).Methods("POST")
 	r.HandleFunc("/api/submission-status/{participantId}", handlers.CheckSubmission).Methods("GET")
 	// Requires admin auth: returns full PII (name, CID, scores) for any participant.
