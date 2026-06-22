@@ -395,6 +395,40 @@ function startSectionAvailabilityWatcher() {
   }, '⚠  This test has been disabled by the administrator. Your answers are being submitted automatically…');
 }
 
+/* ── Mid-test question content sync ───────────────────────────────────────── */
+// An admin can edit a question's text/options/image/answer while it is
+// already assigned to participants mid-test. Poll for the latest content so
+// an edit shows up within seconds instead of requiring a page reload.
+// The participant's question set itself (ids/order/count) never changes —
+// only field content can — so this only ever patches questions[] in place.
+
+async function syncQuestionContent() {
+  try {
+    const participantId = Number(localStorage.getItem('participant_id'));
+    const fresh = await api(`/api/questions?participant_id=${participantId}`);
+    if (!Array.isArray(fresh) || !fresh.length) return;
+
+    const freshById = new Map(fresh.map(q => [q.id, q]));
+    let currentChanged = false;
+    questions.forEach((q, i) => {
+      const updated = freshById.get(q.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(q)) {
+        questions[i] = updated;
+        if (i === currentQuestionIdx) currentChanged = true;
+      }
+    });
+    if (currentChanged) showQuestion(currentQuestionIdx);
+  } catch { /* Network error, or test no longer available — the section
+               availability watcher already handles that case. */ }
+}
+
+function startQuestionSyncWatcher() {
+  const interval = setInterval(() => {
+    if (submitted) { clearInterval(interval); return; }
+    syncQuestionContent();
+  }, 30000);
+}
+
 /* ── 5-minute warning toast ────────────────────────────────────────────────── */
 
 function showTimerWarning() {
@@ -800,4 +834,5 @@ async function initTest() {
   startTimer();
   startPasscodeWatcher();
   startSectionAvailabilityWatcher();
+  startQuestionSyncWatcher();
 }
