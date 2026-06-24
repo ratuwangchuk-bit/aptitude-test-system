@@ -143,25 +143,26 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
-// assignedSetStillActive reports whether every section the given question IDs
-// belong to is still active. A section that was deleted entirely (no matching
-// test_sections row) also counts as inactive. Used both by GetQuestions and by
-// CheckTestAvailability so disabling a section interrupts an in-progress exam,
-// not just blocks a fresh start.
+// assignedSetStillActive reports whether every one of the given question IDs
+// still exists and belongs to a still-active section. A question deleted
+// outright (e.g. a question bank re-upload that replaces old rows with new
+// ones under different IDs) or a section that was deleted entirely (no
+// matching test_sections row) both count as no longer active — otherwise
+// fetchQuestionsByIDs would silently return a truncated set instead of an
+// error. Used both by GetQuestions and by CheckTestAvailability so this kind
+// of change interrupts an in-progress exam, not just blocks a fresh start.
 func assignedSetStillActive(ids []int64) bool {
 	if len(ids) == 0 {
 		return true
 	}
-	var allActive bool
+	var validCount int
 	err := config.DB.QueryRow(`
-		SELECT NOT EXISTS (
-			SELECT 1 FROM questions q
-			LEFT JOIN test_sections ts ON ts.name = q.section
-			WHERE q.id = ANY($1) AND ts.is_active IS NOT TRUE
-		)`,
+		SELECT COUNT(*) FROM questions q
+		JOIN test_sections ts ON ts.name = q.section
+		WHERE q.id = ANY($1) AND ts.is_active = TRUE`,
 		ids,
-	).Scan(&allActive)
-	return err == nil && allActive
+	).Scan(&validCount)
+	return err == nil && validCount == len(ids)
 }
 
 // CheckTestAvailability reports whether a participant's already-assigned
