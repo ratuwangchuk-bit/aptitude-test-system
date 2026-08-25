@@ -74,7 +74,10 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	// Verify each active section has enough questions.
 	for _, sec := range sections {
 		var cnt int
-		config.DB.QueryRow("SELECT COUNT(*) FROM questions WHERE section=$1", sec.Name).Scan(&cnt)
+		if err := config.DB.QueryRow("SELECT COUNT(*) FROM questions WHERE section=$1", sec.Name).Scan(&cnt); err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not count questions. Please try again.")
+			return
+		}
 		if cnt < sec.QuestionsPerTest {
 			utils.Error(w, http.StatusServiceUnavailable,
 				fmt.Sprintf("Not enough questions in '%s' (need %d, have %d). Please contact the administrator.",

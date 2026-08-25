@@ -90,10 +90,14 @@ func CheckPasscodeStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var valid bool
-	config.DB.QueryRow(
+	if err := config.DB.QueryRow(
 		"SELECT EXISTS(SELECT 1 FROM passcodes WHERE id=$1 AND expires_at > NOW())",
 		id,
-	).Scan(&valid)
+	).Scan(&valid); err != nil {
+		// DB error: fail-open so a transient error doesn't kick mid-exam participants.
+		utils.JSON(w, http.StatusOK, map[string]bool{"valid": true})
+		return
+	}
 	utils.JSON(w, http.StatusOK, map[string]bool{"valid": valid})
 }
 

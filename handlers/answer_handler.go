@@ -113,8 +113,8 @@ func UpdateAnswer(w http.ResponseWriter, r *http.Request) {
 	a.CorrectOption = normalised
 
 	res, err := config.DB.Exec(
-		"UPDATE answers SET question_id=$1, correct_option=$2 WHERE id=$3",
-		a.QuestionID, a.CorrectOption, id,
+		"UPDATE answers SET correct_option=$1 WHERE id=$2",
+		a.CorrectOption, id,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not update answer")
