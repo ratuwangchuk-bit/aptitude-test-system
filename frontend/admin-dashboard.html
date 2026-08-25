@@ -17,18 +17,18 @@
         <div class="flex items-center gap-3">
           <img src="assets/logo-icon.png" alt="DAES" class="logo-icon">
           <div>
-            <h1 class="text-2xl font-black text-white tracking-tight">Admin Dashboard</h1>
-            <p class="text-white/60 text-xs font-semibold">Digital Aptitude Evaluation System</p>
+            <h1 id="pageTitle" class="text-2xl font-black text-white tracking-tight">Admin Dashboard</h1>
+            <p id="pageSubtitle" class="text-white/60 text-xs font-semibold">Digital Aptitude Evaluation System</p>
           </div>
         </div>
         <nav class="nav-area flex gap-1.5">
-          <a class="nav-link active" href="admin-dashboard.html">Dashboard</a>
-          <a class="nav-link" href="questions.html">Questions</a>
-          <a class="nav-link" href="answers.html">Answers</a>
-          <a class="nav-link" href="participants.html">Participants</a>
-          <a class="nav-link super-only" href="passcodes.html">Passcodes</a>
-          <a class="nav-link super-only" href="test-settings.html">Settings</a>
-          <a class="nav-link super-only" href="admins.html">Admins</a>
+          <a class="nav-link" data-view="dashboard" href="#dashboard">Dashboard</a>
+          <a class="nav-link" data-view="questions" href="#questions">Questions</a>
+          <a class="nav-link" data-view="answers" href="#answers">Answers</a>
+          <a class="nav-link" data-view="participants" href="#participants">Participants</a>
+          <a class="nav-link super-only" data-view="passcodes" href="#passcodes">Passcodes</a>
+          <a class="nav-link super-only" data-view="settings" href="#settings">Settings</a>
+          <a class="nav-link super-only" data-view="admins" href="#admins">Admins</a>
           <button onclick="logout()" class="nav-link logout-link unique-logout" title="Logout">
             <span class="logout-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>
@@ -40,116 +40,997 @@
     </header>
   </div>
 
-  <main class="max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+  <main>
 
-    <!-- ── Hero banner ──────────────────────────────────────── -->
-    <section class="dashboard-hero card p-6 sm:p-7">
-      <div>
-        <span class="eyebrow mb-2 inline-flex">Live Assessment Overview</span>
-        <h2 class="text-2xl font-black text-slate-800 mt-1">Welcome to DAES</h2>
-        <p class="text-slate-500 font-semibold text-sm mt-1">Monitor test sessions, review results, and manage the question bank.</p>
-      </div>
-      <div class="hero-actions">
-        <a href="questions.html"
-           class="btn-soft inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-            <rect x="9" y="3" width="6" height="4" rx="1"/>
-          </svg>
-          Questions
-        </a>
-        <a href="participants.html"
-           class="btn-outline inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          Participants
-        </a>
-        <a href="passcodes.html"
-           class="btn-outline super-only inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          Generate Passcode
-        </a>
-      </div>
-    </section>
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Dashboard
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-dashboard" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
 
-    <!-- ── Summary metric cards ─────────────────────────────── -->
-    <section id="summary" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"></section>
-
-    <!-- ── Charts row ───────────────────────────────────────── -->
-    <section class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-
-      <div class="card p-5 sm:p-6 md:col-span-2 lg:col-span-2">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-          <div>
-            <h2 class="text-lg font-black text-slate-800 card-title">Section Performance</h2>
-            <!-- <p class="text-sm text-slate-500 font-semibold">Average score per section across all submissions.</p> -->
-          </div>
-          <span id="sectionChartSubtitle" class="pill pill-teal shrink-0">Loading…</span>
-        </div>
-        <div id="sectionChart" class="chart-stack"></div>
-      </div>
-
-      <div class="card p-5 sm:p-6">
-        <h2 class="text-lg font-black text-slate-800 mb-4 text-center card-title-center">Participation Rate</h2>
-        <!-- <p class="text-sm text-slate-500 font-semibold mb-4">Registered vs. appeared turnout.</p> -->
-        <div id="turnoutChart"></div>
-      </div>
-
-      <div class="card p-5 sm:p-6">
-        <h2 class="text-lg font-black text-slate-800 mb-4 text-center card-title-center">Score Distribution</h2>
-        <!-- <p class="text-sm text-slate-500 font-semibold mb-4">Participants by score range.</p> -->
-        <div id="distributionChart" class="mini-chart"></div>
-      </div>
-
-    </section>
-
-    <!-- ── Results table ─────────────────────────────────────── -->
-    <section class="card p-5 sm:p-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <!-- ── Hero banner ──────────────────────────────────────── -->
+      <section class="dashboard-hero card p-6 sm:p-7">
         <div>
-          <h2 class="text-lg font-black text-slate-800">Final Result Summary</h2>
-          <!-- <p class="text-sm text-slate-500 font-semibold">All submitted test results with section-wise breakdown.</p> -->
+          <span class="eyebrow mb-2 inline-flex">Live Assessment Overview</span>
+          <h2 class="text-2xl font-black text-slate-800 mt-1">Welcome to DAES</h2>
+          <p class="text-slate-500 font-semibold text-sm mt-1">Monitor test sessions, review results, and manage the question bank.</p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button onclick="printAllResults()" class="btn-icon btn-soft" title="Print results as PDF">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9"/>
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-              <rect x="6" y="14" width="12" height="8"/>
+        <div class="hero-actions">
+          <a href="#questions"
+             class="btn-soft inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+              <rect x="9" y="3" width="6" height="4" rx="1"/>
             </svg>
+            Questions
+          </a>
+          <a href="#participants"
+             class="btn-outline inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Participants
+          </a>
+          <a href="#passcodes"
+             class="btn-outline super-only inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Generate Passcode
+          </a>
+        </div>
+      </section>
+
+      <!-- ── Summary metric cards ─────────────────────────────── -->
+      <section id="summary" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"></section>
+
+      <!-- ── Charts row ───────────────────────────────────────── -->
+      <section class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+        <div class="card p-5 sm:p-6 md:col-span-2 lg:col-span-2">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+            <div>
+              <h2 class="text-lg font-black text-slate-800 card-title">Section Performance</h2>
+            </div>
+            <span id="sectionChartSubtitle" class="pill pill-teal shrink-0">Loading…</span>
+          </div>
+          <div id="sectionChart" class="chart-stack"></div>
+        </div>
+
+        <div class="card p-5 sm:p-6">
+          <h2 class="text-lg font-black text-slate-800 mb-4 text-center card-title-center">Participation Rate</h2>
+          <div id="turnoutChart"></div>
+        </div>
+
+        <div class="card p-5 sm:p-6">
+          <h2 class="text-lg font-black text-slate-800 mb-4 text-center card-title-center">Score Distribution</h2>
+          <div id="distributionChart" class="mini-chart"></div>
+        </div>
+
+      </section>
+
+      <!-- ── Results table ─────────────────────────────────────── -->
+      <section class="card p-5 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Final Result Summary</h2>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="exportAllResults()" class="btn-icon btn-soft" title="Export results as Excel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button onclick="printAllResults()" class="btn-icon btn-soft" title="Print results as PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+          <input id="resultSearch" class="input sm:max-w-xs text-sm" placeholder="Search by name or CID…">
+          <button id="deleteSelectedResultsBtn" onclick="deleteSelectedResults()"
+                  class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            <span>Delete Selected</span>
           </button>
         </div>
+
+        <div class="table-wrap result-table-wrap">
+          <table class="modern-table result-table">
+            <thead><tr id="resultsTableHeader"></tr></thead>
+            <tbody id="results"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-dashboard -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Questions
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-questions" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <!-- ── Question bank toolbar (super admin only) ──────────── -->
+      <section class="card p-5 flex flex-wrap items-center justify-between gap-4 super-only management-panel">
+        <div>
+          <h2 class="text-lg font-black text-slate-800">Question Bank Tools</h2>
+          <p class="text-sm text-slate-500 font-semibold">Create a question or bulk-import from Excel.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn-icon btn-soft" title="Upload via Excel" aria-label="Upload via Excel"
+                  onclick="openUploadExcelModal()">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn" title="Add Question" aria-label="Add Question"
+                  onclick="openQuestionModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Bank summary ──────────────────────────────────────── -->
+      <section id="bankSummary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+
+      <!-- ── Question bank table ──────────────────────────────── -->
+      <section class="card p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">All Questions</h2>
+            <p class="text-sm text-slate-500 font-semibold">Browse, search, and edit existing questions.</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="questionSearch" class="input sm:max-w-xs text-sm" placeholder="Search questions…">
+            <button id="deleteSelectedQuestionsBtn" onclick="deleteSelectedQuestions()"
+                    class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              <span>Delete Selected</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th class="super-only" style="width:2.5rem">
+                  <input type="checkbox" id="selectAllQuestions" title="Select all" onchange="toggleSelectAllQuestions(this)">
+                </th>
+                <th style="width:3.5rem">#</th>
+                <th style="width:9rem">Section</th>
+                <th>Question</th>
+                <th style="width:5rem">Image</th>
+                <th class="super-only" style="width:7rem">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="questionsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-questions -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Answers
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-answers" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <!-- ── Tip banner ────────────────────────────────────────── -->
+      <div class="rounded-xl bg-blue-50 border border-blue-200 p-3.5 flex items-start gap-3">
+        <svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p class="text-blue-800 text-xs font-semibold leading-relaxed">
+          <strong>Tip:</strong> You can set the correct answer directly on the <a href="#questions" class="underline">Questions page</a> when adding a question. Use this page to edit or update existing answers and to review whether each question has the correct answer configured.
+        </p>
       </div>
 
-      <div class="flex items-center gap-2 flex-wrap mb-4">
-        <input id="resultSearch" class="input sm:max-w-xs text-sm" placeholder="Search by name or CID…">
-        <button id="deleteSelectedResultsBtn" onclick="deleteSelectedResults()"
-                class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-          <span>Delete Selected</span>
+      <!-- ── All Q&A table ─────────────────────────────────────── -->
+      <section class="card p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">All Questions &amp; Answers</h2>
+            <p class="text-sm text-slate-500 font-semibold">Questions without an answer are highlighted.</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="answerSearch" class="input sm:max-w-xs text-sm" placeholder="Search questions…">
+            <button id="deleteSelectedAnswersBtn" onclick="deleteSelectedAnswers()"
+                    class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              <span>Delete Selected</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th class="super-only" style="width:40px">
+                  <input type="checkbox" id="selectAllAnswers" title="Select all" onchange="toggleSelectAllAnswers(this)">
+                </th>
+                <th style="width:5rem">Q ID</th>
+                <th style="width:8rem">Section</th>
+                <th>Question</th>
+                <th style="width:9rem">Correct Option</th>
+                <th class="super-only" style="width:7rem">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="answersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-answers -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Participants
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-participants" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <!-- ── Participants toolbar (super admin only) ───────────── -->
+      <section class="card p-5 flex flex-wrap items-center justify-between gap-4 super-only management-panel">
+        <div>
+          <h2 class="text-lg font-black text-slate-800">Participant Tools</h2>
+          <p class="text-sm text-slate-500 font-semibold">Register a participant or bulk-import from Excel.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn-icon btn-soft" title="Upload via Excel" aria-label="Upload via Excel"
+                  onclick="openUploadParticipantsModal()">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn" title="Add Participant" aria-label="Add Participant"
+                  onclick="openParticipantModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ── All participants table ─────────────────────────────── -->
+      <section class="card p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Registered Participants</h2>
+            <p class="text-sm text-slate-500 font-semibold">All pre-registered participants who can verify their CID.</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="participantSearch" class="input sm:max-w-xs text-sm" placeholder="Search by name or CID…">
+            <button id="deleteSelectedParticipantsBtn" onclick="deleteSelectedParticipants()"
+                    class="btn-outline hidden items-center gap-1.5 whitespace-nowrap text-red-600 border-red-200 hover:bg-red-50 text-sm px-3 py-2">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              <span>Delete Selected</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th class="super-only" style="width:40px">
+                  <input type="checkbox" id="selectAllParticipants" title="Select all" onchange="toggleSelectAllParticipants(this)">
+                </th>
+                <th>Full Name</th>
+                <th style="width:10rem">CID Number</th>
+                <th>Company</th>
+                <th style="width:10rem">Contact</th>
+                <th style="width:7rem">Status</th>
+                <th class="super-only" style="width:6rem">Action</th>
+              </tr>
+            </thead>
+            <tbody id="participantsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-participants -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Passcodes
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-passcodes" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <!-- ── Hero + generate button ─────────────────────────────── -->
+      <section class="dashboard-hero card passcode-hero p-6 sm:p-7">
+        <div>
+          <span class="eyebrow mb-2 inline-flex">Reusable Access Control</span>
+          <h2 class="text-2xl font-black text-slate-800 mt-1">Session Passcodes</h2>
+          <p class="text-slate-500 font-semibold text-sm mt-1">
+            One passcode covers all participants in a test session. Share it before the exam begins.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button onclick="generatePasscode()"
+                  class="btn passcode-generate-btn flex items-center gap-2 px-6 py-3">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Generate New Passcode
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Generated output + history ───────────────────────── -->
+      <section class="grid md:grid-cols-3 gap-5">
+
+        <!-- Latest code -->
+        <div class="card p-6 text-center flex flex-col items-center justify-center">
+          <span class="eyebrow mb-4">Latest Generated Code</span>
+          <div id="generatedPasscode" class="mt-2 hidden w-full rounded-xl p-4"></div>
+          <div class="passcode-empty mt-2 w-full" id="passcodeHelpBox">
+            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <b class="text-slate-600 text-sm block">No code generated yet</b>
+            <p>Click <strong>Generate New Passcode</strong> above.</p>
+          </div>
+        </div>
+
+        <!-- History table -->
+        <div class="card p-6 md:col-span-2">
+          <div class="mb-5">
+            <h2 class="text-lg font-black text-slate-800">Generated Passcode History</h2>
+            <p class="text-sm text-slate-500 font-semibold">Status updates automatically when codes expire.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Passcode</th>
+                  <th style="width:10rem">Created At</th>
+                  <th style="width:10rem">Expires At</th>
+                  <th style="width:6rem">Status</th>
+                  <th style="width:6rem">Action</th>
+                </tr>
+              </thead>
+              <tbody id="passcodesTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </div><!-- /view-passcodes -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Settings
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-settings" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <!-- ── Test Title ─────────────────────────────────────────── -->
+      <section class="super-only">
+        <div class="card p-6">
+          <div class="mb-5">
+            <h2 class="text-lg font-black text-slate-800">Test Title</h2>
+            <p class="text-sm text-slate-500 font-semibold">Displayed on printed and downloaded result reports.</p>
+          </div>
+          <form id="titleForm" class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div class="flex-1">
+              <label class="block mb-1.5 text-sm font-bold text-slate-700" for="test_title">Title</label>
+              <input id="test_title" type="text" maxlength="120" class="input" placeholder="Online Aptitude Test" required>
+            </div>
+            <button type="submit" class="btn px-7 flex items-center gap-2 shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Save Title
+            </button>
+          </form>
+          <p id="titleMsg" class="mt-3 text-sm font-semibold"></p>
+        </div>
+      </section>
+
+      <!-- ── Test configuration ─────────────────────────────────── -->
+      <section class="super-only">
+        <div class="card p-6">
+          <div class="mb-5">
+            <h2 class="text-lg font-black text-slate-800">Test Configuration</h2>
+            <p class="text-sm text-slate-500 font-semibold">Changes take effect immediately for all new test sessions.</p>
+          </div>
+
+          <form id="configForm" class="grid sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block mb-1.5 text-sm font-bold text-slate-700" for="test_duration">
+                Test Duration (minutes)
+              </label>
+              <input id="test_duration" type="number" min="1" max="480" class="input" placeholder="60" required>
+              <p class="text-xs text-slate-400 mt-1.5 font-semibold">How long each participant has to complete the test.</p>
+            </div>
+            <div>
+              <label class="block mb-1.5 text-sm font-bold text-slate-700" for="passcode_validity">
+                Passcode Validity (minutes)
+              </label>
+              <input id="passcode_validity" type="number" min="10" max="1440" class="input" placeholder="90" required>
+              <p class="text-xs text-slate-400 mt-1.5 font-semibold">How long a generated passcode stays valid after creation.</p>
+            </div>
+            <div class="sm:col-span-2 flex justify-end">
+              <button type="submit" class="btn px-8 flex items-center gap-2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save Configuration
+              </button>
+            </div>
+          </form>
+          <p id="configMsg" class="mt-3 text-sm font-semibold"></p>
+        </div>
+      </section>
+
+      <!-- ── Section management ──────────────────────────────────── -->
+      <section>
+        <div class="card p-6">
+          <div class="mb-5">
+            <h2 class="text-lg font-black text-slate-800">All Sections</h2>
+            <p class="text-sm text-slate-500 font-semibold">
+              Active sections appear in the test. Inactive ones are excluded.
+              Total questions per test = sum of active section quotas.
+              Use the <a href="#questions" class="underline font-bold">Questions</a> page to add new sections.
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Section Name</th>
+                  <th style="width:6rem">Q / Test</th>
+                  <th style="width:5rem">In Bank</th>
+                  <th style="width:4.5rem">Order</th>
+                  <th style="width:5.5rem">Status</th>
+                  <th class="super-only" style="width:7rem">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sectionsTable"></tbody>
+            </table>
+          </div>
+          <p id="sectionsEmpty" class="text-center text-slate-400 text-sm py-6 hidden">No sections configured yet. Add one from the Questions page.</p>
+        </div>
+      </section>
+
+    </div><!-- /view-settings -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Admins
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-admins" class="spa-view hidden max-w-[1200px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <section class="card p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Admin Accounts</h2>
+            <p class="text-sm text-slate-500 font-semibold">Manage roles and enable/disable access.</p>
+          </div>
+          <button type="button" class="btn-icon btn" title="Add Admin Account" aria-label="Add Admin Account"
+                  onclick="openAdminUserModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th style="width:4rem">ID</th>
+                <th>Username</th>
+                <th style="width:10rem">Role</th>
+                <th style="width:7rem">Status</th>
+                <th style="width:9rem">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-admins -->
+
+  </main>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       GLOBAL MODALS
+  ══════════════════════════════════════════════════════════ -->
+
+  <!-- ── Add / Edit Question Modal ─────────────────────────── -->
+  <div id="questionModal" class="rd-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="questionFormTitle">
+    <div class="rd-backdrop" onclick="closeQuestionModal()"></div>
+    <div class="rd-panel" style="max-width:780px">
+      <div class="rd-header">
+        <div>
+          <h2 class="rd-name" id="questionFormTitle">Add Question</h2>
+          <p class="rd-sub">Fill in the question details and options below.</p>
+        </div>
+        <button class="rd-close" type="button" onclick="closeQuestionModal()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
-      <div class="table-wrap result-table-wrap">
-        <table class="modern-table result-table">
-          <thead><tr id="resultsTableHeader"></tr></thead>
-          <tbody id="results"></tbody>
-        </table>
-      </div>
-    </section>
+      <div style="padding:1.5rem 1.6rem .25rem">
+      <form id="questionForm" class="grid sm:grid-cols-2 gap-4">
+        <input id="question_id_edit" type="hidden">
 
-  </main>
+        <!-- Section selector + quick-create -->
+        <div class="sm:col-span-2">
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-sm font-bold text-slate-700" for="question_section">Section</label>
+            <button type="button" id="toggleNewSectionBtn" onclick="toggleQuickAddSection()"
+                    class="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add New Section
+            </button>
+          </div>
+          <select id="question_section" class="input" required>
+            <option value="" disabled>Loading sections…</option>
+          </select>
+
+          <!-- Quick-create section panel -->
+          <div id="quickAddSectionPanel" class="hidden mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+            <p class="text-sm font-black text-blue-700 mb-3 flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create New Section
+            </p>
+            <div class="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block mb-1 text-xs font-bold text-slate-500">Section Name <span class="text-red-400">*</span></label>
+                <input id="quickSectionName" class="input text-sm" placeholder="e.g. Logical Reasoning">
+              </div>
+              <div>
+                <label class="block mb-1 text-xs font-bold text-slate-500">Short Label</label>
+                <input id="quickSectionLabel" class="input text-sm" placeholder="e.g. Section D">
+              </div>
+              <div>
+                <label class="block mb-1 text-xs font-bold text-slate-500">Questions per test</label>
+                <input id="quickSectionQCount" type="number" min="1" class="input text-sm" placeholder="e.g. 10">
+              </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button type="button" onclick="quickAddSection()" class="btn text-sm px-4 py-2 flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create &amp; Select
+              </button>
+              <button type="button" onclick="toggleQuickAddSection()" class="btn-outline text-sm px-4 py-2">Cancel</button>
+            </div>
+            <p id="quickSectionMsg" class="text-xs mt-2 font-semibold"></p>
+          </div>
+        </div>
+
+        <!-- Question type toggle -->
+        <div class="sm:col-span-2">
+          <label class="block mb-1.5 text-sm font-bold text-slate-700">Question Type</label>
+          <div class="flex gap-2">
+            <label class="correct-opt-btn active" id="qt_mcq_lbl">
+              <input type="radio" name="question_type_radio" value="mcq" class="sr-only" checked
+                     onchange="onQuestionTypeChange()">
+              Multiple Choice (A/B/C/D)
+            </label>
+            <label class="correct-opt-btn" id="qt_fill_lbl">
+              <input type="radio" name="question_type_radio" value="fill_blank" class="sr-only"
+                     onchange="onQuestionTypeChange()">
+              Fill in the Blank
+            </label>
+          </div>
+          <input id="question_type" type="hidden" value="mcq">
+        </div>
+
+        <!-- Question text -->
+        <div class="sm:col-span-2">
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="question_text">Question Text</label>
+          <textarea id="question_text" class="input" rows="3"
+                    placeholder="Type the question here…" required></textarea>
+        </div>
+
+        <!-- Image upload -->
+        <div class="sm:col-span-2">
+          <label class="block mb-1.5 text-sm font-bold text-slate-700">
+            Question Image <span class="font-normal text-slate-400 text-xs">(optional)</span>
+          </label>
+          <div class="flex items-center gap-2 flex-wrap">
+            <label class="btn-outline cursor-pointer flex items-center gap-1.5 text-sm px-4 py-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Choose Image
+              <input id="questionImageFile" type="file" accept="image/*" class="hidden" onchange="previewQuestionImage(this)">
+            </label>
+            <button type="button" id="removeImageBtn"
+                    class="btn-outline text-red-500 border-red-200 hover:bg-red-50 text-sm px-4 py-2 hidden"
+                    onclick="removeQuestionImage()">Remove</button>
+            <span id="imageFileName" class="text-xs text-slate-400"></span>
+          </div>
+          <div id="imagePreviewWrap" class="mt-3 hidden">
+            <img id="imagePreview" src="" alt="Preview"
+                 class="max-h-36 rounded-xl border border-slate-200 object-contain shadow-sm">
+          </div>
+          <input id="question_image_url" type="hidden">
+        </div>
+
+        <!-- MCQ options -->
+        <div id="mcqOptionsBlock" class="sm:col-span-2 grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_a">Option A</label>
+            <input id="option_a" class="input" placeholder="Option A">
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_b">Option B</label>
+            <input id="option_b" class="input" placeholder="Option B">
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_c">Option C</label>
+            <input id="option_c" class="input" placeholder="Option C">
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_d">Option D</label>
+            <input id="option_d" class="input" placeholder="Option D">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block mb-1.5 text-sm font-bold text-slate-700" for="option_e">
+              Option E <span class="text-xs font-normal text-slate-400 ml-1">— optional</span>
+            </label>
+            <input id="option_e" class="input" placeholder="Option E (leave blank if not needed)">
+          </div>
+        </div>
+
+        <!-- Inline correct answer — MCQ -->
+        <div class="sm:col-span-2" id="mcqCorrectBlock">
+          <label class="block mb-1.5 text-sm font-bold text-slate-700">
+            Correct Answer
+            <span class="text-xs font-normal text-slate-400 ml-1">— select now to skip the Answers page</span>
+          </label>
+          <div class="flex gap-2 flex-wrap">
+            <label id="ca_none" class="correct-opt-btn active">
+              <input type="radio" name="correct_option_inline" value="" class="sr-only" checked onchange="highlightCorrectOpt()">
+              Not set
+            </label>
+            <label id="ca_A" class="correct-opt-btn">
+              <input type="radio" name="correct_option_inline" value="A" class="sr-only" onchange="highlightCorrectOpt()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+              Option A
+            </label>
+            <label id="ca_B" class="correct-opt-btn">
+              <input type="radio" name="correct_option_inline" value="B" class="sr-only" onchange="highlightCorrectOpt()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+              Option B
+            </label>
+            <label id="ca_C" class="correct-opt-btn">
+              <input type="radio" name="correct_option_inline" value="C" class="sr-only" onchange="highlightCorrectOpt()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+              Option C
+            </label>
+            <label id="ca_D" class="correct-opt-btn">
+              <input type="radio" name="correct_option_inline" value="D" class="sr-only" onchange="highlightCorrectOpt()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+              Option D
+            </label>
+            <label id="ca_E" class="correct-opt-btn">
+              <input type="radio" name="correct_option_inline" value="E" class="sr-only" onchange="highlightCorrectOpt()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opt-check hidden"><polyline points="20 6 9 17 4 12"/></svg>
+              Option E
+            </label>
+          </div>
+        </div>
+
+        <!-- Fill-in-the-blank correct answer -->
+        <div class="sm:col-span-2 hidden" id="fillBlankCorrectBlock">
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="fill_blank_answer">
+            Accepted Keywords
+          </label>
+          <input id="fill_blank_answer" class="input"
+                 placeholder="e.g. Paris, paris, the capital of France">
+          <p class="text-xs text-slate-400 font-semibold mt-1.5">
+            Separate multiple accepted answers with a comma. Matching is case-insensitive and ignores leading/trailing spaces.
+          </p>
+        </div>
+
+      </form>
+      <p id="message" class="mt-2"></p>
+      </div>
+
+      <div class="rd-footer">
+        <button type="button" class="btn-outline" onclick="closeQuestionModal()">Cancel</button>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button class="btn-outline flex items-center gap-2 px-5 text-sm"
+                  id="saveAndAddAnotherBtn" form="questionForm" onclick="pendingSaveMode='add_another'" type="submit"
+                  title="Save and add another question in the same section">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              <line x1="12" y1="10" x2="12" y2="16" style="stroke:#2563eb"/><line x1="9" y1="13" x2="15" y2="13" style="stroke:#2563eb"/>
+            </svg>
+            Save &amp; Add Another
+          </button>
+          <button class="btn flex items-center gap-2 px-6" id="questionSubmitBtn" form="questionForm" onclick="pendingSaveMode='save'" type="submit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>Save Question</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Upload via Excel Modal (questions) ─────────────────── -->
+  <div id="uploadExcelModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uploadExcelModalTitle">
+    <div class="app-modal-backdrop" onclick="closeUploadExcelModal()"></div>
+    <div class="app-modal-card" style="max-width:480px;text-align:left">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <h3 id="uploadExcelModalTitle" class="text-lg font-black text-slate-800">Upload via Excel</h3>
+          <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import questions and answers.</p>
+        </div>
+        <button type="button" class="btn-icon btn-soft shrink-0"
+                onclick="downloadTemplate('/api/admin/questions/template','questions_template.xlsx')"
+                title="Download questions template (auto-generated for your sections)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+      </div>
+
+      <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-4">
+        <p class="text-xs text-amber-800 font-semibold leading-relaxed">
+          Download the combined template, fill in questions and correct answers per section, then upload. The <strong>Section</strong> column determines which section each question belongs to.
+        </p>
+      </div>
+
+      <input id="questionFile" type="file" accept=".xlsx" class="input text-sm mb-4">
+
+      <div class="app-modal-actions" style="justify-content:flex-end">
+        <button type="button" class="btn-outline" onclick="closeUploadExcelModal()">Cancel</button>
+        <button onclick="uploadQuestions()" class="btn flex items-center gap-2 justify-center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit Answer Modal ──────────────────────────────────── -->
+  <div id="editAnswerModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="editAnswerModalTitle">
+    <div class="app-modal-backdrop" onclick="closeEditAnswerModal()"></div>
+    <div class="app-modal-card" style="max-width:480px">
+      <h3 id="editAnswerModalTitle" class="text-lg font-black text-slate-800 mb-1">Edit Answer</h3>
+      <p id="editAnswerModalQuestion" class="text-sm text-slate-500 font-semibold mb-5 leading-relaxed"></p>
+
+      <input id="editAnswerModalId"  type="hidden">
+      <input id="editAnswerModalQId" type="hidden">
+
+      <div class="mb-5">
+        <label class="block mb-1.5 text-sm font-bold text-slate-700" id="editAnswerModalLabel" for="editAnswerModalSelect">Correct Option</label>
+        <select id="editAnswerModalSelect" class="input">
+          <option value="A">Option A</option>
+          <option value="B">Option B</option>
+          <option value="C">Option C</option>
+          <option value="D">Option D</option>
+          <option value="E">Option E</option>
+        </select>
+        <input id="editAnswerModalText" class="input hidden" placeholder="e.g. Paris, france">
+        <p id="editAnswerModalHint" class="hidden text-xs text-slate-400 font-semibold mt-1.5">
+          Separate multiple accepted keywords with a comma. Matching is case-insensitive.
+        </p>
+      </div>
+
+      <div class="app-modal-actions">
+        <button type="button" class="btn-outline" onclick="closeEditAnswerModal()">Cancel</button>
+        <button type="button" class="btn flex items-center gap-2" onclick="submitEditAnswerModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Update Answer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add Participant Modal ──────────────────────────────── -->
+  <div id="participantModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="participantFormTitle">
+    <div class="app-modal-backdrop" onclick="closeParticipantModal()"></div>
+    <div class="app-modal-card" style="max-width:600px;text-align:left">
+      <div class="mb-5">
+        <h2 class="text-lg font-black text-slate-800" id="participantFormTitle">Add Participant</h2>
+        <p class="text-sm text-slate-500 font-semibold">Register a participant so they can verify their CID and sit the test.</p>
+      </div>
+
+      <form id="participantForm" class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_full_name">Full Name</label>
+          <input id="p_full_name" class="input" placeholder="Full name" required>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_cid_number">CID Number</label>
+          <input id="p_cid_number" class="input" placeholder="e.g. 11512000000" minlength="5" required>
+          <p class="mt-1.5 text-xs text-slate-400 font-semibold">Must be unique across all participants.</p>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_company_name">Company / Organisation</label>
+          <input id="p_company_name" class="input" placeholder="Company or organisation" required>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="p_contact_number">Contact Number</label>
+          <input id="p_contact_number" class="input" placeholder="e.g. +975 17000000" minlength="5" required>
+        </div>
+        <div class="sm:col-span-2 flex justify-end gap-3">
+          <button type="button" class="btn-outline" onclick="closeParticipantModal()">Cancel</button>
+          <button id="participantSubmitBtn" class="btn flex items-center gap-2 px-6" type="submit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Add Participant
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Upload via Excel Modal (participants) ──────────────── -->
+  <div id="uploadParticipantsModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uploadParticipantsModalTitle">
+    <div class="app-modal-backdrop" onclick="closeUploadParticipantsModal()"></div>
+    <div class="app-modal-card" style="max-width:480px;text-align:left">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <h3 id="uploadParticipantsModalTitle" class="text-lg font-black text-slate-800">Upload via Excel</h3>
+          <p class="text-sm text-slate-500 font-semibold mt-0.5">Bulk-import participants from a spreadsheet.</p>
+        </div>
+        <a class="btn-icon btn-soft shrink-0" href="/api/admin/participants/template"
+           download title="Download participants template">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+      </div>
+      <p class="text-sm text-slate-500 font-semibold mb-2">Download the template and fill in: <strong>Full Name, CID Number, Company, Contact Number</strong>. Duplicate CIDs are skipped automatically.</p>
+      <input id="participantFile" type="file" accept=".xlsx" class="input text-sm mb-4 mt-2">
+      <div class="app-modal-actions" style="justify-content:flex-end">
+        <button type="button" class="btn-outline" onclick="closeUploadParticipantsModal()">Cancel</button>
+        <button onclick="uploadParticipants()" class="btn flex items-center gap-2 justify-center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add Admin Account Modal ───────────────────────────── -->
+  <div id="adminUserModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminUserModalTitle">
+    <div class="app-modal-backdrop" onclick="closeAdminUserModal()"></div>
+    <div class="app-modal-card" style="max-width:480px;text-align:left">
+      <span class="eyebrow mb-3 inline-flex">Super Admin Only</span>
+      <h2 id="adminUserModalTitle" class="text-lg font-black text-slate-800 mt-1">Add Admin Account</h2>
+      <p class="text-sm text-slate-500 font-semibold mt-1 mb-5">
+        Create a general result-viewer or a full super admin account.
+      </p>
+
+      <form id="adminUserForm" class="space-y-4">
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_username">Username</label>
+          <input id="new_admin_username" class="input" required placeholder="e.g. resultviewer">
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_password">Password</label>
+          <input id="new_admin_password" type="password" class="input" minlength="12" required placeholder="Minimum 12 characters">
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="new_admin_role">Role</label>
+          <select id="new_admin_role" class="input">
+            <option value="general_admin">General Admin — View only</option>
+            <option value="super_admin">Super Admin — Full access</option>
+          </select>
+        </div>
+
+        <div class="rounded-xl bg-amber-50 border border-amber-200 p-3">
+          <p class="text-xs text-amber-800 font-semibold leading-relaxed">
+            <strong>General admins</strong> can view results, questions, participants, and answers.<br>
+            <strong>Super admins</strong> have full write access including settings and passcodes.
+          </p>
+        </div>
+
+        <div class="flex gap-3 justify-end">
+          <button type="button" class="btn-outline" onclick="closeAdminUserModal()">Cancel</button>
+          <button class="btn flex items-center gap-2 justify-center px-6" type="submit">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Create Admin Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Edit Section Modal ─────────────────────────────────── -->
+  <div id="editSectionModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeEditSectionModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-black text-slate-800">Edit Section</h3>
+        <button onclick="closeEditSectionModal()" class="btn-icon btn-soft" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <form id="sectionForm" class="space-y-4">
+        <input id="section_id_edit" type="hidden">
+
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_name">Section Name</label>
+          <input id="section_name" class="input" placeholder="e.g. Logical Reasoning" required>
+          <p class="text-xs text-slate-400 mt-1.5 font-semibold">Must match the section value stored in questions exactly.</p>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_label">Display Label</label>
+          <input id="section_label" class="input" placeholder="e.g. Section D">
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_qcount">Questions Shown per Test</label>
+          <input id="section_qcount" type="number" min="1" class="input" placeholder="e.g. 10" required>
+          <p class="text-xs text-slate-400 mt-1.5 font-semibold">Randomly drawn from this section's bank per participant.</p>
+        </div>
+        <div>
+          <label class="block mb-1.5 text-sm font-bold text-slate-700" for="section_order">Sort Order</label>
+          <input id="section_order" type="number" min="0" class="input" placeholder="1">
+        </div>
+        <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <input id="section_active" type="checkbox" checked class="w-4 h-4 accent-blue-600">
+          <label for="section_active" class="text-sm font-bold text-slate-700 cursor-pointer">
+            Active — shown in tests
+          </label>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="closeEditSectionModal()" class="btn-outline px-5">Cancel</button>
+          <button type="submit" class="btn px-6 flex items-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Update Section
+          </button>
+        </div>
+        <p id="sectionMsg" class="text-sm font-semibold"></p>
+      </form>
+    </div>
+  </div>
 
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>

@@ -599,8 +599,16 @@ body.modal-open { overflow: hidden; }
 .correct-opt-btn.active .opt-check { display: block !important; }
 
 /* ── Role-based visibility ─────────────────────────────────── */
+/* Hide super-admin elements until the /api/admin/me response confirms the role.
+   Without this, a general-admin sees super-only controls for a brief flash
+   before applyRoleUI() runs and adds the hidden class. */
+body.admin-body:not(.role-loaded) .super-only { visibility: hidden !important; }
+
 .super-only.hidden,
 .management-panel.hidden { display: none !important; }
+
+/* ── SPA view switching ─────────────────────────────────────── */
+.spa-view.hidden { display: none !important; }
 
 /* ── Card title with gradient underline accent ──────────────── */
 .card-title {

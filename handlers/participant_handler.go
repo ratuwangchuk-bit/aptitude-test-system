@@ -162,10 +162,11 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var participantID int
+	var fullName, cidNumber string
 	err := config.DB.QueryRow(
-		"SELECT id FROM participants WHERE cid_number=$1",
+		"SELECT id, full_name, cid_number FROM participants WHERE cid_number=$1",
 		req.CIDNumber,
-	).Scan(&participantID)
+	).Scan(&participantID, &fullName, &cidNumber)
 	if err == sql.ErrNoRows {
 		utils.Error(w, http.StatusNotFound, "CID number not found. Please contact the administrator.")
 		return
@@ -203,6 +204,8 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]interface{}{
 		"message":        "CID verified successfully",
 		"participant_id": participantID,
+		"full_name":      fullName,
+		"cid_number":     cidNumber,
 	})
 }
 

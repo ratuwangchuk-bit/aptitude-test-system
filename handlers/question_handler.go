@@ -233,7 +233,6 @@ func GetAllQuestions(w http.ResponseWriter, r *http.Request) {
 		SELECT q.id, q.section, q.question_text, COALESCE(q.question_type,'mcq'),
 		       q.option_a, q.option_b, q.option_c, q.option_d, COALESCE(q.option_e,''), COALESCE(q.image_url,'')
 		FROM questions q
-		JOIN test_sections ts ON ts.name = q.section AND ts.is_active = TRUE
 		ORDER BY q.id ASC`,
 	)
 	if err != nil {

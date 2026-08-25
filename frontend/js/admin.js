@@ -100,11 +100,8 @@ function applyRoleUI() {
   if (!isSuper) {
     document.querySelectorAll('.management-panel').forEach(el => el.classList.add('hidden'));
   }
-  const page = location.pathname.split('/').pop();
-  if (!isSuper && (page === 'passcodes.html' || page === 'admins.html' || page === 'test-settings.html')) {
-    showError('Only super admins can access this page.', 'Access Restricted')
-      .then(() => window.location.href = 'admin-dashboard.html');
-  }
+  document.body.classList.add('role-loaded');
+  // Super-only page access is enforced by showView() in the SPA router.
 }
 
 document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) => {
@@ -2182,28 +2179,66 @@ function showPasswordModal(title) {
   });
 }
 
+/* ── SPA Router ────────────────────────────────────────────── */
+
+const VIEW_META = {
+  dashboard:    { title: 'Admin Dashboard',     subtitle: 'Digital Aptitude Evaluation System',                   access: 'all'   },
+  questions:    { title: 'Question Management', subtitle: 'Add, edit, and organise the question bank.',           access: 'all'   },
+  answers:      { title: 'Answer Management',   subtitle: 'Edit or update correct answers.',                      access: 'all'   },
+  participants: { title: 'Participants',         subtitle: 'Pre-register participants to allow CID verification.', access: 'all'   },
+  passcodes:    { title: 'Passcode Generator',  subtitle: 'Generate time-limited access codes for participants.', access: 'super' },
+  settings:     { title: 'Test Settings',       subtitle: 'Configure duration, passcode validity, and sections.', access: 'super' },
+  admins:       { title: 'Admin User Control',  subtitle: 'Create admins, revoke access, and reset passwords.',   access: 'super' },
+};
+
+function navigate(view) { location.hash = '#' + view; }
+
+function showView(raw) {
+  const name = String(raw || '').replace(/^#/, '') || 'dashboard';
+  if (!VIEW_META[name]) { navigate('dashboard'); return; }
+  const meta = VIEW_META[name];
+  if (meta.access === 'super' && !isSuperAdmin()) {
+    showError('Only super admins can access this page.', 'Access Restricted')
+      .then(() => navigate('dashboard'));
+    return;
+  }
+  const titleEl    = document.getElementById('pageTitle');
+  const subtitleEl = document.getElementById('pageSubtitle');
+  if (titleEl)    titleEl.textContent    = meta.title;
+  if (subtitleEl) subtitleEl.textContent = meta.subtitle;
+  document.title = meta.title + ' — DAES';
+  document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + name)?.classList.remove('hidden');
+  document.querySelectorAll('.nav-link[data-view]').forEach(a => {
+    a.classList.toggle('active', a.dataset.view === name);
+  });
+  if (name !== 'passcodes' && passcodesTimer) { clearInterval(passcodesTimer); passcodesTimer = null; }
+  switch (name) {
+    case 'dashboard':    loadDashboard(); break;
+    case 'questions':    loadQuestionsAndAnswers(); break;
+    case 'answers':      loadAnswersAdmin(); break;
+    case 'participants': loadParticipantsAdmin(); break;
+    case 'passcodes':
+      loadPasscodes();
+      if (passcodesTimer) clearInterval(passcodesTimer);
+      passcodesTimer = setInterval(loadPasscodes, 15000);
+      break;
+    case 'settings':     loadSections(); loadTestConfigForm(); break;
+    case 'admins':       loadAdminUsers(); break;
+  }
+}
+
+window.addEventListener('hashchange', () => showView(location.hash));
+
 /* ── Initialisation ────────────────────────────────────────── */
 
 async function initAdminPages() {
   if (document.getElementById('adminLoginForm')) return;
   await loadCurrentAdmin();
-  const page = location.pathname.split('/').pop();
-  if (!isSuperAdmin() && (page === 'passcodes.html' || page === 'admins.html' || page === 'test-settings.html')) return;
-
-  // Load sections first — other loaders depend on it for dynamic column rendering.
+  // Load sections first — section dropdown and bank summary depend on this.
   await loadSections();
-
-  loadDashboard();
+  showView(location.hash);
   startDashboardAutoRefresh();
-  loadPasscodes();
-  if (document.getElementById('passcodesTable')) {
-    if (passcodesTimer) clearInterval(passcodesTimer);
-    passcodesTimer = setInterval(loadPasscodes, 15000);
-  }
-  loadQuestionsAndAnswers();
-  loadParticipantsAdmin();
-  loadAdminUsers();
-  loadTestConfigForm();
 }
 
 initAdminPages();

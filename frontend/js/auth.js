@@ -42,6 +42,8 @@ document.getElementById('cidForm')?.addEventListener('submit', async (e) => {
     });
 
     localStorage.setItem('participant_id', data.participant_id);
+    localStorage.setItem('participant_name', data.full_name  || '');
+    localStorage.setItem('participant_cid',  data.cid_number || '');
     // Clear any leftover timer from a previous session so the clock starts fresh
     // when the participant reaches the test page.
     localStorage.removeItem('test_start_time');

@@ -312,6 +312,19 @@
     /* Disable all text selection inside the form */
     #testForm { -webkit-user-select: none; user-select: none; }
 
+    /* ── Anti-cheat CSS ───────────────────────────────────── */
+    /* Block print / print-to-PDF (Ctrl+P). */
+    @media print { body { display: none !important; } }
+
+    /* Prevent selecting question text (options are <label> so also no-select). */
+    .q-text-card, .q-opt, .q-section-badge, .q-meta,
+    .tab-btn, .sb-section-header, .test-topbar {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    /* Fill-in-the-blank inputs must still allow typing/selecting own text. */
+    .q-fill-input { user-select: text; -webkit-user-select: text; }
+
     /* Fullscreen exit shield */
     #screenshotShield {
       display: flex; position: fixed; inset: 0; background: #0f172a;

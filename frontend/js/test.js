@@ -611,6 +611,8 @@ async function submitTest(auto = false) {
 
     _isActiveTab = false;
     localStorage.removeItem('participant_id');
+    localStorage.removeItem('participant_name');
+    localStorage.removeItem('participant_cid');
     localStorage.removeItem('test_start_time');
     localStorage.removeItem('passcode_id');
 
@@ -633,6 +635,8 @@ async function submitTest(auto = false) {
     if (err.message && err.message.toLowerCase().includes('already submitted')) {
       _isActiveTab = false;
       localStorage.removeItem('participant_id');
+    localStorage.removeItem('participant_name');
+    localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
       localStorage.removeItem('passcode_id');
       document.body.innerHTML = `
@@ -657,8 +661,88 @@ async function submitTest(auto = false) {
 
 document.getElementById('submitBtn')?.addEventListener('click', () => submitTest(false));
 
+/* ── Anti-cheat ─────────────────────────────────────────────────────────────
+   Restrictions that apply for the entire lifetime of the test page.
+   Guards check `submitted` and `testStarted` before acting so none of
+   these fire before the test has actually begun or after it ends.
+   ────────────────────────────────────────────────────────────────────────── */
+
+// ── Already active from load (no testStarted guard needed) ──────────────────
+
+// Block copy and right-click.
 document.addEventListener('copy',        e => { e.preventDefault(); });
 document.addEventListener('contextmenu', e => { e.preventDefault(); });
+
+// Block paste everywhere on the page.
+document.addEventListener('paste', e => { e.preventDefault(); });
+
+// Block cut (prevents moving text out of fill-in-the-blank fields).
+document.addEventListener('cut', e => { e.preventDefault(); });
+
+// Block keyboard shortcuts used to open dev tools, view source, save, or print.
+document.addEventListener('keydown', e => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (
+    e.key === 'F12' ||
+    (ctrl && e.shiftKey && 'ijcJIC'.includes(e.key)) || // Ctrl+Shift+I/J/C
+    (ctrl && 'uUsSpP'.includes(e.key)) ||               // Ctrl+U / Ctrl+S / Ctrl+P
+    e.key === 'PrintScreen'
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true); // capture phase so it intercepts before any handler
+
+// ── Tab-switch / window-blur tracking ───────────────────────────────────────
+
+let _tabSwitches = 0;
+const TAB_SWITCH_LIMIT = 3; // auto-submit after this many switches away
+
+function _showTabSwitchOverlay() {
+  document.getElementById('_antiCheatOverlay')?.remove();
+  const remaining = TAB_SWITCH_LIMIT - _tabSwitches;
+  const div = document.createElement('div');
+  div.id = '_antiCheatOverlay';
+  div.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:999999',
+    'background:rgba(0,0,0,0.92)',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'flex-direction:column', 'gap:1rem', 'padding:2rem', 'text-align:center',
+  ].join(';');
+  div.innerHTML = `
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#f87171"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <h2 style="color:#f87171;font-size:1.4rem;font-weight:900;margin:0">Tab Switch Detected</h2>
+    <p style="color:#fca5a5;font-size:0.95rem;max-width:400px;line-height:1.6;margin:0">
+      Switching away from this page is not allowed during the test.<br>
+      <strong>Switch ${_tabSwitches} of ${TAB_SWITCH_LIMIT}.</strong>
+      ${remaining > 0
+        ? `You have <strong>${remaining}</strong> warning${remaining > 1 ? 's' : ''} left before your test is submitted automatically.`
+        : 'This was your final warning. Switching again will submit your test.'}
+    </p>
+    <button onclick="document.getElementById('_antiCheatOverlay').remove()"
+            style="margin-top:.5rem;padding:.75rem 2.2rem;background:#ef4444;color:#fff;
+                   border:none;border-radius:10px;font-weight:800;font-size:.95rem;cursor:pointer">
+      Return to Test
+    </button>`;
+  document.body.appendChild(div);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (submitted || !testStarted) return;
+  if (document.hidden) {
+    _tabSwitches++;
+    if (_tabSwitches > TAB_SWITCH_LIMIT) {
+      showAutoSubmitBanner('⚠ Multiple tab switches detected. Your answers are being submitted automatically…');
+    }
+  } else if (_tabSwitches > 0 && _tabSwitches <= TAB_SWITCH_LIMIT) {
+    _showTabSwitchOverlay();
+  }
+});
+
 
 /* ── Beacon auto-submit ─────────────────────────────────────────────────────── */
 
@@ -714,9 +798,42 @@ window.addEventListener('pagehide', () => {
 
 /* ── Entry point ───────────────────────────────────────────────────────────── */
 
+function _mountWatermark() {
+  const name = localStorage.getItem('participant_name') || '';
+  const cid  = localStorage.getItem('participant_cid')  || '';
+  if (!name && !cid) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = 380;
+  canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(-28 * Math.PI / 180);
+  ctx.font        = 'bold 15px Arial, sans-serif';
+  ctx.fillStyle   = 'rgba(80,80,80,0.13)';
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, 0, -11);
+  ctx.fillText(cid,  0,  11);
+  ctx.restore();
+
+  const el = document.createElement('div');
+  el.id = '_participantWatermark';
+  el.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:8999',
+    'pointer-events:none', 'user-select:none',
+    `background-image:url(${canvas.toDataURL()})`,
+    'background-repeat:repeat',
+  ].join(';');
+  document.body.appendChild(el);
+}
+
 async function initTest() {
   const participantId = localStorage.getItem('participant_id');
   if (!participantId) { window.location.href = 'index.html'; return; }
+
+  _mountWatermark();
 
   // Reload recovery.
   const navType    = performance.getEntriesByType?.('navigation')?.[0]?.type;
@@ -743,6 +860,8 @@ async function initTest() {
       // Clear all three keys so the participant cannot skip the passcode gate on a
       // subsequent visit (passcode_id is missing here in the original code — bug fix).
       localStorage.removeItem('participant_id');
+    localStorage.removeItem('participant_name');
+    localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
       localStorage.removeItem('passcode_id');
       document.getElementById('testForm').innerHTML = `
@@ -817,6 +936,8 @@ async function initTest() {
         </div>`;
       submitted = true;
       localStorage.removeItem('participant_id');
+    localStorage.removeItem('participant_name');
+    localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
       localStorage.removeItem('passcode_id');
       api('/api/submit-test', {
