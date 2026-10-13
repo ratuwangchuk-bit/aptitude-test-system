@@ -1704,6 +1704,7 @@ function renderAnswers(rows) {
   if (!tbody) return;
   const selectAll = document.getElementById('selectAllAnswers');
   if (selectAll) selectAll.checked = false;
+  tbody.innerHTML = rows.length
     ? (() => {
         let num = 0;
         return rows.map(a => {
