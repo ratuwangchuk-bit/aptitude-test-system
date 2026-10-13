@@ -709,7 +709,6 @@ function renderResults(rows) {
   const sectionScoreCols = (r) => {
     const scoreByName = {};
     (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
-    const hasNew = r.section_scores && r.section_scores.length > 0;
 
     if (activeSections.length) {
       return activeSections.map(sec => {
@@ -1034,7 +1033,6 @@ async function printAllResults() {
     const rankCls = 'rk-n';
     const scoreByName = {};
     (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
-    const hasNew = r.section_scores && r.section_scores.length > 0;
     const secCols = exportSecs.map(sec => {
       const ss    = scoreByName[sec.name];
       const score = ss ? ss.score          : 0;

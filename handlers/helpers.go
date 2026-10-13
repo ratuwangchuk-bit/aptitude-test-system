@@ -1,6 +1,10 @@
 package handlers
 
-import "strings"
+import (
+	"strings"
+
+	"digital-aptitude-evaluation-system/config"
+)
 
 // excelHeaderMap builds a case-insensitive column-index lookup from a header row.
 // Both underscore and space variants are indexed so "full_name" and "full name"
@@ -62,14 +66,16 @@ func isEmptyExcelRow(row []string) bool {
 }
 
 // resolveSection maps a raw section value from an uploaded Excel file to the
-// closest matching section name that exists in the database.
+// closest matching section name in the database.
 //
 // Priority:
-//  1. Exact case-insensitive match against a DB section name.
-//  2. One value contains the other (case-insensitive) — handles "Verbal" matching
-//     a DB section name or vice-versa.
-//  3. No match — the raw trimmed value is kept so the question is still imported
-//     and an admin can reassign it later.
+//  1. Single-letter positional codes (a, b, c, …) map to the DB section at that
+//     index — avoids false substring matches (e.g. "c" inside "analytical").
+//  2. "Section A" / "Section B" style labels map positionally the same way.
+//  3. Exact case-insensitive match against a DB section name.
+//  4. Substring match (only when the raw value is ≥ 3 chars to prevent a single
+//     letter matching inside an unrelated section name).
+//  5. Raw trimmed value is kept so the question still imports.
 func resolveSection(section *string, dbSections []string) {
 	raw := strings.TrimSpace(*section)
 	if raw == "" || len(dbSections) == 0 {
@@ -77,36 +83,97 @@ func resolveSection(section *string, dbSections []string) {
 		return
 	}
 	v := strings.ToLower(raw)
-	// 1. Exact match.
+
+	// 1. Single-letter positional code: "a" → dbSections[0], "b" → [1], etc.
+	if len(v) == 1 && v[0] >= 'a' && v[0] <= 'z' {
+		idx := int(v[0] - 'a')
+		if idx < len(dbSections) {
+			*section = dbSections[idx]
+			return
+		}
+		*section = raw
+		return
+	}
+
+	// 2. "Section A" / "section b" style positional label.
+	if strings.HasPrefix(v, "section ") && len(v) == 9 {
+		letter := v[8]
+		if letter >= 'a' && letter <= 'z' {
+			idx := int(letter - 'a')
+			if idx < len(dbSections) {
+				*section = dbSections[idx]
+				return
+			}
+		}
+	}
+
+	// 3. Exact case-insensitive match.
 	for _, s := range dbSections {
 		if strings.ToLower(s) == v {
 			*section = s
 			return
 		}
 	}
-	// 2. Substring match.
-	for _, s := range dbSections {
-		sl := strings.ToLower(s)
-		if strings.Contains(v, sl) || strings.Contains(sl, v) {
-			*section = s
-			return
+
+	// 4. Substring match — only for values long enough to be meaningful.
+	if len(v) >= 3 {
+		for _, s := range dbSections {
+			sl := strings.ToLower(s)
+			if strings.Contains(sl, v) || strings.Contains(v, sl) {
+				*section = s
+				return
+			}
 		}
 	}
-	// 3. Keep raw value.
+
+	// 5. Keep raw value.
 	*section = raw
 }
 
-// looksLikeSection reports whether a cell value looks like a section identifier.
-// Used during backward-compatible positional parsing of old Excel files where
-// section was the first column rather than a named header.
-func looksLikeSection(value string) bool {
+// looksLikeSection reports whether row[0] looks like a section marker rather than
+// question text. Used for backward-compatible positional parsing of headerless
+// old-format Excel files.
+func looksLikeSection(value string, dbSections []string) bool {
 	v := strings.ToLower(strings.TrimSpace(value))
-	// Short single-letter codes or anything that starts with "section" are safe bets.
-	return v == "a" || v == "b" || v == "c" || strings.HasPrefix(v, "section")
+	// Single-letter codes.
+	if len(v) == 1 && v[0] >= 'a' && v[0] <= 'z' {
+		return true
+	}
+	// "Section X" prefix.
+	if strings.HasPrefix(v, "section") {
+		return true
+	}
+	// Exact match against any known DB section name.
+	for _, s := range dbSections {
+		if strings.ToLower(s) == v {
+			return true
+		}
+	}
+	return false
 }
 
-// normalizeSection is kept for the single-question add/edit flows only.
-// Bulk upload uses resolveSection (DB-aware) instead.
+// loadDBSections returns section names from the DB ordered by sort position.
+// Used by the add/edit single-question API to resolve section values.
+func loadDBSections() []string {
+	rows, err := config.DB.Query(
+		"SELECT name FROM test_sections ORDER BY sort_order ASC, id ASC",
+	)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if rows.Scan(&n) == nil {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// normalizeSection resolves a section value in the single-question add/edit flows
+// by matching against the live DB section list.
 func normalizeSection(section *string) {
-	*section = strings.TrimSpace(*section)
+	resolveSection(section, loadDBSections())
 }

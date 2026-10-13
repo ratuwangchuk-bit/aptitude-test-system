@@ -105,8 +105,8 @@ func ConnectDB() {
 	log.Println("Database connected successfully")
 }
 
-// MigrateDB applies idempotent ALTER TABLE statements for schema changes added
-// after the initial deployment. Safe to run on every startup.
+// MigrateDB applies idempotent schema changes added after the initial deployment.
+// Safe to run on every startup.
 func MigrateDB() {
 	migrations := []string{
 		`ALTER TABLE questions ADD COLUMN IF NOT EXISTS option_e TEXT NOT NULL DEFAULT ''`,
@@ -118,5 +118,34 @@ func MigrateDB() {
 		if _, err := DB.Exec(m); err != nil {
 			log.Printf("Migration warning: %v", err)
 		}
+	}
+
+	// Backfill submission_section_scores for any old submissions that predate the
+	// dynamic section-score feature. We map the three legacy fixed columns to the
+	// first three sections in sort_order so historic data remains visible.
+	// The INSERT is a no-op for submissions that already have section_scores rows.
+	_, err := DB.Exec(`
+		INSERT INTO submission_section_scores (submission_id, section_name, score, questions_count)
+		SELECT s.id, ts.name,
+		       CASE ts.rn
+		            WHEN 1 THEN COALESCE(s.analytical_score, 0)
+		            WHEN 2 THEN COALESCE(s.verbal_score,     0)
+		            WHEN 3 THEN COALESCE(s.quantitative_score, 0)
+		       END,
+		       ts.questions_per_test
+		FROM submissions s
+		CROSS JOIN (
+		    SELECT name, questions_per_test,
+		           ROW_NUMBER() OVER (ORDER BY sort_order ASC, id ASC) AS rn
+		    FROM test_sections
+		) ts
+		WHERE ts.rn <= 3
+		  AND NOT EXISTS (
+		      SELECT 1 FROM submission_section_scores sss WHERE sss.submission_id = s.id
+		  )
+		  AND (s.analytical_score > 0 OR s.verbal_score > 0 OR s.quantitative_score > 0)
+	`)
+	if err != nil {
+		log.Printf("Section score backfill warning: %v", err)
 	}
 }

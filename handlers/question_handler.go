@@ -494,19 +494,21 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	// Load the canonical section names from the DB so we can resolve whatever
-	// labels the user typed in the spreadsheet to the exact DB names.
+	// Load canonical section names upfront so we can resolve spreadsheet labels.
+	// Close the cursor immediately (not via defer) to free the connection before
+	// the long per-row import loop begins.
 	var dbSections []string
 	if srows, err2 := config.DB.Query(
 		"SELECT name FROM test_sections ORDER BY sort_order ASC, id ASC",
 	); err2 == nil {
-		defer srows.Close()
 		for srows.Next() {
 			var n string
 			if srows.Scan(&n) == nil {
 				dbSections = append(dbSections, n)
 			}
 		}
+		_ = srows.Err() // log-worthy but non-fatal: partial list still resolves most names
+		srows.Close()
 	}
 
 	questionCount := 0
@@ -570,7 +572,7 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 
 			// Positional fallback for old MCQ-only files with no header row.
 			if questionText == "" && len(row) >= 5 {
-				if len(row) >= 6 && looksLikeSection(row[0]) {
+				if len(row) >= 6 && looksLikeSection(row[0], dbSections) {
 					section = row[0]
 					resolveSection(&section, dbSections)
 					questionText, optionA, optionB, optionC, optionD = row[1], row[2], row[3], row[4], row[5]
