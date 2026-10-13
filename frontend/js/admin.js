@@ -1704,32 +1704,35 @@ function renderAnswers(rows) {
   if (!tbody) return;
   const selectAll = document.getElementById('selectAllAnswers');
   if (selectAll) selectAll.checked = false;
-  tbody.innerHTML = rows.length
-    ? rows.map(a => {
-        const hasAnswer = a.correct_option && a.correct_option !== '';
-        const isMCQOpt  = hasAnswer && /^[A-Da-d]$/.test(a.correct_option.trim());
-        const optionBadge = hasAnswer
-          ? (isMCQOpt
-              ? `<span class="pill pill-green">Option ${escapeHtml(a.correct_option.toUpperCase())}</span>`
-              : `<span class="pill" style="background:#ede9fe;color:#5b21b6;border-color:#ddd6fe" title="Fill-in-the-blank answer">${escapeHtml(a.correct_option)}</span>`)
-          : `<span class="pill" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Not Set</span>`;
-        const actionCell = isSuperAdmin() ? `<td><div class="flex gap-2">
-            ${hasAnswer
-              ? `<button class="btn-icon btn-warning" title="Edit"   onclick="editAnswer(${a.id})">${ICON.edit}</button>
-                 <button class="btn-icon btn-danger"  title="Delete" onclick="deleteAnswer(${a.id})">${ICON.trash}</button>`
-              : ''
-            }
-          </div></td>` : '';
-        return `
-        <tr>
-          ${isSuperAdmin() ? `<td class="text-center">${hasAnswer ? `<input type="checkbox" class="answer-checkbox" data-id="${a.id}" ${selectedAnswerIds.has(a.id) ? 'checked' : ''} onchange="toggleAnswerSelection(${a.id}, this)">` : ''}</td>` : ''}
-          <td>${a.question_id}</td>
-          <td><span class="pill pill-teal">${escapeHtml(a.section || '-')}</span></td>
-          <td class="min-w-[300px]">${escapeHtml(a.question_text)}</td>
-          <td>${optionBadge}</td>
-          ${actionCell}
-        </tr>`;
-      }).join('')
+    ? (() => {
+        let num = 0;
+        return rows.map(a => {
+          num++;
+          const hasAnswer = a.correct_option && a.correct_option !== '';
+          const isMCQOpt  = hasAnswer && /^[A-Da-d]$/.test(a.correct_option.trim());
+          const optionBadge = hasAnswer
+            ? (isMCQOpt
+                ? `<span class="pill pill-green">Option ${escapeHtml(a.correct_option.toUpperCase())}</span>`
+                : `<span class="pill" style="background:#ede9fe;color:#5b21b6;border-color:#ddd6fe" title="Fill-in-the-blank answer">${escapeHtml(a.correct_option)}</span>`)
+            : `<span class="pill" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Not Set</span>`;
+          const actionCell = isSuperAdmin() ? `<td><div class="flex gap-2">
+              ${hasAnswer
+                ? `<button class="btn-icon btn-warning" title="Edit"   onclick="editAnswer(${a.id})">${ICON.edit}</button>
+                   <button class="btn-icon btn-danger"  title="Delete" onclick="deleteAnswer(${a.id})">${ICON.trash}</button>`
+                : ''
+              }
+            </div></td>` : '';
+          return `
+          <tr>
+            ${isSuperAdmin() ? `<td class="text-center">${hasAnswer ? `<input type="checkbox" class="answer-checkbox" data-id="${a.id}" ${selectedAnswerIds.has(a.id) ? 'checked' : ''} onchange="toggleAnswerSelection(${a.id}, this)">` : ''}</td>` : ''}
+            <td>${num}</td>
+            <td><span class="pill pill-teal">${escapeHtml(a.section || '-')}</span></td>
+            <td class="min-w-[300px]">${escapeHtml(a.question_text)}</td>
+            <td>${optionBadge}</td>
+            ${actionCell}
+          </tr>`;
+        }).join('');
+      })()
     : `<tr><td colspan="${isSuperAdmin() ? 6 : 4}" class="text-center text-slate-500 py-8">No questions found.</td></tr>`;
 }
 
