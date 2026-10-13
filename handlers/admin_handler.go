@@ -147,9 +147,22 @@ func totalQuestionsFromSections(sections []models.TestSection) int {
 	return total
 }
 
-// DeleteResult removes a single submission by its ID.
+// DeleteResult removes a single submission by its ID and resets the participant
+// so they can retake the test with a clean slate: fresh question draw and a
+// reset timer. participant_answers and submission_section_scores are removed
+// automatically via ON DELETE CASCADE on the submissions foreign key.
 func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
+
+	// Find the participant_id before deleting so we can reset their state.
+	var participantID int
+	if err := config.DB.QueryRow(
+		"SELECT participant_id FROM submissions WHERE id=$1", id,
+	).Scan(&participantID); err != nil {
+		utils.Error(w, http.StatusNotFound, "Result not found")
+		return
+	}
+
 	res, err := config.DB.Exec("DELETE FROM submissions WHERE id=$1", id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not delete result")
@@ -160,7 +173,19 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusNotFound, "Result not found")
 		return
 	}
-	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted successfully"})
+
+	// Reset the participant so their next attempt is fully fresh:
+	// - assigned_question_ids cleared → a new random question set will be drawn
+	// - started_at cleared            → the countdown timer resets to full duration
+	if _, err := config.DB.Exec(
+		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL WHERE id=$1",
+		participantID,
+	); err != nil {
+		// Non-fatal: log but still return success since the submission is gone.
+		_ = err
+	}
+
+	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted. The participant may now retake the test."})
 }
 
 // loadSectionScoresBatch fetches section scores for all given submission IDs in a
