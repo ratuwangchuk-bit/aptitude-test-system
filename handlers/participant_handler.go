@@ -150,18 +150,6 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extend the participant's passcode so it outlives the test session.
-	// The passcode controls ENTRY only — natural expiry must not end an active
-	// test. GREATEST ensures we only push the deadline forward, never back.
-	// If the passcode was explicitly deleted (admin kill-switch), this is a no-op.
-	_, _ = config.DB.Exec(`
-		UPDATE passcodes
-		SET expires_at = GREATEST(expires_at, NOW() + ($1::int * INTERVAL '1 second'))
-		WHERE id = (SELECT passcode_id FROM participants WHERE id = $2)`,
-		secondsRemaining+60, // add a 60-second buffer beyond the test end
-		req.ParticipantID,
-	)
-
 	utils.JSON(w, http.StatusOK, map[string]int{"seconds_remaining": secondsRemaining})
 }
 

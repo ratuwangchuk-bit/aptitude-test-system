@@ -89,9 +89,13 @@ func CheckPasscodeStatus(w http.ResponseWriter, r *http.Request) {
 		utils.JSON(w, http.StatusOK, map[string]bool{"valid": false})
 		return
 	}
+	// For mid-test polling the only meaningful event is the admin deleting the
+	// passcode row (the kill-switch). Natural expiry must not interrupt an active
+	// session — ValidatePasscode already blocked late entrants at the gate.
+	// So we check row existence only, not expires_at.
 	var valid bool
 	if err := config.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM passcodes WHERE id=$1 AND expires_at > NOW())",
+		"SELECT EXISTS(SELECT 1 FROM passcodes WHERE id=$1)",
 		id,
 	).Scan(&valid); err != nil {
 		// DB error: fail-open so a transient error doesn't kick mid-exam participants.
