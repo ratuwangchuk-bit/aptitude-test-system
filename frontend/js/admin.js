@@ -372,6 +372,24 @@ async function deleteSectionFromCard(id) {
   } catch (err) { showError(err.message, 'Delete Failed'); }
 }
 
+function _checkPasscodeDurationMismatch() {
+  const dur = Number(document.getElementById('test_duration')?.value) || 0;
+  const val = Number(document.getElementById('passcode_validity')?.value) || 0;
+  let warn = document.getElementById('_passcodeWarn');
+  if (dur > 0 && val > 0 && val < dur) {
+    if (!warn) {
+      warn = document.createElement('p');
+      warn.id = '_passcodeWarn';
+      warn.style.cssText = 'margin-top:6px;font-size:.78rem;font-weight:700;color:#b45309;display:flex;align-items:center;gap:4px';
+      document.getElementById('passcode_validity')?.closest('label,div')?.after(warn);
+    }
+    warn.textContent = `⚠ Passcode validity (${val} min) is shorter than the test duration (${dur} min). Active participants will not be affected — their passcode is automatically extended when they start — but new participants won't be able to join after ${val} minutes.`;
+    warn.hidden = false;
+  } else if (warn) {
+    warn.hidden = true;
+  }
+}
+
 async function loadTestConfigForm() {
   const form = document.getElementById('configForm');
   if (!form && !document.getElementById('titleForm')) return;
@@ -383,6 +401,9 @@ async function loadTestConfigForm() {
       document.getElementById('passcode_validity').value = cfg.passcode_validity_minutes || 90;
     if (document.getElementById('test_title'))
       document.getElementById('test_title').value = cfg.test_title || 'Online Aptitude Test';
+    _checkPasscodeDurationMismatch();
+    document.getElementById('test_duration')?.addEventListener('input', _checkPasscodeDurationMismatch);
+    document.getElementById('passcode_validity')?.addEventListener('input', _checkPasscodeDurationMismatch);
   } catch { /* leave defaults */ }
 }
 
