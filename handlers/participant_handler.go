@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -42,17 +43,28 @@ func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var id int
+	var id, secondsLeft int
 	err := config.DB.QueryRow(
-		"SELECT id FROM passcodes WHERE code=$1 AND expires_at > NOW()",
+		"SELECT id, EXTRACT(EPOCH FROM (expires_at - NOW()))::int FROM passcodes WHERE code=$1 AND expires_at > NOW()",
 		req.Code,
-	).Scan(&id)
+	).Scan(&id, &secondsLeft)
 	if err == sql.ErrNoRows {
 		utils.Error(w, http.StatusBadRequest, "Invalid or expired passcode")
 		return
 	}
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not validate passcode")
+		return
+	}
+
+	// Block entry if the passcode won't last long enough for the participant to
+	// complete the full test. We check here (at the entry gate) rather than
+	// mid-test so the participant gets a clear, actionable message up front.
+	if testSecs := testDurationSeconds(); secondsLeft < testSecs {
+		utils.Error(w, http.StatusBadRequest, fmt.Sprintf(
+			"The passcode expires in %d minute(s), which is less than the test duration (%d minutes). You will not be able to complete the test in time. Please contact the administrator.",
+			secondsLeft/60, testSecs/60,
+		))
 		return
 	}
 
