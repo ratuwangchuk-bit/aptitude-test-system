@@ -928,34 +928,12 @@ function closeResultDetail() {
 function downloadIndividualResult() {
   const d = currentResultDetail;
   if (!d) return;
-  const opts = (a) => ({ A: a.option_a, B: a.option_b, C: a.option_c, D: a.option_d, E: a.option_e });
-  // All participant/question data is HTML-escaped before being written to the popup
-  // via win.document.write(). Without escaping, a question saved with an HTML payload
-  // (e.g. <script>…</script>) would execute in the admin-origin print window.
-  const rows = (d.answers || []).map((a, i) => {
-    const o        = opts(a);
-    const sel      = a.selected_option || '';
-    const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : (escapeHtml(sel) || '—');
-    const corrText = a.correct_option && o[a.correct_option]
-      ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}`
-      : (escapeHtml(a.correct_option) || '—');
-    const rowCls   = a.is_correct ? 'correct-row' : (sel ? 'wrong-row' : '');
-    const status   = a.is_correct ? '<span class="status-c">&#10003; Correct</span>'
-      : (sel ? '<span class="status-w">&#10007; Wrong</span>' : '<span class="status-s">&#8212; Skipped</span>');
-    return `<tr class="${rowCls}">
-      <td style="text-align:center;color:#94a3b8;font-weight:900">${i + 1}</td>
-      <td>${escapeHtml(a.section || '—')}</td>
-      <td>${escapeHtml(a.question_text)}</td>
-      <td class="${a.is_correct ? 'ans-c' : (sel ? 'ans-w' : '')}">${selText}</td>
-      <td class="ans-c">${corrText}</td>
-      <td>${status}</td>
-    </tr>`;
-  }).join('');
 
-  const pct = Number(d.percentage || 0).toFixed(1);
+  const pct        = Number(d.percentage || 0).toFixed(1);
   const submittedAt = d.submitted_at ? formatDate(d.submitted_at) : '—';
-  const totalQ = d.total_questions || allSections.filter(s => s.is_active).reduce((s, sec) => s + sec.questions_per_test, 0);
+  const totalQ     = d.total_questions || allSections.filter(s => s.is_active).reduce((s, sec) => s + sec.questions_per_test, 0);
 
+  // Score summary bar
   const scoreHtml = (() => {
     let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}${totalQ ? `/${totalQ}` : ''}</span></div>`;
     (d.section_scores || []).forEach(ss => {
@@ -966,40 +944,124 @@ function downloadIndividualResult() {
     return h;
   })();
 
+  // Question cards — card per question with image + all options
+  // Image URLs are resolved in this (parent) context where toDirectImageUrl is available,
+  // so the print popup does not need any runtime script access to the helper.
+  let lastSection = null;
+  let qNum = 0;
+  const cardsHtml = (d.answers || []).map(a => {
+    qNum++;
+    const sel = a.selected_option || '';
+    const cor = a.correct_option  || '';
+
+    // Section separator
+    let secHtml = '';
+    if (a.section !== lastSection) {
+      lastSection = a.section;
+      secHtml = `<div class="sec-hdr">${escapeHtml(a.section || 'General')}</div>`;
+    }
+
+    // Status badge
+    const statusHtml = a.is_correct
+      ? `<span class="badge-c">&#10003; Correct</span>`
+      : (sel ? `<span class="badge-w">&#10007; Wrong</span>` : `<span class="badge-s">&#8212; Skipped</span>`);
+
+    // Image — URL resolved in parent context so no CORS / helper needed in popup
+    const resolvedImg = a.image_url ? toDirectImageUrl(a.image_url) : '';
+    const imgHtml     = resolvedImg
+      ? `<img class="q-img" src="${escapeHtml(resolvedImg)}" alt="" onerror="this.style.display='none'">`
+      : '';
+
+    // All options A–E (skip truly empty ones)
+    const optEntries = [
+      { k: 'A', v: a.option_a }, { k: 'B', v: a.option_b },
+      { k: 'C', v: a.option_c }, { k: 'D', v: a.option_d },
+      { k: 'E', v: a.option_e },
+    ].filter(o => o.v && o.v.trim() !== '');
+
+    const optsHtml = optEntries.map(o => {
+      const isCor = o.k === cor;
+      const isSel = o.k === sel && !isCor;
+      const cls   = isCor ? 'opt opt-c' : (isSel ? 'opt opt-w' : 'opt');
+      const icon  = isCor ? '&#10003; ' : (isSel ? '&#10007; ' : '');
+      return `<div class="${cls}">${icon}<b>${o.k}.</b> ${escapeHtml(o.v)}</div>`;
+    }).join('');
+
+    const cardCls = a.is_correct ? 'q-card card-c' : (sel ? 'q-card card-w' : 'q-card card-s');
+    return `${secHtml}
+    <div class="${cardCls}">
+      <div class="q-top"><span class="q-num">Q${qNum}</span>${statusHtml}</div>
+      <div class="q-text">${escapeHtml(a.question_text)}</div>
+      ${imgHtml}
+      <div class="opts">${optsHtml}</div>
+    </div>`;
+  }).join('');
+
+  const noData = !d.answers || d.answers.length === 0
+    ? `<p style="text-align:center;color:#94a3b8;padding:32px">No per-question data available.</p>`
+    : cardsHtml;
+
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
   <title>${escapeHtml(testTitle)} &#8212; ${escapeHtml(d.full_name)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;padding:28px;font-size:13px}
-    .header{border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:14px}
-    .org{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
-    .test-name{font-size:20px;font-weight:900;margin-bottom:4px}
-    .name{font-size:15px;font-weight:700;color:#1e293b}.sub{color:#64748b;font-size:11.5px;margin-top:5px}
-    .scores{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
-    .si{text-align:center;min-width:82px}.si .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;display:block;margin-bottom:3px}
-    .si .val{font-weight:900;font-size:16px}
-    .si.total .val{color:#3730a3}.si.ana .val{color:#c2410c}.si.ver .val{color:#1d4ed8}.si.qnt .val{color:#166534}.si.pct .val{color:#0f766e}.si.rnk .val{color:#7c3aed}
-    table{width:100%;border-collapse:collapse;font-size:11.5px}
-    th{padding:7px 9px;text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.055em;color:#475569;background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap}
-    td{padding:6px 9px;border-top:1px solid #f1f5f9;vertical-align:top}
-    .correct-row{background:rgba(220,252,231,.45)}.wrong-row{background:rgba(254,226,226,.45)}
-    .status-c{color:#16a34a;font-weight:900}.status-w{color:#dc2626;font-weight:900}.status-s{color:#94a3b8}
-    .ans-c{color:#15803d;font-weight:700}.ans-w{color:#b91c1c;font-weight:700}
-    .footer{margin-top:14px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between}
-    @media print{body{padding:0}}
+    body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;padding:24px;font-size:13px;background:#fff}
+    /* ── Header ── */
+    .header{border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:12px}
+    .org{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2563eb;margin-bottom:5px}
+    .test-name{font-size:19px;font-weight:900;margin-bottom:3px}
+    .p-name{font-size:14px;font-weight:700;color:#1e293b}
+    .sub{color:#64748b;font-size:11px;margin-top:4px}
+    /* ── Score bar ── */
+    .scores{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:11px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+    .si{text-align:center;min-width:76px}
+    .si .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;display:block;margin-bottom:2px}
+    .si .val{font-weight:900;font-size:15px}
+    .si.total .val{color:#3730a3}.si.pct .val{color:#0f766e}.si.rnk .val{color:#7c3aed}
+    /* ── Section header ── */
+    .sec-hdr{background:#1e40af;color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;
+             letter-spacing:.07em;padding:5px 10px;border-radius:5px;margin:14px 0 6px}
+    /* ── Question card ── */
+    .q-card{border:1px solid #e2e8f0;border-radius:8px;padding:11px 13px;margin-bottom:8px;
+            border-left-width:4px;page-break-inside:avoid;break-inside:avoid}
+    .card-c{border-left-color:#16a34a;background:rgba(220,252,231,.25)}
+    .card-w{border-left-color:#dc2626;background:rgba(254,226,226,.2)}
+    .card-s{border-left-color:#94a3b8;background:#f9fafb}
+    .q-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+    .q-num{font-weight:900;font-size:11.5px;color:#64748b}
+    .badge-c{font-size:11px;font-weight:800;color:#15803d}
+    .badge-w{font-size:11px;font-weight:800;color:#b91c1c}
+    .badge-s{font-size:11px;font-weight:600;color:#94a3b8}
+    .q-text{font-size:12.5px;line-height:1.55;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+    /* ── Image (tables, diagrams, etc.) ── */
+    .q-img{display:block;max-width:100%;max-height:320px;object-fit:contain;
+           border:1px solid #e2e8f0;border-radius:6px;margin-bottom:9px}
+    /* ── Options ── */
+    .opts{display:flex;flex-direction:column;gap:4px}
+    .opt{font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid #f1f5f9;
+         background:#f9fafb;line-height:1.45;word-break:break-word}
+    .opt-c{background:#dcfce7;border-color:#86efac;color:#14532d;font-weight:700}
+    .opt-w{background:#fee2e2;border-color:#fca5a5;color:#7f1d1d;font-weight:700}
+    /* ── Footer ── */
+    .footer{margin-top:16px;font-size:10.5px;color:#94a3b8;border-top:1px solid #e2e8f0;
+            padding-top:9px;display:flex;justify-content:space-between}
+    /* ── Print ── */
+    @media print{
+      body{padding:10px}
+      .q-card{page-break-inside:avoid;break-inside:avoid}
+      .sec-hdr{page-break-after:avoid;break-after:avoid}
+      .scores{page-break-inside:avoid;break-inside:avoid}
+    }
   </style></head><body>
   <div class="header">
     <div class="org">Digital Aptitude Evaluation System &mdash; DHI</div>
     <div class="test-name">${escapeHtml(testTitle)}</div>
-    <div class="name">${escapeHtml(d.full_name)}</div>
+    <div class="p-name">${escapeHtml(d.full_name)}</div>
     <div class="sub">CID: ${escapeHtml(d.cid_number || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.company_name || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.contact_number || '&#8212;')}</div>
   </div>
   <div class="scores">${scoreHtml}</div>
-  <table>
-    <thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">No per-question data available.</td></tr>'}</tbody>
-  </table>
-  <div class="footer"><span>Submitted: ${submittedAt}</span><span>DAES — Confidential</span></div>
+  ${noData}
+  <div class="footer"><span>Submitted: ${submittedAt}</span><span>DAES &mdash; Confidential</span></div>
   <script>window.onload=()=>{window.print()}<\/script>
   </body></html>`;
 
