@@ -845,8 +845,8 @@ function showResultDetailModal(d) {
       qNum++;
       const o   = opts(a);
       const sel = a.selected_option || '';
-      const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : (sel || '—');
-      const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}` : (a.correct_option || '—');
+      const selText  = sel && o[sel] ? `${sel}. ${escapeHtml(o[sel])}` : escapeHtml(sel || '—');
+      const corrText = a.correct_option && o[a.correct_option] ? `${a.correct_option}. ${escapeHtml(o[a.correct_option])}` : escapeHtml(a.correct_option || '—');
       const rowCls   = a.is_correct ? 'rd-row-correct' : (sel ? 'rd-row-wrong' : '');
       const statusBadge = a.is_correct
         ? `<span class="rd-status correct">✓</span>`

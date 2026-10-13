@@ -115,11 +115,13 @@ func resolveSection(section *string, dbSections []string) {
 		}
 	}
 
-	// 4. Substring match — only for values long enough to be meaningful.
+	// 4. Substring match — the uploaded cell value must appear inside a DB section
+	// name (one-directional so a short section name cannot accidentally match an
+	// unrelated longer value). Only applied for values ≥ 3 chars to avoid false
+	// positives from very short strings.
 	if len(v) >= 3 {
 		for _, s := range dbSections {
-			sl := strings.ToLower(s)
-			if strings.Contains(sl, v) || strings.Contains(v, sl) {
+			if strings.Contains(strings.ToLower(s), v) {
 				*section = s
 				return
 			}

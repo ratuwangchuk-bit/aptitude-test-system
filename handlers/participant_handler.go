@@ -121,6 +121,9 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 
 	duration := testDurationSeconds()
 	var secondsRemaining int
+	// passcode_id IS NOT NULL confirms the participant went through ValidateCID,
+	// preventing an unauthenticated caller from manipulating another participant's
+	// timer by guessing their sequential integer ID.
 	err := config.DB.QueryRow(`
 		WITH upd AS (
 			UPDATE participants
@@ -138,7 +141,7 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 				-- First open (started_at IS NULL): record the start time.
 				ELSE NOW()
 			END
-			WHERE id = $1
+			WHERE id = $1 AND passcode_id IS NOT NULL
 			RETURNING started_at
 		)
 		SELECT GREATEST(0, $2 - FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)))::int)

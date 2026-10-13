@@ -333,6 +333,21 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question updated"})
 }
 
+// safeRemoveImage deletes a question image file only when its resolved path
+// stays inside the expected upload directory, preventing path traversal if
+// the DB row is ever tampered with.
+func safeRemoveImage(imageURL string) {
+	if imageURL == "" {
+		return
+	}
+	const uploadRoot = "frontend/uploads"
+	resolved := filepath.Clean(filepath.Join("frontend", imageURL))
+	if !strings.HasPrefix(resolved, uploadRoot) {
+		return
+	}
+	os.Remove(resolved)
+}
+
 // DeleteQuestion removes a question by ID and its associated image file.
 func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
@@ -352,11 +367,7 @@ func DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clean up the image file if one existed.
-	if imageURL.Valid && imageURL.String != "" {
-		os.Remove(filepath.Join("frontend", imageURL.String))
-	}
-
+	safeRemoveImage(imageURL.String)
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Question deleted"})
 }
 
@@ -396,9 +407,7 @@ func UploadQuestionImage(w http.ResponseWriter, r *http.Request) {
 	// Remove old image file if present.
 	var oldURL sql.NullString
 	config.DB.QueryRow("SELECT image_url FROM questions WHERE id=$1", id).Scan(&oldURL)
-	if oldURL.Valid && oldURL.String != "" {
-		os.Remove(filepath.Join("frontend", oldURL.String))
-	}
+	safeRemoveImage(oldURL.String)
 
 	// Save new file with a name derived from question ID for easy lookup.
 	filename := fmt.Sprintf("q%d%s", id, ext)
@@ -464,7 +473,14 @@ func ImageProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+		// Refuse all redirects: allowlisted hosts could otherwise redirect to
+		// internal/metadata addresses, leaking private data via the proxy.
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	resp, err := client.Get(raw)
 	if err != nil || resp.StatusCode >= 400 {
 		utils.Error(w, http.StatusBadGateway, "Could not fetch image")
@@ -488,9 +504,7 @@ func RemoveQuestionImage(w http.ResponseWriter, r *http.Request) {
 	var imageURL sql.NullString
 	config.DB.QueryRow("SELECT image_url FROM questions WHERE id=$1", id).Scan(&imageURL)
 
-	if imageURL.Valid && imageURL.String != "" {
-		os.Remove(filepath.Join("frontend", imageURL.String))
-	}
+	safeRemoveImage(imageURL.String)
 	config.DB.Exec("UPDATE questions SET image_url=NULL WHERE id=$1", id)
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Image removed"})
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,14 +47,27 @@ func RateLimit(maxRequests int, window time.Duration) func(http.HandlerFunc) htt
 	}
 }
 
-// clientIP returns the remote TCP connection's IP, stripped of its port.
-// It deliberately ignores X-Forwarded-For: this app is not known to run
-// behind a trusted reverse proxy, and trusting a client-supplied header would
-// let an attacker spoof a fresh IP on every request to defeat the limiter.
+// clientIP returns the client's real IP for rate-limit bucketing.
+// When RemoteAddr is a loopback or RFC-1918 address (i.e. we are behind a
+// reverse proxy such as Render's routing layer), we trust the first value of
+// X-Forwarded-For, which the proxy sets to the real client IP. We only trust
+// XFF in that case — if the connection arrives directly (public RemoteAddr),
+// we use RemoteAddr to prevent a caller from spoofing a fresh IP each request.
 func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if idx := strings.IndexByte(xff, ','); idx != -1 {
+				xff = xff[:idx]
+			}
+			if xff = strings.TrimSpace(xff); xff != "" {
+				return xff
+			}
+		}
 	}
 	return host
 }

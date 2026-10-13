@@ -113,6 +113,9 @@ func MigrateDB() {
 		`ALTER TABLE test_config ADD COLUMN IF NOT EXISTS test_title TEXT NOT NULL DEFAULT 'Online Aptitude Test'`,
 		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_question_ids INT[]`,
 		`ALTER TABLE test_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		// Prevent duplicate submissions under concurrent requests (two simultaneous
+		// beacon+manual submits). CREATE UNIQUE INDEX IF NOT EXISTS is idempotent.
+		`CREATE UNIQUE INDEX IF NOT EXISTS submissions_participant_id_unique ON submissions(participant_id)`,
 	}
 	for _, m := range migrations {
 		if _, err := DB.Exec(m); err != nil {

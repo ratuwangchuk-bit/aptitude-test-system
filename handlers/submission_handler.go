@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -104,6 +106,23 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 	if alreadySubmitted {
 		utils.Error(w, http.StatusConflict, "You have already submitted this test")
 		return
+	}
+
+	// Server-side time enforcement: reject submissions that arrive more than
+	// 120 seconds after the participant's timer should have expired. The grace
+	// period covers network latency and the pagehide beacon delay. Participants
+	// who never reached the test page (started_at IS NULL) are allowed through
+	// so the zero-score auto-submit can still record their attempt.
+	var startedAt sql.NullTime
+	if err := tx.QueryRow(
+		"SELECT started_at FROM participants WHERE id=$1", req.ParticipantID,
+	).Scan(&startedAt); err == nil && startedAt.Valid {
+		duration := testDurationSeconds()
+		deadline := startedAt.Time.Add(time.Duration(duration+120) * time.Second)
+		if time.Now().After(deadline) {
+			utils.Error(w, http.StatusForbidden, "Submission rejected: the test time limit has been exceeded")
+			return
+		}
 	}
 
 	err = tx.QueryRow(

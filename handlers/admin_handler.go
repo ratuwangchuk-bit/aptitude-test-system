@@ -154,35 +154,42 @@ func totalQuestionsFromSections(sections []models.TestSection) int {
 func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
+	tx, err := config.DB.Begin()
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not start transaction")
+		return
+	}
+	defer tx.Rollback()
+
 	// Find the participant_id before deleting so we can reset their state.
 	var participantID int
-	if err := config.DB.QueryRow(
+	if err := tx.QueryRow(
 		"SELECT participant_id FROM submissions WHERE id=$1", id,
 	).Scan(&participantID); err != nil {
 		utils.Error(w, http.StatusNotFound, "Result not found")
 		return
 	}
 
-	res, err := config.DB.Exec("DELETE FROM submissions WHERE id=$1", id)
-	if err != nil {
+	if _, err := tx.Exec("DELETE FROM submissions WHERE id=$1", id); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not delete result")
-		return
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		utils.Error(w, http.StatusNotFound, "Result not found")
 		return
 	}
 
 	// Reset the participant so their next attempt is fully fresh:
 	// - assigned_question_ids cleared → a new random question set will be drawn
 	// - started_at cleared            → the countdown timer resets to full duration
-	if _, err := config.DB.Exec(
-		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL WHERE id=$1",
+	// - passcode_id cleared           → forces re-entry through the passcode gate
+	if _, err := tx.Exec(
+		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL, passcode_id = NULL WHERE id=$1",
 		participantID,
 	); err != nil {
-		// Non-fatal: log but still return success since the submission is gone.
-		_ = err
+		utils.Error(w, http.StatusInternalServerError, "Could not reset participant state")
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not complete deletion")
+		return
 	}
 
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted. The participant may now retake the test."})
