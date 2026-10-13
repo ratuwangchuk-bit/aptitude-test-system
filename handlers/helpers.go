@@ -61,40 +61,52 @@ func isEmptyExcelRow(row []string) bool {
 	return true
 }
 
-// sectionFromSheet derives a normalised section name from an Excel sheet name.
-// It lets users name their sheets "Section A", "Analytical", "A", etc. and have
-// the system map them to the canonical section name automatically.
-func sectionFromSheet(sheetName string) string {
-	section := sheetName
-	normalizeSection(&section)
-	return section
+// resolveSection maps a raw section value from an uploaded Excel file to the
+// closest matching section name that exists in the database.
+//
+// Priority:
+//  1. Exact case-insensitive match against a DB section name.
+//  2. One value contains the other (case-insensitive) — handles "Verbal" matching
+//     a DB section name or vice-versa.
+//  3. No match — the raw trimmed value is kept so the question is still imported
+//     and an admin can reassign it later.
+func resolveSection(section *string, dbSections []string) {
+	raw := strings.TrimSpace(*section)
+	if raw == "" || len(dbSections) == 0 {
+		*section = raw
+		return
+	}
+	v := strings.ToLower(raw)
+	// 1. Exact match.
+	for _, s := range dbSections {
+		if strings.ToLower(s) == v {
+			*section = s
+			return
+		}
+	}
+	// 2. Substring match.
+	for _, s := range dbSections {
+		sl := strings.ToLower(s)
+		if strings.Contains(v, sl) || strings.Contains(sl, v) {
+			*section = s
+			return
+		}
+	}
+	// 3. Keep raw value.
+	*section = raw
 }
 
 // looksLikeSection reports whether a cell value looks like a section identifier.
-// This is used during backward-compatible parsing of old Excel templates where
-// the section was inlined as the first column rather than given its own header.
+// Used during backward-compatible positional parsing of old Excel files where
+// section was the first column rather than a named header.
 func looksLikeSection(value string) bool {
 	v := strings.ToLower(strings.TrimSpace(value))
-	return strings.Contains(v, "analytical") ||
-		strings.Contains(v, "verbal") ||
-		strings.Contains(v, "quantitative") ||
-		v == "a" || v == "b" || v == "c" ||
-		strings.Contains(v, "section")
+	// Short single-letter codes or anything that starts with "section" are safe bets.
+	return v == "a" || v == "b" || v == "c" || strings.HasPrefix(v, "section")
 }
 
-// normalizeSection maps common legacy aliases to canonical section names.
-// Known short-hands (a/b/c, "section a", "analytical", etc.) are expanded;
-// any other value is left unchanged so custom section names added through the
-// admin UI pass through without being corrupted.
+// normalizeSection is kept for the single-question add/edit flows only.
+// Bulk upload uses resolveSection (DB-aware) instead.
 func normalizeSection(section *string) {
-	v := strings.ToLower(strings.TrimSpace(*section))
-	switch {
-	case v == "a" || v == "section a" || strings.Contains(v, "analytical"):
-		*section = "Analytical Ability"
-	case v == "b" || v == "section b" || strings.Contains(v, "verbal"):
-		*section = "Verbal Ability"
-	case v == "c" || v == "section c" || strings.Contains(v, "quantitative"):
-		*section = "Quantitative Skills"
-	// All other values — including custom section names — are kept as-is.
-	}
+	*section = strings.TrimSpace(*section)
 }

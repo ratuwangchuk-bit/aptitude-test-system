@@ -255,17 +255,9 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		percentage = (float64(score) / float64(total)) * 100
 	}
 
-	// Keep legacy columns populated for backward compatibility with old queries.
-	_, err = tx.Exec(`
-		UPDATE submissions
-		SET score=$1, percentage=$2,
-		    analytical_score=$3, verbal_score=$4, quantitative_score=$5
-		WHERE id=$6`,
-		score, percentage,
-		sectionScores["Analytical Ability"],
-		sectionScores["Verbal Ability"],
-		sectionScores["Quantitative Skills"],
-		submissionID,
+	_, err = tx.Exec(
+		"UPDATE submissions SET score=$1, percentage=$2 WHERE id=$3",
+		score, percentage, submissionID,
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not save result")
@@ -314,15 +306,10 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 	var detail models.SubmissionDetail
 	err := config.DB.QueryRow(`
 		SELECT id, pid, full_name, cid_number, company_name, contact_number,
-		       score, total_questions, analytical_score, verbal_score, quantitative_score,
-		       percentage, rank, submitted_at
+		       score, total_questions, percentage, rank, submitted_at
 		FROM (
 			SELECT s.id, p.id AS pid, p.full_name, p.cid_number, p.company_name, p.contact_number,
-			       s.score, s.total_questions,
-			       COALESCE(s.analytical_score,0) AS analytical_score,
-			       COALESCE(s.verbal_score,0)     AS verbal_score,
-			       COALESCE(s.quantitative_score,0) AS quantitative_score,
-			       s.percentage,
+			       s.score, s.total_questions, s.percentage,
 			       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 			       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 			FROM submissions s JOIN participants p ON s.participant_id=p.id
@@ -332,7 +319,6 @@ func GetSubmissionDetail(w http.ResponseWriter, r *http.Request) {
 	).Scan(
 		&detail.SubmissionID, &detail.ParticipantID, &detail.FullName, &detail.CIDNumber,
 		&detail.CompanyName, &detail.ContactNumber, &detail.Score, &detail.TotalQuestions,
-		&detail.AnalyticalScore, &detail.VerbalScore, &detail.QuantitativeScore,
 		&detail.Percentage, &detail.Rank, &detail.SubmittedAt,
 	)
 	if err != nil {
@@ -397,15 +383,10 @@ func GetParticipantResult(w http.ResponseWriter, r *http.Request) {
 	var res models.Result
 	err := config.DB.QueryRow(`
 		SELECT id, pid, full_name, cid_number, company_name, contact_number,
-		       score, total_questions, analytical_score, verbal_score, quantitative_score,
-		       percentage, rank, submitted_at
+		       score, total_questions, percentage, rank, submitted_at
 		FROM (
 			SELECT s.id, p.id AS pid, p.full_name, p.cid_number, p.company_name, p.contact_number,
-			       s.score, s.total_questions,
-			       COALESCE(s.analytical_score,0)    AS analytical_score,
-			       COALESCE(s.verbal_score,0)         AS verbal_score,
-			       COALESCE(s.quantitative_score,0)   AS quantitative_score,
-			       s.percentage,
+			       s.score, s.total_questions, s.percentage,
 			       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 			       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 			FROM submissions s JOIN participants p ON s.participant_id=p.id
@@ -416,7 +397,6 @@ func GetParticipantResult(w http.ResponseWriter, r *http.Request) {
 	).Scan(
 		&res.SubmissionID, &res.ParticipantID, &res.FullName, &res.CIDNumber,
 		&res.CompanyName, &res.ContactNumber, &res.Score, &res.TotalQuestions,
-		&res.AnalyticalScore, &res.VerbalScore, &res.QuantitativeScore,
 		&res.Percentage, &res.Rank, &res.SubmittedAt,
 	)
 	if err != nil {

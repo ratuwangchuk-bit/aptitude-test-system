@@ -202,9 +202,7 @@ func loadSectionScoresBatch(ids []int) map[int][]models.SectionScore {
 func GetResults(w http.ResponseWriter, r *http.Request) {
 	rows, err := config.DB.Query(`
 		SELECT s.id, p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
-		       s.score, s.total_questions,
-		       COALESCE(s.analytical_score,0), COALESCE(s.verbal_score,0), COALESCE(s.quantitative_score,0),
-		       s.percentage,
+		       s.score, s.total_questions, s.percentage,
 		       DENSE_RANK() OVER (ORDER BY s.percentage DESC) AS rank,
 		       to_char(s.submitted_at, 'YYYY-MM-DD HH24:MI') AS submitted_at
 		FROM submissions s
@@ -223,7 +221,6 @@ func GetResults(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&res.SubmissionID, &res.ParticipantID, &res.FullName, &res.CIDNumber,
 			&res.CompanyName, &res.ContactNumber, &res.Score, &res.TotalQuestions,
-			&res.AnalyticalScore, &res.VerbalScore, &res.QuantitativeScore,
 			&res.Percentage, &res.Rank, &res.SubmittedAt,
 		); err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not read results")

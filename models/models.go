@@ -102,25 +102,20 @@ type SubmitTestRequest struct {
 }
 
 // Result is the summary row returned by the results API.
-// SectionScores holds the per-section breakdown from submission_section_scores;
-// the three legacy fields (AnalyticalScore etc.) are kept for backward
-// compatibility with submissions created before this feature was added.
+// SectionScores holds the dynamic per-section breakdown from submission_section_scores.
 type Result struct {
-	SubmissionID      int            `json:"submission_id"`
-	ParticipantID     int            `json:"participant_id"`
-	FullName          string         `json:"full_name"`
-	CIDNumber         string         `json:"cid_number"`
-	CompanyName       string         `json:"company_name"`
-	ContactNumber     string         `json:"contact_number"`
-	Score             int            `json:"score"`
-	TotalQuestions    int            `json:"total_questions"`
-	AnalyticalScore   int            `json:"analytical_score"`
-	VerbalScore       int            `json:"verbal_score"`
-	QuantitativeScore int            `json:"quantitative_score"`
-	Percentage        float64        `json:"percentage"`
-	Rank              int            `json:"rank"`
-	SubmittedAt       string         `json:"submitted_at"`
-	SectionScores     []SectionScore `json:"section_scores"`
+	SubmissionID   int            `json:"submission_id"`
+	ParticipantID  int            `json:"participant_id"`
+	FullName       string         `json:"full_name"`
+	CIDNumber      string         `json:"cid_number"`
+	CompanyName    string         `json:"company_name"`
+	ContactNumber  string         `json:"contact_number"`
+	Score          int            `json:"score"`
+	TotalQuestions int            `json:"total_questions"`
+	Percentage     float64        `json:"percentage"`
+	Rank           int            `json:"rank"`
+	SubmittedAt    string         `json:"submitted_at"`
+	SectionScores  []SectionScore `json:"section_scores"`
 }
 
 // ParticipantAnswerDetail is one row in the per-question breakdown.
@@ -141,20 +136,17 @@ type ParticipantAnswerDetail struct {
 
 // SubmissionDetail extends Result with a full per-question answer breakdown.
 type SubmissionDetail struct {
-	SubmissionID      int                       `json:"submission_id"`
-	ParticipantID     int                       `json:"participant_id"`
-	FullName          string                    `json:"full_name"`
-	CIDNumber         string                    `json:"cid_number"`
-	CompanyName       string                    `json:"company_name"`
-	ContactNumber     string                    `json:"contact_number"`
-	Score             int                       `json:"score"`
-	TotalQuestions    int                       `json:"total_questions"`
-	AnalyticalScore   int                       `json:"analytical_score"`
-	VerbalScore       int                       `json:"verbal_score"`
-	QuantitativeScore int                       `json:"quantitative_score"`
-	Percentage        float64                   `json:"percentage"`
-	Rank              int                       `json:"rank"`
-	SubmittedAt       string                    `json:"submitted_at"`
-	SectionScores     []SectionScore            `json:"section_scores"`
-	Answers           []ParticipantAnswerDetail `json:"answers"`
+	SubmissionID   int                       `json:"submission_id"`
+	ParticipantID  int                       `json:"participant_id"`
+	FullName       string                    `json:"full_name"`
+	CIDNumber      string                    `json:"cid_number"`
+	CompanyName    string                    `json:"company_name"`
+	ContactNumber  string                    `json:"contact_number"`
+	Score          int                       `json:"score"`
+	TotalQuestions int                       `json:"total_questions"`
+	Percentage     float64                   `json:"percentage"`
+	Rank           int                       `json:"rank"`
+	SubmittedAt    string                    `json:"submitted_at"`
+	SectionScores  []SectionScore            `json:"section_scores"`
+	Answers        []ParticipantAnswerDetail `json:"answers"`
 }

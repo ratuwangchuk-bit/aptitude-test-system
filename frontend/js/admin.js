@@ -591,10 +591,7 @@ function renderSectionChart(rows) {
     let total = 0;
     rows.forEach(r => {
       const ss = (r.section_scores || []).find(s => s.section_name === sec.name);
-      if (ss) { total += ss.score; }
-      else if (sec.name === 'Analytical Ability')  total += r.analytical_score  || 0;
-      else if (sec.name === 'Verbal Ability')       total += r.verbal_score      || 0;
-      else if (sec.name === 'Quantitative Skills')  total += r.quantitative_score || 0;
+      if (ss) total += ss.score;
     });
     const avg     = total / n;
     const percent = Math.min(100, (avg / sec.questions_per_test) * 100);
@@ -717,22 +714,13 @@ function renderResults(rows) {
     if (activeSections.length) {
       return activeSections.map(sec => {
         const [, bg, color] = sectionPalette(sec.name);
-        if (hasNew) {
-          const ss = scoreByName[sec.name];
-          const score = ss ? ss.score : 0;
-          const total = ss ? ss.questions_count : sec.questions_per_test;
-          return `<td><span class="score-badge" style="background:${bg};color:${color}">${score}/${total}</span></td>`;
-        }
-        if (sec.name === 'Analytical Ability')  return `<td><span class="score-badge" style="background:${bg};color:${color}">${r.analytical_score}/16</span></td>`;
-        if (sec.name === 'Verbal Ability')       return `<td><span class="score-badge" style="background:${bg};color:${color}">${r.verbal_score}/16</span></td>`;
-        if (sec.name === 'Quantitative Skills')  return `<td><span class="score-badge" style="background:${bg};color:${color}">${r.quantitative_score}/16</span></td>`;
-        return `<td>—</td>`;
+        const ss    = scoreByName[sec.name];
+        const score = ss ? ss.score          : 0;
+        const total = ss ? ss.questions_count : sec.questions_per_test;
+        return `<td><span class="score-badge" style="background:${bg};color:${color}">${score}/${total}</span></td>`;
       }).join('');
     }
-    return `
-      <td><span class="score-badge analytical">${r.analytical_score}/16</span></td>
-      <td><span class="score-badge verbal">${r.verbal_score}/16</span></td>
-      <td><span class="score-badge quantitative">${r.quantitative_score}/16</span></td>`;
+    return '';
   };
 
   tbody.innerHTML = rows.length
@@ -859,16 +847,10 @@ function showResultDetailModal(d) {
     const pct = Number(d.percentage || 0).toFixed(1);
     const totalQ = d.total_questions || allSections.filter(s => s.is_active).reduce((s, sec) => s + sec.questions_per_test, 0);
     let cards = `<div class="rd-score-item total"><span>Total</span><b>${d.score}${totalQ ? `/${totalQ}` : ''}</b></div>`;
-    if (d.section_scores && d.section_scores.length) {
-      d.section_scores.forEach(ss => {
-        const [, , , accent] = sectionPalette(ss.section_name);
-        cards += `<div class="rd-score-item"><span>${escapeHtml(ss.section_name)}</span><b style="color:${accent}">${ss.score}/${ss.questions_count}</b></div>`;
-      });
-    } else {
-      cards += `<div class="rd-score-item analytical"><span>Analytical</span><b>${d.analytical_score}/16</b></div>`;
-      cards += `<div class="rd-score-item verbal"><span>Verbal</span><b>${d.verbal_score}/16</b></div>`;
-      cards += `<div class="rd-score-item quantitative"><span>Quantitative</span><b>${d.quantitative_score}/16</b></div>`;
-    }
+    (d.section_scores || []).forEach(ss => {
+      const [, , , accent] = sectionPalette(ss.section_name);
+      cards += `<div class="rd-score-item"><span>${escapeHtml(ss.section_name)}</span><b style="color:${accent}">${ss.score}/${ss.questions_count}</b></div>`;
+    });
     cards += `<div class="rd-score-item pct"><span>Score %</span><b>${pct}%</b></div>`;
     cards += `<div class="rd-score-item rank"><span>Rank</span><b>#${d.rank}</b></div>`;
     return cards;
@@ -952,15 +934,9 @@ function downloadIndividualResult() {
 
   const scoreHtml = (() => {
     let h = `<div class="si total"><span class="lbl">Total Score</span><span class="val">${d.score}${totalQ ? `/${totalQ}` : ''}</span></div>`;
-    if (d.section_scores && d.section_scores.length) {
-      d.section_scores.forEach(ss => {
-        h += `<div class="si"><span class="lbl">${escapeHtml(ss.section_name)}</span><span class="val">${ss.score}/${ss.questions_count}</span></div>`;
-      });
-    } else {
-      h += `<div class="si ana"><span class="lbl">Analytical</span><span class="val">${d.analytical_score}/16</span></div>`;
-      h += `<div class="si ver"><span class="lbl">Verbal</span><span class="val">${d.verbal_score}/16</span></div>`;
-      h += `<div class="si qnt"><span class="lbl">Quantitative</span><span class="val">${d.quantitative_score}/16</span></div>`;
-    }
+    (d.section_scores || []).forEach(ss => {
+      h += `<div class="si"><span class="lbl">${escapeHtml(ss.section_name)}</span><span class="val">${ss.score}/${ss.questions_count}</span></div>`;
+    });
     h += `<div class="si pct"><span class="lbl">Score %</span><span class="val">${pct}%</span></div>`;
     h += `<div class="si rnk"><span class="lbl">Rank</span><span class="val">#${d.rank}</span></div>`;
     return h;
@@ -1060,11 +1036,9 @@ async function printAllResults() {
     (r.section_scores || []).forEach(ss => { scoreByName[ss.section_name] = ss; });
     const hasNew = r.section_scores && r.section_scores.length > 0;
     const secCols = exportSecs.map(sec => {
-      let score = 0, total = sec.questions_per_test;
-      if (hasNew) { const ss = scoreByName[sec.name]; score = ss ? ss.score : 0; total = ss ? ss.questions_count : sec.questions_per_test; }
-      else if (sec.name === 'Analytical Ability')  score = r.analytical_score || 0;
-      else if (sec.name === 'Verbal Ability')       score = r.verbal_score || 0;
-      else if (sec.name === 'Quantitative Skills')  score = r.quantitative_score || 0;
+      const ss    = scoreByName[sec.name];
+      const score = ss ? ss.score          : 0;
+      const total = ss ? ss.questions_count : sec.questions_per_test;
       return `<td class="c sec">${score}<span class="of">/${total}</span></td>`;
     }).join('');
     return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
@@ -1299,13 +1273,7 @@ function renderQuestions(rows) {
   // Rebuild bank summary now that questions are known.
   renderBankSummary();
 
-  const useSections = allSections.filter(s => s.is_active).length
-    ? allSections.filter(s => s.is_active)
-    : [
-        { name: 'Analytical Ability',  label: 'Section A · Analytical Ability',  sort_order: 1 },
-        { name: 'Verbal Ability',      label: 'Section B · Verbal Ability',       sort_order: 2 },
-        { name: 'Quantitative Skills', label: 'Section C · Quantitative Skills',  sort_order: 3 },
-      ];
+  const useSections = allSections.filter(s => s.is_active);
 
   const cols = isSuperAdmin() ? 6 : 4;
   if (!rows.length) {

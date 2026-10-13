@@ -494,6 +494,21 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
+	// Load the canonical section names from the DB so we can resolve whatever
+	// labels the user typed in the spreadsheet to the exact DB names.
+	var dbSections []string
+	if srows, err2 := config.DB.Query(
+		"SELECT name FROM test_sections ORDER BY sort_order ASC, id ASC",
+	); err2 == nil {
+		defer srows.Close()
+		for srows.Next() {
+			var n string
+			if srows.Scan(&n) == nil {
+				dbSections = append(dbSections, n)
+			}
+		}
+	}
+
 	questionCount := 0
 	answerCount := 0
 	for _, sheet := range f.GetSheetList() {
@@ -501,7 +516,9 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 		if err != nil || len(rows) < 2 {
 			continue
 		}
-		sheetSection := sectionFromSheet(sheet)
+		// Derive the fallback section from the sheet name using the DB-aware resolver.
+		sheetSection := strings.TrimSpace(sheet)
+		resolveSection(&sheetSection, dbSections)
 		headerMap := excelHeaderMap(rows[0])
 
 		for i, row := range rows {
@@ -513,7 +530,7 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			if section == "" {
 				section = sheetSection
 			}
-			normalizeSection(&section)
+			resolveSection(&section, dbSections)
 
 			// Determine question type first — it controls which fields are required.
 			questionType := strings.ToLower(strings.TrimSpace(firstNonEmpty(
@@ -555,7 +572,7 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 			if questionText == "" && len(row) >= 5 {
 				if len(row) >= 6 && looksLikeSection(row[0]) {
 					section = row[0]
-					normalizeSection(&section)
+					resolveSection(&section, dbSections)
 					questionText, optionA, optionB, optionC, optionD = row[1], row[2], row[3], row[4], row[5]
 					if len(row) >= 7 {
 						correctOption = strings.ToUpper(row[6])
