@@ -548,8 +548,10 @@ body.modal-open { overflow: hidden; }
 .rd-panel    { position: relative; background: #fff; border-radius: 1.35rem; width: 100%; max-width: 960px; margin: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--line); animation: modalPop .16s ease-out; }
 
 .rd-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.25rem 1.6rem; border-bottom: 1px solid var(--line); }
-.rd-name   { font-size: 1.15rem; font-weight: 900; color: var(--ink); }
-.rd-sub    { font-size: .8rem; font-weight: 600; color: #6b7280; margin-top: .18rem; }
+.rd-org         { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #2563eb; margin-bottom: .25rem; }
+.rd-name        { font-size: 1.15rem; font-weight: 900; color: var(--ink); }
+.rd-participant { font-size: .9rem; font-weight: 700; color: #374151; margin-top: .2rem; }
+.rd-sub         { font-size: .8rem; font-weight: 600; color: #6b7280; margin-top: .18rem; }
 .rd-close  { width: 2.2rem; height: 2.2rem; border-radius: .65rem; border: 1px solid var(--line); background: #f9fafb; display: grid; place-items: center; flex-shrink: 0; cursor: pointer; transition: background .14s; }
 .rd-close:hover { background: #fee2e2; border-color: #fecaca; }
 .rd-close svg   { width: 1rem; height: 1rem; }
@@ -702,6 +704,8 @@ body.admin-body:not(.role-loaded) .super-only { visibility: hidden !important; }
 @media (max-width: 480px) {
   .modern-table th, .modern-table td { padding: .6rem .65rem; font-size: .8rem; }
   .rd-table th, .rd-table td { padding: .5rem .7rem; font-size: .8rem; }
-  .rd-name { font-size: 1rem; }
-  .rd-sub  { font-size: .72rem; }
+  .rd-org         { font-size: .68rem; }
+  .rd-name        { font-size: 1rem; }
+  .rd-participant { font-size: .82rem; }
+  .rd-sub         { font-size: .72rem; }
 }

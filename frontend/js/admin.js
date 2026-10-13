@@ -10,6 +10,7 @@ let allPasscodes        = [];
 let allParticipants     = [];
 let allSections         = []; // from /api/admin/settings/sections
 let currentAdmin        = { id: 0, role: '', username: '' };
+let testTitle           = 'Online Aptitude Test'; // refreshed whenever the dashboard loads
 let dashboardTimer      = null;
 let passcodesTimer      = null;
 
@@ -552,6 +553,7 @@ async function loadDashboard(showErrors = true) {
       </div>`;
 
     allResults = await api('/api/admin/results');
+    try { const tc = await api('/api/admin/settings/config'); testTitle = tc.test_title || 'Online Aptitude Test'; } catch { /* keep default */ }
     renderResultsTableHeader();
     renderResults(filterResults(allResults));
     renderCharts(allResults, appeared, registered);
@@ -888,7 +890,9 @@ function showResultDetailModal(d) {
     <div class="rd-panel">
       <div class="rd-header">
         <div>
-          <h2 class="rd-name">${escapeHtml(d.full_name)}</h2>
+          <p class="rd-org">Digital Aptitude Evaluation System &mdash; DHI</p>
+          <h2 class="rd-name">${escapeHtml(testTitle)}</h2>
+          <p class="rd-participant">${escapeHtml(d.full_name)}</p>
           <p class="rd-sub">CID: ${escapeHtml(d.cid_number || '—')} &nbsp;·&nbsp; ${escapeHtml(d.company_name || '—')} &nbsp;·&nbsp; ${escapeHtml(d.contact_number || '—')}</p>
         </div>
         <button class="rd-close" onclick="closeResultDetail()" aria-label="Close">
@@ -963,13 +967,14 @@ function downloadIndividualResult() {
   })();
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-  <title>Result &#8212; ${escapeHtml(d.full_name)}</title>
+  <title>${escapeHtml(testTitle)} &#8212; ${escapeHtml(d.full_name)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Helvetica,Arial,sans-serif;color:#0f172a;padding:28px;font-size:13px}
     .header{border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:14px}
     .org{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
-    .name{font-size:20px;font-weight:900}.sub{color:#64748b;font-size:11.5px;margin-top:5px}
+    .test-name{font-size:20px;font-weight:900;margin-bottom:4px}
+    .name{font-size:15px;font-weight:700;color:#1e293b}.sub{color:#64748b;font-size:11.5px;margin-top:5px}
     .scores{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
     .si{text-align:center;min-width:82px}.si .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.055em;color:#64748b;display:block;margin-bottom:3px}
     .si .val{font-weight:900;font-size:16px}
@@ -984,7 +989,8 @@ function downloadIndividualResult() {
     @media print{body{padding:0}}
   </style></head><body>
   <div class="header">
-    <div class="org">Digital Aptitude Evaluation System &#8212; Individual Result</div>
+    <div class="org">Digital Aptitude Evaluation System &mdash; DHI</div>
+    <div class="test-name">${escapeHtml(testTitle)}</div>
     <div class="name">${escapeHtml(d.full_name)}</div>
     <div class="sub">CID: ${escapeHtml(d.cid_number || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.company_name || '&#8212;')} &nbsp;&middot;&nbsp; ${escapeHtml(d.contact_number || '&#8212;')}</div>
   </div>
