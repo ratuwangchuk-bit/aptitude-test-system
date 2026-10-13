@@ -72,9 +72,13 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify each active section has enough questions.
+	// The count uses ILIKE for case-insensitive matching so a section named
+	// "Verbal Ability" still matches questions stored as "verbal ability".
 	for _, sec := range sections {
 		var cnt int
-		if err := config.DB.QueryRow("SELECT COUNT(*) FROM questions WHERE section=$1", sec.Name).Scan(&cnt); err != nil {
+		if err := config.DB.QueryRow(
+			"SELECT COUNT(*) FROM questions WHERE LOWER(section) = LOWER($1)", sec.Name,
+		).Scan(&cnt); err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not count questions. Please try again.")
 			return
 		}
@@ -92,7 +96,7 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	for i, sec := range sections {
 		// $1,$2 for section 0; $3,$4 for section 1; etc.
 		parts[i] = fmt.Sprintf(
-			"(SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'') FROM questions WHERE section=$%d ORDER BY random() LIMIT $%d)",
+			"(SELECT id, section, question_text, COALESCE(question_type,'mcq'), option_a, option_b, option_c, option_d, COALESCE(option_e,''), COALESCE(image_url,'') FROM questions WHERE LOWER(section) = LOWER($%d) ORDER BY random() LIMIT $%d)",
 			i*2+1, i*2+2,
 		)
 		args[i*2] = sec.Name
@@ -146,26 +150,39 @@ func GetQuestions(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, qs)
 }
 
-// assignedSetStillActive reports whether every one of the given question IDs
-// still exists and belongs to a still-active section. A question deleted
-// outright (e.g. a question bank re-upload that replaces old rows with new
-// ones under different IDs) or a section that was deleted entirely (no
-// matching test_sections row) both count as no longer active — otherwise
-// fetchQuestionsByIDs would silently return a truncated set instead of an
-// error. Used both by GetQuestions and by CheckTestAvailability so this kind
-// of change interrupts an in-progress exam, not just blocks a fresh start.
+// assignedSetStillActive reports whether the given question IDs are still
+// usable for an in-progress exam. Two conditions make a set invalid:
+//
+//  1. A question was deleted from the bank (row no longer exists).
+//  2. The question's section was explicitly disabled by an admin — this is the
+//     kill-switch that ends in-progress tests when a section is turned off.
+//
+// Critically, a question whose section has NO row in test_sections at all is
+// still considered valid: the admin may not have registered every section name
+// in the UI. We only block when the section is explicitly marked is_active=FALSE.
 func assignedSetStillActive(ids []int64) bool {
 	if len(ids) == 0 {
 		return true
 	}
-	var validCount int
+	// 1. All questions must still exist in the DB.
+	var existCount int
+	if err := config.DB.QueryRow(
+		`SELECT COUNT(*) FROM questions WHERE id = ANY($1)`, ids,
+	).Scan(&existCount); err != nil || existCount != len(ids) {
+		return false
+	}
+	// 2. None of the questions may belong to a section that is explicitly disabled.
+	var disabledCount int
 	err := config.DB.QueryRow(`
 		SELECT COUNT(*) FROM questions q
-		JOIN test_sections ts ON ts.name = q.section
-		WHERE q.id = ANY($1) AND ts.is_active = TRUE`,
+		WHERE q.id = ANY($1)
+		  AND EXISTS (
+		      SELECT 1 FROM test_sections ts
+		      WHERE ts.name = q.section AND ts.is_active = FALSE
+		  )`,
 		ids,
-	).Scan(&validCount)
-	return err == nil && validCount == len(ids)
+	).Scan(&disabledCount)
+	return err == nil && disabledCount == 0
 }
 
 // CheckTestAvailability reports whether a participant's already-assigned
