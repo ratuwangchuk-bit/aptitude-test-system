@@ -1403,8 +1403,12 @@ async function loadLiveProgress() {
 }
 
 async function _lpSuspend(id, suspend) {
-  const label = suspend ? 'suspend' : 'unsuspend';
-  if (!confirm(`Are you sure you want to ${label} this participant?\n\n${suspend ? 'Their test session will be terminated within 30 seconds.' : 'They will be able to continue their test.'}`)) return;
+  const label = suspend ? 'Suspend' : 'Unsuspend';
+  const msg   = suspend
+    ? 'This participant\'s test session will be terminated within 30 seconds. Are you sure?'
+    : 'This participant will be able to continue their test. Are you sure?';
+  const ok = await showConfirm(msg, `${label} Participant`, label);
+  if (!ok) return;
   try {
     await api(`/api/admin/participants/${id}/suspend`, {
       method: 'PUT',
@@ -1412,20 +1416,28 @@ async function _lpSuspend(id, suspend) {
     });
     loadLiveProgress();
   } catch (err) {
-    alert('Failed to ' + label + ' participant: ' + (err?.message || 'Unknown error'));
+    await showError(err?.message || 'Unknown error', `${label} Failed`);
   }
 }
 
 async function _lpAllowResume(btn) {
   const id   = btn.dataset.pid;
   const name = btn.dataset.pname;
-  if (!confirm(`Allow ${name} to resume the test from where they left off?\n\nThis will restore their previously answered questions and remove their submission record. They must re-enter via the passcode gate to continue (ask them to go back to the home page and re-enter their passcode and CID).`)) return;
+  const ok = await showConfirm(
+    `Allow ${name} to resume from where they left off?\n\nTheir previous answers will be restored and their submission record removed. Ask them to return to the home page and re-enter their passcode and CID.`,
+    'Allow Resume',
+    'Allow Resume',
+  );
+  if (!ok) return;
   try {
     const res = await api(`/api/admin/participants/${id}/allow-resume`, { method: 'POST' });
-    alert(`Resume enabled for ${name}. ${res.answers_saved} answer(s) restored.\n\nAsk the participant to return to the home page and re-enter their passcode and CID to continue.`);
+    await showSuccess(
+      `Resume enabled for ${name}. ${res.answers_saved} answer(s) restored. Ask the participant to return to the home page and re-enter their passcode and CID to continue.`,
+      'Resume Enabled',
+    );
     loadLiveProgress();
   } catch (err) {
-    alert('Failed to allow resume: ' + (err?.message || 'Unknown error'));
+    await showError(err?.message || 'Unknown error', 'Allow Resume Failed');
   }
 }
 
