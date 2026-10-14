@@ -384,7 +384,7 @@ function _checkPasscodeDurationMismatch() {
       warn.style.cssText = 'margin-top:6px;font-size:.78rem;font-weight:700;color:#b45309;display:flex;align-items:center;gap:4px';
       document.getElementById('passcode_validity')?.closest('label,div')?.after(warn);
     }
-    warn.textContent = `⚠ Passcode validity (${val} min) is shorter than the test duration (${dur} min). Active participants will not be affected — their passcode is automatically extended when they start — but new participants won't be able to join after ${val} minutes.`;
+    warn.textContent = `⚠ Passcode validity (${val} min) is shorter than the test duration (${dur} min). Participants who enter while the passcode is still active can complete their test uninterrupted, but late arrivals will be blocked from joining if less than ${dur} minutes remain on the passcode.`;
     warn.hidden = false;
   } else if (warn) {
     warn.hidden = true;
@@ -855,7 +855,7 @@ function showResultDetailModal(d) {
       html += `
         <tr class="${rowCls}">
           <td class="rd-qnum">${qNum}</td>
-          <td class="rd-qtext" colspan="2">${escapeHtml(a.question_text)}${imgHtml}</td>
+          <td class="rd-qtext" colspan="2">${renderQuestionText(a.question_text)}${imgHtml}</td>
           <td class="rd-ans ${a.is_correct ? 'correct' : (sel ? 'wrong' : '')}">${selText}</td>
           <td class="rd-ans correct">${corrText}</td>
           <td class="text-center">${statusBadge}</td>
@@ -991,7 +991,7 @@ function downloadIndividualResult() {
     return `${secHtml}
     <div class="${cardCls}">
       <div class="q-top"><span class="q-num">Q${qNum}</span>${statusHtml}</div>
-      <div class="q-text">${escapeHtml(a.question_text)}</div>
+      <div class="q-text">${renderQuestionText(a.question_text)}</div>
       ${imgHtml}
       <div class="opts">${optsHtml}</div>
     </div>`;
@@ -1032,7 +1032,14 @@ function downloadIndividualResult() {
     .badge-c{font-size:11px;font-weight:800;color:#15803d}
     .badge-w{font-size:11px;font-weight:800;color:#b91c1c}
     .badge-s{font-size:11px;font-weight:600;color:#94a3b8}
-    .q-text{font-size:12.5px;line-height:1.55;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+    .q-text{font-size:12.5px;line-height:1.55;margin-bottom:8px;word-break:break-word}
+    .q-text-para{margin:0 0 .35em;font-weight:inherit}
+    .q-text-para:last-child{margin-bottom:0}
+    .q-table-scroll{overflow-x:auto;margin:.4em 0}
+    .q-table{width:100%;border-collapse:collapse;font-size:.8em}
+    .q-table th,.q-table td{padding:.35em .6em;border:1px solid #e2e8f0;vertical-align:top}
+    .q-table th{background:#f1f5f9;font-weight:700;color:#475569;text-align:left}
+    .q-table tbody tr:nth-child(even) td{background:#f9fafb}
     /* ── Image (tables, diagrams, etc.) ── */
     .q-img{display:block;max-width:100%;max-height:320px;object-fit:contain;
            border:1px solid #e2e8f0;border-radius:6px;margin-bottom:9px}
@@ -1841,7 +1848,7 @@ function renderAnswers(rows) {
         return rows.map(a => {
           num++;
           const hasAnswer = a.correct_option && a.correct_option !== '';
-          const isMCQOpt  = hasAnswer && /^[A-Da-d]$/.test(a.correct_option.trim());
+          const isMCQOpt  = hasAnswer && /^[A-Ea-e]$/.test(a.correct_option.trim());
           const optionBadge = hasAnswer
             ? (isMCQOpt
                 ? `<span class="pill pill-green">Option ${escapeHtml(a.correct_option.toUpperCase())}</span>`
