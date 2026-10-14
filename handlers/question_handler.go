@@ -325,16 +325,6 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	if q.QuestionType == "" {
 		q.QuestionType = "mcq"
 	}
-	// Reject duplicate question text — exclude the question being updated itself.
-	var dupExists bool
-	config.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM questions WHERE LOWER(TRIM(question_text)) = LOWER(TRIM($1)) AND id <> $2)",
-		q.QuestionText, id,
-	).Scan(&dupExists)
-	if dupExists {
-		utils.Error(w, http.StatusConflict, "Another question with this text already exists in the question bank")
-		return
-	}
 	res, err := config.DB.Exec(`
 		UPDATE questions
 		SET section=$1, question_text=$2, question_type=$3, option_a=$4, option_b=$5, option_c=$6, option_d=$7, option_e=$8, image_url=NULLIF($9,'')
