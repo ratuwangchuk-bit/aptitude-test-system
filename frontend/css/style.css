@@ -331,6 +331,9 @@ table.modern-table {
 .lp-bar-hi   { background: #34d399; }
 .lp-bar-done { background: #22c55e; }
 .lp-pct      { font-size: .72rem; font-weight: 700; color: #475569; white-space: nowrap; min-width: 2.8rem; text-align: right; }
+.lp-frozen-tag { display: inline-block; margin-left: .35rem; font-size: .6rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #15803d; background: #dcfce7; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
+.lp-end-time   { font-size: .72rem; font-weight: 700; color: #15803d; white-space: nowrap; }
+.lp-row-done   { background: #f0fdf4; }
 
 /* Result table */
 .result-table thead th {

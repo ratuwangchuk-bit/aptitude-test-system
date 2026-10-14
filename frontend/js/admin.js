@@ -1340,7 +1340,7 @@ async function loadLiveProgress() {
     const statusBadge = (s) => {
       switch (s) {
         case 'in_progress':  return `<span class="lp-badge lp-active"><span class="lp-dot"></span>In Progress</span>`;
-        case 'submitted':    return `<span class="lp-badge lp-done">&#10003; Submitted</span>`;
+        case 'submitted':    return `<span class="lp-badge lp-done">&#10003; Completed</span>`;
         case 'timed_out':    return `<span class="lp-badge lp-timeout">Timed Out</span>`;
         case 'suspended':    return `<span class="lp-badge lp-suspended">&#9940; Suspended</span>`;
         default:             return `<span class="lp-badge lp-wait">Not Started</span>`;
@@ -1348,10 +1348,20 @@ async function loadLiveProgress() {
     };
 
     const actionBtn = (r) => {
+      // No action if the participant answered every question — the test is genuinely
+      // complete and there is nothing to resume or block.
+      if (r.total_questions > 0 && r.answered >= r.total_questions) return '';
+
       if (r.status === 'submitted') {
         // Use data-* attributes — embedding user-supplied strings directly inside
         // onclick="..." JS literals would reintroduce single-quote XSS via HTML decoding.
-        return `<button class="lp-btn lp-btn-resume" data-pid="${r.id}" data-pname="${escapeHtml(r.full_name)}" onclick="_lpAllowResume(this)">Allow Resume</button>`;
+        const suspendBtn = r.is_suspended
+          ? `<button class="lp-btn lp-btn-unsuspend" onclick="_lpSuspend(${r.id},false)">Unsuspend</button>`
+          : `<button class="lp-btn lp-btn-suspend"   onclick="_lpSuspend(${r.id},true)">Suspend</button>`;
+        return `<div class="flex flex-col gap-1">
+          <button class="lp-btn lp-btn-resume" data-pid="${r.id}" data-pname="${escapeHtml(r.full_name)}" onclick="_lpAllowResume(this)">Allow Resume</button>
+          ${suspendBtn}
+        </div>`;
       }
       if (r.status === 'suspended') {
         return `<button class="lp-btn lp-btn-unsuspend" onclick="_lpSuspend(${r.id},false)">Unsuspend</button>`;
@@ -1375,8 +1385,23 @@ async function loadLiveProgress() {
       const remainingClass = r.remaining_seconds > 0 && r.remaining_seconds < 300 ? 'text-red-600 font-bold' : '';
       const startedAt = r.started_at ? formatDate(r.started_at) : '—';
 
+      // For completed participants: show frozen elapsed (submitted_at − started_at) and
+      // the exact end-time in place of the "remaining" cell. Live participants show a
+      // countdown; timed-out show "Expired".
+      const elapsedCell = r.status === 'submitted'
+        ? `<span class="text-slate-500">${_fmtElapsed(r.elapsed_seconds)}</span><span class="lp-frozen-tag">final</span>`
+        : _fmtElapsed(r.elapsed_seconds);
+
+      const remainingCell = r.status === 'submitted'
+        ? (r.submitted_at
+            ? `<span class="lp-end-time">Ended ${formatDate(r.submitted_at)}</span>`
+            : '—')
+        : r.status === 'timed_out'
+          ? '<span class="text-red-500 font-semibold">Expired</span>'
+          : `<span class="${remainingClass}">${_fmtRemaining(r.remaining_seconds)}</span>`;
+
       return `
-        <tr class="hover:bg-slate-50 transition-colors">
+        <tr class="hover:bg-slate-50 transition-colors ${r.status === 'submitted' ? 'lp-row-done' : ''}">
           <td class="px-4 py-3 text-center text-slate-400 text-xs font-bold">${i + 1}</td>
           <td class="px-4 py-3">
             <div class="font-bold text-slate-800 text-sm">${escapeHtml(r.full_name)}</div>
@@ -1385,8 +1410,8 @@ async function loadLiveProgress() {
           <td class="px-4 py-3 text-slate-600 text-sm">${escapeHtml(r.company_name || '—')}</td>
           <td class="px-4 py-3 text-center">${statusBadge(r.status)}</td>
           <td class="px-4 py-3 text-center text-xs text-slate-500">${startedAt}</td>
-          <td class="px-4 py-3 text-center text-xs text-slate-600 font-semibold">${_fmtElapsed(r.elapsed_seconds)}</td>
-          <td class="px-4 py-3 text-center text-xs font-semibold ${remainingClass}">${r.status === 'submitted' ? '—' : r.status === 'timed_out' ? 'Expired' : _fmtRemaining(r.remaining_seconds)}</td>
+          <td class="px-4 py-3 text-center text-xs text-slate-600 font-semibold">${elapsedCell}</td>
+          <td class="px-4 py-3 text-center text-xs font-semibold">${remainingCell}</td>
           <td class="px-4 py-3"><div class="flex items-center gap-2">${progressBar}</div></td>
           <td class="px-4 py-3 text-center">${actionBtn(r)}</td>
         </tr>`;

@@ -207,7 +207,8 @@ type LiveProgressRow struct {
 	ContactNumber    string `json:"contact_number"`
 	Status           string `json:"status"`           // not_started | in_progress | suspended | timed_out | submitted
 	StartedAt        string `json:"started_at"`        // "" if not started
-	ElapsedSeconds   int    `json:"elapsed_seconds"`   // 0 if not started
+	SubmittedAt      string `json:"submitted_at"`      // "" unless submitted; frozen end-time
+	ElapsedSeconds   int    `json:"elapsed_seconds"`   // frozen at submission for submitted; live otherwise
 	RemainingSeconds int    `json:"remaining_seconds"` // 0 when timed out or submitted
 	TotalQuestions   int    `json:"total_questions"`   // size of assigned set; 0 before questions loaded
 	Answered         int    `json:"answered"`          // live heartbeat count
@@ -228,7 +229,8 @@ func GetLiveProgress(w http.ResponseWriter, r *http.Request) {
 		       COALESCE(array_length(p.assigned_question_ids, 1), 0) AS total_questions,
 		       p.progress_answered,
 		       EXISTS(SELECT 1 FROM submissions s WHERE s.participant_id = p.id) AS has_submitted,
-		       COALESCE(p.is_suspended, FALSE) AS is_suspended
+		       COALESCE(p.is_suspended, FALSE) AS is_suspended,
+		       (SELECT s.submitted_at FROM submissions s WHERE s.participant_id = p.id LIMIT 1) AS submitted_at
 		FROM participants p
 		ORDER BY
 		  CASE
@@ -248,10 +250,11 @@ func GetLiveProgress(w http.ResponseWriter, r *http.Request) {
 	result := []LiveProgressRow{}
 	for rows.Next() {
 		var row LiveProgressRow
-		var startedAt sql.NullTime
+		var startedAt, submittedAt sql.NullTime
 		if err := rows.Scan(
 			&row.ID, &row.FullName, &row.CIDNumber, &row.CompanyName, &row.ContactNumber,
 			&startedAt, &row.TotalQuestions, &row.Answered, &row.HasSubmitted, &row.IsSuspended,
+			&submittedAt,
 		); err != nil {
 			continue
 		}
@@ -260,11 +263,17 @@ func GetLiveProgress(w http.ResponseWriter, r *http.Request) {
 			row.Status = "submitted"
 			if startedAt.Valid {
 				row.StartedAt = startedAt.Time.UTC().Format("2006-01-02 15:04")
-				elapsed := int(time.Since(startedAt.Time).Seconds())
-				if elapsed < 0 {
-					elapsed = 0
+			}
+			if submittedAt.Valid {
+				row.SubmittedAt = submittedAt.Time.UTC().Format("2006-01-02 15:04")
+				// Freeze elapsed at the actual duration the participant used, not time.Since.
+				if startedAt.Valid {
+					elapsed := int(submittedAt.Time.Sub(startedAt.Time).Seconds())
+					if elapsed < 0 {
+						elapsed = 0
+					}
+					row.ElapsedSeconds = elapsed
 				}
-				row.ElapsedSeconds = elapsed
 			}
 		} else if startedAt.Valid {
 			elapsed := int(time.Since(startedAt.Time).Seconds())
