@@ -283,6 +283,23 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Stamp the final answered count on the participant row so GetLiveProgress
+	// shows the correct value even if the 30-second heartbeat never fired.
+	answeredCount := 0
+	for _, a := range allAnswers {
+		if a.selected != nil {
+			answeredCount++
+		}
+	}
+	_, err = tx.Exec(
+		"UPDATE participants SET progress_answered=$1 WHERE id=$2",
+		answeredCount, req.ParticipantID,
+	)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not update progress")
+		return
+	}
+
 	if err = tx.Commit(); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Submission failed")
 		return
