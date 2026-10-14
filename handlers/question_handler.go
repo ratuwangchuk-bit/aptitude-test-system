@@ -291,6 +291,16 @@ func AddQuestion(w http.ResponseWriter, r *http.Request) {
 	if q.QuestionType == "" {
 		q.QuestionType = "mcq"
 	}
+	// Reject duplicate question text (case-insensitive, whole bank).
+	var dupExists bool
+	config.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM questions WHERE LOWER(TRIM(question_text)) = LOWER(TRIM($1)))",
+		q.QuestionText,
+	).Scan(&dupExists)
+	if dupExists {
+		utils.Error(w, http.StatusConflict, "A question with this text already exists in the question bank")
+		return
+	}
 	err := config.DB.QueryRow(`
 		INSERT INTO questions (section, question_text, question_type, option_a, option_b, option_c, option_d, option_e, image_url)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9,'')) RETURNING id`,
@@ -314,6 +324,16 @@ func UpdateQuestion(w http.ResponseWriter, r *http.Request) {
 	normalizeSection(&q.Section)
 	if q.QuestionType == "" {
 		q.QuestionType = "mcq"
+	}
+	// Reject duplicate question text — exclude the question being updated itself.
+	var dupExists bool
+	config.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM questions WHERE LOWER(TRIM(question_text)) = LOWER(TRIM($1)) AND id <> $2)",
+		q.QuestionText, id,
+	).Scan(&dupExists)
+	if dupExists {
+		utils.Error(w, http.StatusConflict, "Another question with this text already exists in the question bank")
+		return
 	}
 	res, err := config.DB.Exec(`
 		UPDATE questions
@@ -635,6 +655,16 @@ func UploadQuestions(w http.ResponseWriter, r *http.Request) {
 				valueByHeader(row, headerMap, "image url"),
 				valueByHeader(row, headerMap, "image"),
 			))
+
+			// Skip rows whose question text already exists in the bank.
+			var dupExists bool
+			config.DB.QueryRow(
+				"SELECT EXISTS(SELECT 1 FROM questions WHERE LOWER(TRIM(question_text)) = LOWER(TRIM($1)))",
+				questionText,
+			).Scan(&dupExists)
+			if dupExists {
+				continue
+			}
 
 			var questionID int
 			err := config.DB.QueryRow(`

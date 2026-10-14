@@ -1536,12 +1536,46 @@ document.getElementById('questionSearch')?.addEventListener('input', (e) => {
 
 /* ── Question image helpers ────────────────────────────────── */
 
+function onImageLinkInput(val) {
+  const wrap  = document.getElementById('imagePreviewWrap');
+  const img   = document.getElementById('imagePreview');
+  const name  = document.getElementById('imageFileName');
+  const urlEl = document.getElementById('question_image_url');
+  val = (val || '').trim();
+  if (!val) {
+    // Clear only if the stored URL was a link (not a local upload already saved).
+    const stored = urlEl?.value || '';
+    if (stored.startsWith('http')) {
+      if (urlEl) urlEl.value = '';
+      if (wrap) wrap.classList.add('hidden');
+      if (name) name.textContent = '';
+      document.getElementById('removeImageBtn')?.classList.add('hidden');
+    }
+    return;
+  }
+  // Link provided — clear any pending file selection and update the preview.
+  const fileEl = document.getElementById('questionImageFile');
+  if (fileEl) fileEl.value = '';
+  if (urlEl) urlEl.value = val;
+  if (name) name.textContent = '';
+  const resolved = toDirectImageUrl(val);
+  if (img) {
+    img.src = resolved;
+    img.onerror = () => { img.onerror = null; };
+  }
+  if (wrap) wrap.classList.remove('hidden');
+  document.getElementById('removeImageBtn')?.classList.remove('hidden');
+}
+
 function previewQuestionImage(input) {
   const file = input.files[0];
   const wrap = document.getElementById('imagePreviewWrap');
   const img  = document.getElementById('imagePreview');
   const name = document.getElementById('imageFileName');
   if (!file) { if (wrap) wrap.classList.add('hidden'); return; }
+  // File chosen — clear any link that was entered.
+  const linkEl = document.getElementById('questionImageLink');
+  if (linkEl) linkEl.value = '';
   name.textContent = file.name;
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -1558,8 +1592,9 @@ async function removeQuestionImage() {
     try { await api(`/api/admin/questions/${id}/image`, { method: 'DELETE' }); }
     catch { /* ignore */ }
   }
-  document.getElementById('question_image_url').value = '';
-  document.getElementById('questionImageFile').value  = '';
+  document.getElementById('question_image_url').value  = '';
+  document.getElementById('questionImageFile').value   = '';
+  document.getElementById('questionImageLink').value   = '';
   document.getElementById('imagePreviewWrap')?.classList.add('hidden');
   document.getElementById('imageFileName').textContent = '';
   document.getElementById('removeImageBtn')?.classList.add('hidden');
@@ -1644,17 +1679,23 @@ function editQuestion(id) {
     highlightCorrectOpt();
   }
   // Show existing image if present.
-  const wrap = document.getElementById('imagePreviewWrap');
-  const img  = document.getElementById('imagePreview');
+  const wrap    = document.getElementById('imagePreviewWrap');
+  const img     = document.getElementById('imagePreview');
+  const linkEl  = document.getElementById('questionImageLink');
   if (q.image_url && wrap && img) {
     img.src = toDirectImageUrl(q.image_url);
     wrap.classList.remove('hidden');
     document.getElementById('removeImageBtn')?.classList.remove('hidden');
-  } else if (wrap) {
-    wrap.classList.add('hidden');
+    // If the stored URL is a remote link, populate the link input so the admin
+    // can see and edit it; local uploads just show the filename label.
+    if (linkEl) linkEl.value = q.image_url.startsWith('http') ? q.image_url : '';
+    document.getElementById('imageFileName').textContent = q.image_url.startsWith('/') ? 'Existing upload' : '';
+  } else {
+    if (wrap) wrap.classList.add('hidden');
+    if (linkEl) linkEl.value = '';
     document.getElementById('removeImageBtn')?.classList.add('hidden');
+    document.getElementById('imageFileName').textContent = '';
   }
-  document.getElementById('imageFileName').textContent = q.image_url ? 'Existing image' : '';
   document.getElementById('questionFormTitle').textContent = `Edit Question #${q.id}`;
   document.getElementById('questionSubmitBtn').querySelector('span').textContent = 'Update Question';
   document.getElementById('saveAndAddAnotherBtn')?.classList.add('hidden');
@@ -1666,6 +1707,7 @@ function resetQuestionForm(keepSection = false) {
   document.getElementById('questionForm')?.reset();
   document.getElementById('question_id_edit').value    = '';
   document.getElementById('question_image_url').value  = '';
+  document.getElementById('questionImageLink').value   = '';
   document.getElementById('imagePreviewWrap')?.classList.add('hidden');
   document.getElementById('imageFileName').textContent = '';
   document.getElementById('removeImageBtn')?.classList.add('hidden');
