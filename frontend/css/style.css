@@ -292,6 +292,16 @@ table.modern-table {
 .q-chevron { transition: transform .18s; }
 .q-chevron.open { transform: rotate(180deg); }
 
+/* Question text rendering (shared with test page; light-theme overrides) */
+.q-list-text { font-weight: 700; color: #1e293b; line-height: 1.55; cursor: pointer; }
+.q-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: .5rem 0; border-radius: .5rem; }
+.q-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.q-table th, .q-table td { padding: .45rem .7rem; border: 1px solid #e2e8f0; vertical-align: top; }
+.q-table th { background: #f1f5f9; font-weight: 700; color: #475569; text-align: left; }
+.q-table tbody tr:nth-child(even) td { background: #f9fafb; }
+.q-text-para { margin: 0 0 .35rem; font-weight: inherit; }
+.q-text-para:last-child { margin-bottom: 0; }
+
 /* Result table */
 .result-table thead th {
   text-align: center; color: #4b5563; font-size: .82rem;

@@ -157,48 +157,7 @@ function updateSectionTabs() {
 
 /* ── Markdown table renderer ───────────────────────────────────────────────── */
 
-function renderQuestionText(raw) {
-  const lines = raw.split('\n');
-  const parts = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    if (lines[i].includes('|')) {
-      const tableLines = [];
-      while (i < lines.length && lines[i].includes('|')) {
-        tableLines.push(lines[i]);
-        i++;
-      }
-      const rows  = tableLines.map(l =>
-        l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim())
-      );
-      const isSep = r => r.every(c => /^[-:\s]+$/.test(c));
-      const sepIdx = rows.findIndex(isSep);
-
-      const headerRows = sepIdx > 0 ? rows.slice(0, sepIdx) : [];
-      const dataRows   = sepIdx >= 0 ? rows.slice(sepIdx + 1) : rows;
-
-      let html = '<table class="q-table">';
-      if (headerRows.length) {
-        html += '<thead>' + headerRows.map(r =>
-          '<tr>' + r.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>'
-        ).join('') + '</thead>';
-      }
-      if (dataRows.length) {
-        html += '<tbody>' + dataRows.map(r =>
-          '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>'
-        ).join('') + '</tbody>';
-      }
-      html += '</table>';
-      parts.push(`<div class="q-table-scroll">${html}</div>`);
-    } else {
-      const trimmed = lines[i].trim();
-      if (trimmed) parts.push(`<p class="q-text-para">${escapeHtml(trimmed)}</p>`);
-      i++;
-    }
-  }
-  return parts.join('');
-}
+// renderQuestionText is defined in common.js (shared with admin.js)
 
 /* ── Question display ──────────────────────────────────────────────────────── */
 

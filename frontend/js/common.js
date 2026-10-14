@@ -229,6 +229,58 @@ function showConfirm(message, title = 'Please Confirm', confirmText = 'Confirm')
  * - Parses the JSON response body and throws a descriptive Error when the
  *   HTTP status is not in the 2xx range, using the server's "error" field if present.
  */
+/**
+ * Renders question text as HTML, converting any pipe-delimited markdown tables
+ * into real <table> elements so admins and participants can read structured data.
+ * All cell and paragraph content is HTML-escaped before insertion.
+ */
+function renderQuestionText(raw) {
+  if (!raw) return '';
+  const lines = raw.split('\n');
+  const parts = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    if (lines[i].includes('|')) {
+      // Collect every consecutive line that contains a pipe.
+      const tableLines = [];
+      while (i < lines.length && lines[i].includes('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      // Parse each row: strip outer pipes, split on '|', trim cells.
+      const rows = tableLines.map(l =>
+        l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim())
+      );
+      // Identify the separator row (cells made of dashes/colons only).
+      const isSep  = r => r.length > 0 && r.every(c => /^[-:\s]+$/.test(c));
+      const sepIdx = rows.findIndex(isSep);
+
+      const headerRows = sepIdx > 0  ? rows.slice(0, sepIdx)    : [];
+      const dataRows   = sepIdx >= 0 ? rows.slice(sepIdx + 1)   : rows;
+
+      let html = '<table class="q-table">';
+      if (headerRows.length) {
+        html += '<thead>' + headerRows.map(r =>
+          '<tr>' + r.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>'
+        ).join('') + '</thead>';
+      }
+      if (dataRows.length) {
+        html += '<tbody>' + dataRows.map(r =>
+          '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>'
+        ).join('') + '</tbody>';
+      }
+      html += '</table>';
+      parts.push(`<div class="q-table-scroll">${html}</div>`);
+    } else {
+      const trimmed = lines[i].trim();
+      if (trimmed) parts.push(`<p class="q-text-para">${escapeHtml(trimmed)}</p>`);
+      i++;
+    }
+  }
+  return parts.join('');
+}
+
 async function api(url, options = {}) {
   const res  = await fetch(url, {
     credentials: 'include',

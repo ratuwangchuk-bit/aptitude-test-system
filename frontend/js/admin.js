@@ -1436,7 +1436,7 @@ function renderQuestions(rows) {
             </div>
           </td>
           <td>
-            <div style="font-weight:700;color:#1e293b;line-height:1.55;cursor:pointer;" onclick="toggleQOptions(${q.id})">${escapeHtml(q.question_text)}</div>
+            <div class="q-list-text" onclick="toggleQOptions(${q.id})">${renderQuestionText(q.question_text)}</div>
             ${noAnswerHint}
             ${optsPanel}
           </td>
