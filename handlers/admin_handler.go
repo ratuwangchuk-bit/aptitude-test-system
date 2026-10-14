@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -179,8 +181,9 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	// - assigned_question_ids cleared → a new random question set will be drawn
 	// - started_at cleared            → the countdown timer resets to full duration
 	// - passcode_id cleared           → forces re-entry through the passcode gate
+	// - is_suspended cleared          → removes any lingering suspension flag
 	if _, err := tx.Exec(
-		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL, passcode_id = NULL WHERE id=$1",
+		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL, passcode_id = NULL, is_suspended = FALSE WHERE id=$1",
 		participantID,
 	); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not reset participant state")
@@ -193,6 +196,207 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, http.StatusOK, map[string]string{"message": "Result deleted. The participant may now retake the test."})
+}
+
+// LiveProgressRow is the per-participant summary returned by GetLiveProgress.
+type LiveProgressRow struct {
+	ID               int    `json:"id"`
+	FullName         string `json:"full_name"`
+	CIDNumber        string `json:"cid_number"`
+	CompanyName      string `json:"company_name"`
+	ContactNumber    string `json:"contact_number"`
+	Status           string `json:"status"`           // not_started | in_progress | suspended | timed_out | submitted
+	StartedAt        string `json:"started_at"`        // "" if not started
+	ElapsedSeconds   int    `json:"elapsed_seconds"`   // 0 if not started
+	RemainingSeconds int    `json:"remaining_seconds"` // 0 when timed out or submitted
+	TotalQuestions   int    `json:"total_questions"`   // size of assigned set; 0 before questions loaded
+	Answered         int    `json:"answered"`          // live heartbeat count
+	HasSubmitted     bool   `json:"has_submitted"`
+	IsSuspended      bool   `json:"is_suspended"`
+}
+
+// GetLiveProgress returns every registered participant's live test status so the
+// admin can watch the exam in real time. It reads the progress_answered heartbeat
+// written by the test page and computes status + remaining time server-side.
+func GetLiveProgress(w http.ResponseWriter, r *http.Request) {
+	cfg := loadTestConfig()
+	duration := cfg.TestDurationMinutes * 60
+
+	rows, err := config.DB.Query(`
+		SELECT p.id, p.full_name, p.cid_number, p.company_name, p.contact_number,
+		       p.started_at,
+		       COALESCE(array_length(p.assigned_question_ids, 1), 0) AS total_questions,
+		       p.progress_answered,
+		       EXISTS(SELECT 1 FROM submissions s WHERE s.participant_id = p.id) AS has_submitted,
+		       COALESCE(p.is_suspended, FALSE) AS is_suspended
+		FROM participants p
+		ORDER BY
+		  CASE
+		    WHEN EXISTS(SELECT 1 FROM submissions s WHERE s.participant_id=p.id) THEN 4
+		    WHEN COALESCE(p.is_suspended, FALSE) THEN 3
+		    WHEN p.started_at IS NOT NULL THEN 1
+		    ELSE 2
+		  END,
+		  p.started_at ASC NULLS LAST,
+		  p.created_at DESC`)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load live progress")
+		return
+	}
+	defer rows.Close()
+
+	result := []LiveProgressRow{}
+	for rows.Next() {
+		var row LiveProgressRow
+		var startedAt sql.NullTime
+		if err := rows.Scan(
+			&row.ID, &row.FullName, &row.CIDNumber, &row.CompanyName, &row.ContactNumber,
+			&startedAt, &row.TotalQuestions, &row.Answered, &row.HasSubmitted, &row.IsSuspended,
+		); err != nil {
+			continue
+		}
+
+		if row.HasSubmitted {
+			row.Status = "submitted"
+			if startedAt.Valid {
+				row.StartedAt = startedAt.Time.UTC().Format("2006-01-02 15:04")
+				elapsed := int(time.Since(startedAt.Time).Seconds())
+				if elapsed < 0 {
+					elapsed = 0
+				}
+				row.ElapsedSeconds = elapsed
+			}
+		} else if startedAt.Valid {
+			elapsed := int(time.Since(startedAt.Time).Seconds())
+			if elapsed < 0 {
+				elapsed = 0
+			}
+			row.StartedAt = startedAt.Time.UTC().Format("2006-01-02 15:04")
+			row.ElapsedSeconds = elapsed
+			remaining := duration - elapsed
+			if remaining < 0 {
+				remaining = 0
+			}
+			row.RemainingSeconds = remaining
+			if row.IsSuspended {
+				row.Status = "suspended"
+			} else if elapsed > duration+120 {
+				row.Status = "timed_out"
+			} else {
+				row.Status = "in_progress"
+			}
+		} else {
+			if row.IsSuspended {
+				row.Status = "suspended"
+			} else {
+				row.Status = "not_started"
+			}
+		}
+
+		result = append(result, row)
+	}
+	utils.JSON(w, http.StatusOK, result)
+}
+
+// SuspendParticipant toggles the is_suspended flag on a participant. When suspended,
+// the test-availability check returns false, triggering auto-submission on the
+// participant's browser within the next 30-second poll window.
+func SuspendParticipant(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	var req struct {
+		Suspend bool `json:"suspend"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	result, err := config.DB.Exec(
+		"UPDATE participants SET is_suspended=$1 WHERE id=$2", req.Suspend, id,
+	)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not update participant")
+		return
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		utils.Error(w, http.StatusNotFound, "Participant not found")
+		return
+	}
+	utils.JSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// AllowResume saves a participant's submitted answers back to the participants
+// row, deletes the submission (while keeping started_at and assigned_question_ids
+// intact), and clears any suspension flag. The next time the participant opens
+// the test page, StartTest returns saved_answers so their previous selections are
+// pre-populated. The timer continues from started_at (or resets if already expired,
+// via StartTest's own auto-reset logic).
+func AllowResume(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	tx, err := config.DB.Begin()
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	var submissionID int
+	if err := tx.QueryRow(
+		"SELECT id FROM submissions WHERE participant_id=$1", id,
+	).Scan(&submissionID); err != nil {
+		utils.Error(w, http.StatusNotFound, "No submission found for this participant")
+		return
+	}
+
+	answerRows, err := tx.Query(
+		"SELECT question_id, selected_option FROM participant_answers WHERE submission_id=$1 AND selected_option != ''",
+		submissionID,
+	)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not load answers")
+		return
+	}
+	defer answerRows.Close()
+	answers := make(map[string]string)
+	for answerRows.Next() {
+		var qid int
+		var opt string
+		if answerRows.Scan(&qid, &opt) == nil && opt != "" {
+			answers[fmt.Sprintf("%d", qid)] = opt
+		}
+	}
+	answerRows.Close()
+
+	answersJSON, err := json.Marshal(answers)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not serialize answers")
+		return
+	}
+
+	if _, err := tx.Exec("DELETE FROM submissions WHERE id=$1", submissionID); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not delete submission")
+		return
+	}
+
+	// Preserve started_at, assigned_question_ids, and passcode_id so the timer and
+	// question set remain the same. Only save answers and clear the suspension flag.
+	if _, err := tx.Exec(
+		"UPDATE participants SET saved_answers=$1, is_suspended=FALSE WHERE id=$2",
+		string(answersJSON), id,
+	); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not save resume state")
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not complete restore")
+		return
+	}
+
+	utils.JSON(w, http.StatusOK, map[string]interface{}{
+		"ok":           true,
+		"answers_saved": len(answers),
+	})
 }
 
 // loadSectionScoresBatch fetches section scores for all given submission IDs in a

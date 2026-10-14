@@ -49,8 +49,15 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Use the same error message for "user not found" and "wrong password" to
-	// prevent username enumeration attacks.
-	if err == sql.ErrNoRows || !utils.CheckPassword(req.Password, passwordHash) {
+	// prevent username enumeration attacks. When the user does not exist, run a
+	// dummy bcrypt comparison to equalise response latency; without this an
+	// attacker can distinguish "no such user" (fast) from "wrong password" (slow).
+	if err == sql.ErrNoRows {
+		utils.CheckPassword(req.Password, "$2a$10$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		utils.Error(w, http.StatusUnauthorized, "Invalid username or password")
+		return
+	}
+	if !utils.CheckPassword(req.Password, passwordHash) {
 		utils.Error(w, http.StatusUnauthorized, "Invalid username or password")
 		return
 	}

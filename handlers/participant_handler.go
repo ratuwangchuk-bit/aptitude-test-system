@@ -81,18 +81,27 @@ func ValidatePasscode(w http.ResponseWriter, r *http.Request) {
 // because the participant_id is wiped from localStorage on final submission.
 func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ParticipantID int `json:"participant_id"`
+		ParticipantID int    `json:"participant_id"`
+		CIDNumber     string `json:"cid_number"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ParticipantID == 0 {
 		utils.Error(w, http.StatusBadRequest, "Participant ID is required")
 		return
 	}
+	if strings.TrimSpace(req.CIDNumber) == "" {
+		utils.Error(w, http.StatusBadRequest, "CID number is required")
+		return
+	}
 
+	// Verify ownership: the caller must supply a CID that matches the participant
+	// row. This prevents an attacker from cancelling another participant's submission
+	// by guessing their sequential integer ID.
 	result, err := config.DB.Exec(`
 		DELETE FROM submissions
 		WHERE participant_id = $1
+		  AND participant_id IN (SELECT id FROM participants WHERE cid_number = $2)
 		  AND submitted_at > NOW() - INTERVAL '60 seconds'`,
-		req.ParticipantID,
+		req.ParticipantID, strings.TrimSpace(req.CIDNumber),
 	)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not cancel submission")
@@ -153,6 +162,39 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the admin set a saved_answers restore state (resume-from-where-left-off),
+	// read and clear it atomically inside a transaction so two concurrent StartTest
+	// requests cannot both receive the same answers.
+	var savedAnswers map[string]string
+	func() {
+		tx, err := config.DB.Begin()
+		if err != nil {
+			return
+		}
+		defer tx.Rollback()
+		var raw sql.NullString
+		if err := tx.QueryRow(
+			"SELECT saved_answers FROM participants WHERE id=$1 FOR UPDATE", req.ParticipantID,
+		).Scan(&raw); err != nil || !raw.Valid || raw.String == "" {
+			return
+		}
+		if _, err := tx.Exec("UPDATE participants SET saved_answers=NULL WHERE id=$1", req.ParticipantID); err != nil {
+			return
+		}
+		if tx.Commit() != nil {
+			return
+		}
+		json.Unmarshal([]byte(raw.String), &savedAnswers) //nolint:errcheck
+	}()
+
+	if savedAnswers != nil {
+		utils.JSON(w, http.StatusOK, map[string]interface{}{
+			"seconds_remaining": secondsRemaining,
+			"saved_answers":     savedAnswers,
+		})
+		return
+	}
+
 	utils.JSON(w, http.StatusOK, map[string]int{"seconds_remaining": secondsRemaining})
 }
 
@@ -179,16 +221,21 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 
 	var participantID int
 	var fullName, cidNumber string
+	var isSuspended bool
 	err := config.DB.QueryRow(
-		"SELECT id, full_name, cid_number FROM participants WHERE cid_number=$1",
+		"SELECT id, full_name, cid_number, COALESCE(is_suspended, FALSE) FROM participants WHERE cid_number=$1",
 		req.CIDNumber,
-	).Scan(&participantID, &fullName, &cidNumber)
+	).Scan(&participantID, &fullName, &cidNumber, &isSuspended)
 	if err == sql.ErrNoRows {
 		utils.Error(w, http.StatusNotFound, "CID number not found. Please contact the administrator.")
 		return
 	}
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not verify CID")
+		return
+	}
+	if isSuspended {
+		utils.Error(w, http.StatusForbidden, "Your access to this test has been suspended. Please contact the administrator.")
 		return
 	}
 
@@ -223,6 +270,29 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 		"full_name":      fullName,
 		"cid_number":     cidNumber,
 	})
+}
+
+// UpdateProgress is called by the test page every 30 seconds with a count of
+// how many questions the participant has answered so far. It is a best-effort
+// heartbeat — network failures are ignored by the client; the server simply
+// records the latest count so admins can watch live progress.
+func UpdateProgress(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ParticipantID int `json:"participant_id"`
+		Answered      int `json:"answered"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ParticipantID == 0 {
+		utils.Error(w, http.StatusBadRequest, "participant_id is required")
+		return
+	}
+	if req.Answered < 0 {
+		req.Answered = 0
+	}
+	config.DB.Exec(
+		"UPDATE participants SET progress_answered=$1 WHERE id=$2",
+		req.Answered, req.ParticipantID,
+	)
+	utils.JSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // ── Admin participant management ──────────────────────────────────────────────

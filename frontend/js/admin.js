@@ -13,6 +13,7 @@ let currentAdmin        = { id: 0, role: '', username: '' };
 let testTitle           = 'Online Aptitude Test'; // refreshed whenever the dashboard loads
 let dashboardTimer      = null;
 let passcodesTimer      = null;
+let liveTimer           = null;
 
 let selectedResultIds      = new Set();
 let selectedParticipantIds = new Set();
@@ -1294,6 +1295,140 @@ async function exportAllResults() {
   }
 }
 
+/* ── Live Progress ─────────────────────────────────────────── */
+
+function _fmtElapsed(secs) {
+  if (!secs || secs <= 0) return '—';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
+}
+
+function _fmtRemaining(secs) {
+  if (secs === undefined || secs === null || secs <= 0) return '—';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+async function loadLiveProgress() {
+  const tbody = document.getElementById('liveProgressTable');
+  if (!tbody) return;
+  try {
+    const rows = await api('/api/admin/live-progress');
+
+    // Summary chips
+    const stats     = document.getElementById('liveStats');
+    const total     = rows.length;
+    const active    = rows.filter(r => r.status === 'in_progress').length;
+    const done      = rows.filter(r => r.status === 'submitted').length;
+    const waiting   = rows.filter(r => r.status === 'not_started').length;
+    const timedOut  = rows.filter(r => r.status === 'timed_out').length;
+    const suspended = rows.filter(r => r.status === 'suspended').length;
+    if (stats) stats.innerHTML = `
+      <span class="lp-chip chip-all">Total: <b>${total}</b></span>
+      <span class="lp-chip chip-active">In Progress: <b>${active}</b></span>
+      <span class="lp-chip chip-done">Submitted: <b>${done}</b></span>
+      <span class="lp-chip chip-wait">Waiting: <b>${waiting}</b></span>
+      ${timedOut  ? `<span class="lp-chip chip-timeout">Timed Out: <b>${timedOut}</b></span>`   : ''}
+      ${suspended ? `<span class="lp-chip chip-suspended">Suspended: <b>${suspended}</b></span>` : ''}
+    `;
+
+    const statusBadge = (s) => {
+      switch (s) {
+        case 'in_progress':  return `<span class="lp-badge lp-active"><span class="lp-dot"></span>In Progress</span>`;
+        case 'submitted':    return `<span class="lp-badge lp-done">&#10003; Submitted</span>`;
+        case 'timed_out':    return `<span class="lp-badge lp-timeout">Timed Out</span>`;
+        case 'suspended':    return `<span class="lp-badge lp-suspended">&#9940; Suspended</span>`;
+        default:             return `<span class="lp-badge lp-wait">Not Started</span>`;
+      }
+    };
+
+    const actionBtn = (r) => {
+      if (r.status === 'submitted') {
+        // Use data-* attributes — embedding user-supplied strings directly inside
+        // onclick="..." JS literals would reintroduce single-quote XSS via HTML decoding.
+        return `<button class="lp-btn lp-btn-resume" data-pid="${r.id}" data-pname="${escapeHtml(r.full_name)}" onclick="_lpAllowResume(this)">Allow Resume</button>`;
+      }
+      if (r.status === 'suspended') {
+        return `<button class="lp-btn lp-btn-unsuspend" onclick="_lpSuspend(${r.id},false)">Unsuspend</button>`;
+      }
+      if (r.status === 'in_progress' || r.status === 'not_started') {
+        return `<button class="lp-btn lp-btn-suspend" onclick="_lpSuspend(${r.id},true)">Suspend</button>`;
+      }
+      return '';
+    };
+
+    tbody.innerHTML = rows.length ? rows.map((r, i) => {
+      const progressPct = r.total_questions > 0
+        ? Math.round((r.answered / r.total_questions) * 100)
+        : 0;
+      const progressBar = r.status === 'submitted'
+        ? `<div class="lp-bar-wrap"><div class="lp-bar lp-bar-done" style="width:100%"></div></div><span class="lp-pct">100%</span>`
+        : r.total_questions > 0
+          ? `<div class="lp-bar-wrap"><div class="lp-bar ${progressPct >= 70 ? 'lp-bar-hi' : progressPct >= 40 ? 'lp-bar-mid' : 'lp-bar-lo'}" style="width:${progressPct}%"></div></div><span class="lp-pct">${r.answered}/${r.total_questions}</span>`
+          : `<span class="text-slate-400 text-xs">—</span>`;
+
+      const remainingClass = r.remaining_seconds > 0 && r.remaining_seconds < 300 ? 'text-red-600 font-bold' : '';
+      const startedAt = r.started_at ? formatDate(r.started_at) : '—';
+
+      return `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-center text-slate-400 text-xs font-bold">${i + 1}</td>
+          <td class="px-4 py-3">
+            <div class="font-bold text-slate-800 text-sm">${escapeHtml(r.full_name)}</div>
+            <div class="text-xs text-slate-400 mt-0.5">CID: ${escapeHtml(r.cid_number)}</div>
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-sm">${escapeHtml(r.company_name || '—')}</td>
+          <td class="px-4 py-3 text-center">${statusBadge(r.status)}</td>
+          <td class="px-4 py-3 text-center text-xs text-slate-500">${startedAt}</td>
+          <td class="px-4 py-3 text-center text-xs text-slate-600 font-semibold">${_fmtElapsed(r.elapsed_seconds)}</td>
+          <td class="px-4 py-3 text-center text-xs font-semibold ${remainingClass}">${r.status === 'submitted' ? '—' : r.status === 'timed_out' ? 'Expired' : _fmtRemaining(r.remaining_seconds)}</td>
+          <td class="px-4 py-3"><div class="flex items-center gap-2">${progressBar}</div></td>
+          <td class="px-4 py-3 text-center">${actionBtn(r)}</td>
+        </tr>`;
+    }).join('')
+    : `<tr><td colspan="9" class="text-center text-slate-400 py-10">No participants registered yet.</td></tr>`;
+
+    const lastUpdated = document.getElementById('liveLastUpdated');
+    if (lastUpdated) lastUpdated.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    if (err?.message !== 'Session expired') {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center text-red-400 py-8">${escapeHtml(err?.message || 'Failed to load')}</td></tr>`;
+    }
+  }
+}
+
+async function _lpSuspend(id, suspend) {
+  const label = suspend ? 'suspend' : 'unsuspend';
+  if (!confirm(`Are you sure you want to ${label} this participant?\n\n${suspend ? 'Their test session will be terminated within 30 seconds.' : 'They will be able to continue their test.'}`)) return;
+  try {
+    await api(`/api/admin/participants/${id}/suspend`, {
+      method: 'PUT',
+      body: JSON.stringify({ suspend }),
+    });
+    loadLiveProgress();
+  } catch (err) {
+    alert('Failed to ' + label + ' participant: ' + (err?.message || 'Unknown error'));
+  }
+}
+
+async function _lpAllowResume(btn) {
+  const id   = btn.dataset.pid;
+  const name = btn.dataset.pname;
+  if (!confirm(`Allow ${name} to resume the test from where they left off?\n\nThis will restore their previously answered questions and remove their submission record. They must re-enter via the passcode gate to continue (ask them to go back to the home page and re-enter their passcode and CID).`)) return;
+  try {
+    const res = await api(`/api/admin/participants/${id}/allow-resume`, { method: 'POST' });
+    alert(`Resume enabled for ${name}. ${res.answers_saved} answer(s) restored.\n\nAsk the participant to return to the home page and re-enter their passcode and CID to continue.`);
+    loadLiveProgress();
+  } catch (err) {
+    alert('Failed to allow resume: ' + (err?.message || 'Unknown error'));
+  }
+}
+
 /* ── Passcodes ─────────────────────────────────────────────── */
 
 function renderPasscodes(rows) {
@@ -2026,7 +2161,7 @@ function renderParticipants(rows) {
           <td>${escapeHtml(p.company_name || '-')}</td>
           <td>${escapeHtml(p.contact_number || '-')}</td>
           <td><span class="status-pill ${p.has_submitted ? 'active' : 'expired'}" style="${p.has_submitted ? '' : 'background:#f1f5f9;color:#64748b;border-color:#e2e8f0'}">${p.has_submitted ? 'Submitted' : 'Pending'}</span></td>
-          ${isSuperAdmin() ? `<td><button class="btn-icon btn-danger" title="Delete" onclick="deleteParticipant(${p.id}, '${escapeHtml(p.full_name)}', ${p.has_submitted})">${ICON.trash}</button></td>` : ''}
+          ${isSuperAdmin() ? `<td><button class="btn-icon btn-danger" title="Delete" data-pid="${p.id}" data-pname="${escapeHtml(p.full_name)}" data-submitted="${p.has_submitted}" onclick="deleteParticipant(this)">${ICON.trash}</button></td>` : ''}
         </tr>`).join('')
     : `<tr><td colspan="${5 + extra}" class="text-center text-slate-500 py-8">No participants registered yet.</td></tr>`;
 }
@@ -2084,7 +2219,10 @@ document.getElementById('participantForm')?.addEventListener('submit', async (e)
   } catch (err) { showError(err.message, 'Add Failed'); }
 });
 
-async function deleteParticipant(id, name, hasSubmitted) {
+async function deleteParticipant(btn) {
+  const id           = Number(btn.dataset.pid);
+  const name         = btn.dataset.pname;
+  const hasSubmitted = btn.dataset.submitted === 'true';
   const msg = hasSubmitted
     ? `Delete "${name}"? They have already submitted — their test result will also be deleted.`
     : `Delete "${name}"? They will no longer be able to access the test.`;
@@ -2159,20 +2297,21 @@ function renderAdminUsers(rows) {
   const sorted = [...rows.filter(a => a.id === currentAdmin.id), ...rows.filter(a => a.id !== currentAdmin.id)];
   tbody.innerHTML = sorted.map((a, idx) => {
     const isSelf      = a.id === currentAdmin.id;
-    const uName     = escapeHtml(a.username);
+    const uNameEsc  = escapeHtml(a.username);
+    const roleEsc   = escapeHtml(a.role);
     const roleEditBtn = isSelf ? '' :
-      `<button class="btn-icon btn-soft" title="Change Role" onclick="changeAdminRole(${a.id}, '${escapeHtml(a.role)}', '${uName}')">${ICON.shield}</button>`;
+      `<button class="btn-icon btn-soft" title="Change Role" data-aid="${a.id}" data-role="${roleEsc}" data-uname="${uNameEsc}" onclick="changeAdminRole(this)">${ICON.shield}</button>`;
     return `
       <tr>
         <td><span class="pill">${idx + 1}</span></td>
-        <td><b>${escapeHtml(a.username)}</b>${isSelf ? '<br><span class="text-xs text-slate-400 font-semibold">(you)</span>' : ''}</td>
+        <td><b>${uNameEsc}</b>${isSelf ? '<br><span class="text-xs text-slate-400 font-semibold">(you)</span>' : ''}</td>
         <td><span class="pill ${a.role === 'super_admin' ? 'pill-teal' : ''}">${a.role === 'super_admin' ? 'Super Admin' : 'General Admin'}</span></td>
         <td><span class="status-pill ${a.is_active ? 'active' : 'expired'}">${a.is_active ? 'Active' : 'Revoked'}</span></td>
         <td><div class="flex gap-2 flex-wrap">
           ${roleEditBtn}
-          <button class="btn-icon btn-warning" title="Change Password" onclick="changeAdminPassword(${a.id}, '${uName}')">${ICON.key}</button>
+          <button class="btn-icon btn-warning" title="Change Password" data-aid="${a.id}" data-uname="${uNameEsc}" onclick="changeAdminPassword(this)">${ICON.key}</button>
           <button class="btn-icon ${a.is_active ? 'btn-danger' : 'btn-small'}" title="${a.is_active ? 'Revoke' : 'Activate'}" onclick="setAdminAccess(${a.id}, ${!a.is_active})">${a.is_active ? ICON.lock : ICON.unlock}</button>
-          ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" onclick="deleteAdminUser(${a.id}, '${uName}')">${ICON.trash}</button>`}
+          ${isSelf ? '' : `<button class="btn-icon btn-danger" title="Delete" data-aid="${a.id}" data-uname="${uNameEsc}" onclick="deleteAdminUser(this)">${ICON.trash}</button>`}
         </div></td>
       </tr>`;
   }).join('');
@@ -2220,14 +2359,16 @@ async function setAdminAccess(id, active) {
   catch (err) { showError(err.message, 'Update Failed'); }
 }
 
-async function changeAdminPassword(id, username) {
+async function changeAdminPassword(btn) {
+  const id = btn.dataset.aid; const username = btn.dataset.uname;
   const password = await showPasswordModal(`Set new password for ${username}`);
   if (!password) return;
   try { await api(`/api/admin/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password }) }); await showSuccess('Password changed. The admin must log in again.', 'Changed'); loadAdminUsers(); }
   catch (err) { showError(err.message, 'Password Change Failed'); }
 }
 
-async function changeAdminRole(id, currentRole, username) {
+async function changeAdminRole(btn) {
+  const id = btn.dataset.aid; const currentRole = btn.dataset.role; const username = btn.dataset.uname;
   const newRole = await showRoleModal(username, currentRole);
   if (!newRole || newRole === currentRole) return;
   const label = newRole === 'super_admin' ? 'Super Admin' : 'General Admin';
@@ -2261,7 +2402,8 @@ function showRoleModal(username, currentRole) {
   });
 }
 
-async function deleteAdminUser(id, username) {
+async function deleteAdminUser(btn) {
+  const id = btn.dataset.aid; const username = btn.dataset.uname;
   const ok = await showConfirm(`Permanently delete admin "${username}"?`, 'Delete Admin', 'Delete');
   if (!ok) return;
   try { await api(`/api/admin/users/${id}`, { method: 'DELETE' }); await showSuccess('Admin deleted.', 'Deleted'); loadAdminUsers(); }
@@ -2291,6 +2433,7 @@ function showPasswordModal(title) {
 
 const VIEW_META = {
   dashboard:    { title: 'Admin Dashboard',     subtitle: 'Digital Aptitude Evaluation System',                   access: 'all'   },
+  live:         { title: 'Live Progress',        subtitle: 'Real-time status of all participants during the test.', access: 'all'  },
   questions:    { title: 'Question Management', subtitle: 'Add, edit, and organise the question bank.',           access: 'all'   },
   answers:      { title: 'Answer Management',   subtitle: 'Edit or update correct answers.',                      access: 'all'   },
   participants: { title: 'Participants',         subtitle: 'Pre-register participants to allow CID verification.', access: 'all'   },
@@ -2321,8 +2464,14 @@ function showView(raw) {
     a.classList.toggle('active', a.dataset.view === name);
   });
   if (name !== 'passcodes' && passcodesTimer) { clearInterval(passcodesTimer); passcodesTimer = null; }
+  if (name !== 'live' && liveTimer) { clearInterval(liveTimer); liveTimer = null; }
   switch (name) {
     case 'dashboard':    loadDashboard(); break;
+    case 'live':
+      loadLiveProgress();
+      if (liveTimer) clearInterval(liveTimer);
+      liveTimer = setInterval(loadLiveProgress, 15000);
+      break;
     case 'questions':    loadQuestionsAndAnswers(); break;
     case 'answers':      loadAnswersAdmin(); break;
     case 'participants': loadParticipantsAdmin(); break;

@@ -196,9 +196,14 @@ func CheckTestAvailability(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var assigned []int64
+	var isSuspended bool
 	if err := config.DB.QueryRow(
-		"SELECT assigned_question_ids FROM participants WHERE id=$1", participantID,
-	).Scan(utils.IntArrayScanner(&assigned)); err != nil {
+		"SELECT assigned_question_ids, COALESCE(is_suspended, FALSE) FROM participants WHERE id=$1", participantID,
+	).Scan(utils.IntArrayScanner(&assigned), &isSuspended); err != nil {
+		utils.JSON(w, http.StatusOK, map[string]bool{"available": false})
+		return
+	}
+	if isSuspended {
 		utils.JSON(w, http.StatusOK, map[string]bool{"available": false})
 		return
 	}
@@ -352,7 +357,8 @@ func safeRemoveImage(imageURL string) {
 	}
 	const uploadRoot = "frontend/uploads"
 	resolved := filepath.Clean(filepath.Join("frontend", imageURL))
-	if !strings.HasPrefix(resolved, uploadRoot) {
+	// Include the trailing separator so "frontend/uploads2/..." does not pass.
+	if resolved != uploadRoot && !strings.HasPrefix(resolved, uploadRoot+string(filepath.Separator)) {
 		return
 	}
 	os.Remove(resolved)
@@ -492,14 +498,16 @@ func ImageProxy(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	resp, err := client.Get(raw)
-	if err != nil || resp.StatusCode >= 400 {
+	if err != nil || resp.StatusCode >= 300 {
 		utils.Error(w, http.StatusBadGateway, "Could not fetch image")
 		return
 	}
 	defer resp.Body.Close()
 
+	// Whitelist Content-Type to image/* only; never forward text/html or
+	// application/javascript which a compromised upstream could return.
 	ct := resp.Header.Get("Content-Type")
-	if ct == "" {
+	if !strings.HasPrefix(ct, "image/") {
 		ct = "image/jpeg"
 	}
 	w.Header().Set("Content-Type", ct)

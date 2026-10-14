@@ -116,6 +116,13 @@ func MigrateDB() {
 		// Prevent duplicate submissions under concurrent requests (two simultaneous
 		// beacon+manual submits). CREATE UNIQUE INDEX IF NOT EXISTS is idempotent.
 		`CREATE UNIQUE INDEX IF NOT EXISTS submissions_participant_id_unique ON submissions(participant_id)`,
+		// Live progress tracking: test page sends a heartbeat every 30 s with the
+		// count of questions the participant has answered so far.
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS progress_answered INT NOT NULL DEFAULT 0`,
+		// Suspend/resume features: admin can block a participant mid-test, or save
+		// their answers so they can resume after an accidental auto-submission.
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS saved_answers TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := DB.Exec(m); err != nil {

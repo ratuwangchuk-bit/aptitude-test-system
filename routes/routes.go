@@ -14,7 +14,10 @@ import (
 func RegisterRoutes(r *mux.Router) {
 	// Throttles brute-force/enumeration attempts against the public passcode
 	// and CID gates (e.g. sweeping CID numbers to see which are registered).
-	gateLimit := middleware.RateLimit(20, time.Minute)
+	// Set to 120/min so up to ~60 participants sharing the same office network IP
+	// can all log in simultaneously (2 requests each) without being blocked.
+	// Automated scanners that fire hundreds of requests are still stopped.
+	gateLimit := middleware.RateLimit(120, time.Minute)
 
 	// ── Participant-facing public routes ──────────────────────────────────────
 	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
@@ -23,6 +26,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
 	r.HandleFunc("/api/validate-cid", gateLimit(handlers.ValidateCID)).Methods("POST")
 	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
+	r.HandleFunc("/api/progress", handlers.UpdateProgress).Methods("POST")
 	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
 	r.HandleFunc("/api/questions", handlers.GetQuestions).Methods("GET")
 	r.HandleFunc("/api/test-availability", handlers.CheckTestAvailability).Methods("GET")
@@ -38,6 +42,7 @@ func RegisterRoutes(r *mux.Router) {
 
 	// ── Read-only (both super admin and general admin) ────────────────────────
 	r.HandleFunc("/api/admin/dashboard", middleware.AdminAuth(handlers.DashboardSummary)).Methods("GET")
+	r.HandleFunc("/api/admin/live-progress", middleware.AdminAuth(handlers.GetLiveProgress)).Methods("GET")
 	r.HandleFunc("/api/admin/results/export", middleware.AdminAuth(handlers.ExportResults)).Methods("GET")
 	r.HandleFunc("/api/admin/results", middleware.AdminAuth(handlers.GetResults)).Methods("GET")
 	r.HandleFunc("/api/admin/results/{id}/detail", middleware.AdminAuth(handlers.GetSubmissionDetail)).Methods("GET")
@@ -49,6 +54,9 @@ func RegisterRoutes(r *mux.Router) {
 
 	// ── Write / delete (super admin only) ────────────────────────────────────
 	r.HandleFunc("/api/admin/results/{id}", middleware.SuperAdminOnly(handlers.DeleteResult)).Methods("DELETE")
+
+	r.HandleFunc("/api/admin/participants/{id}/suspend", middleware.SuperAdminOnly(handlers.SuspendParticipant)).Methods("PUT")
+	r.HandleFunc("/api/admin/participants/{id}/allow-resume", middleware.SuperAdminOnly(handlers.AllowResume)).Methods("POST")
 
 	r.HandleFunc("/api/admin/participants", middleware.SuperAdminOnly(handlers.AddAdminParticipant)).Methods("POST")
 	r.HandleFunc("/api/admin/participants/template", middleware.SuperAdminOnly(handlers.ParticipantsTemplate)).Methods("GET")

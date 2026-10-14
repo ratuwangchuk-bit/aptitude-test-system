@@ -162,6 +162,7 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 			utils.Error(w, http.StatusInternalServerError, "Could not load answer key")
 			return
 		}
+		defer rows.Close()
 		for rows.Next() {
 			var qid int
 			var correct, section, qtype string
@@ -169,7 +170,6 @@ func SubmitTest(w http.ResponseWriter, r *http.Request) {
 				answerMap[qid] = answerKey{correct, section, qtype}
 			}
 		}
-		rows.Close()
 		if err := rows.Err(); err != nil {
 			utils.Error(w, http.StatusInternalServerError, "Could not read answer key")
 			return

@@ -23,6 +23,7 @@
         </div>
         <nav class="nav-area flex gap-1.5">
           <a class="nav-link" data-view="dashboard" href="#dashboard">Dashboard</a>
+          <a class="nav-link" data-view="live" href="#live">Live</a>
           <a class="nav-link" data-view="questions" href="#questions">Questions</a>
           <a class="nav-link" data-view="answers" href="#answers">Answers</a>
           <a class="nav-link" data-view="participants" href="#participants">Participants</a>
@@ -156,6 +157,49 @@
       </section>
 
     </div><!-- /view-dashboard -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW: Live Progress
+    ══════════════════════════════════════════════════════════ -->
+    <div id="view-live" class="spa-view hidden max-w-[1400px] mx-auto w-full px-5 mt-6 space-y-5">
+
+      <section class="card p-5 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Live Test Progress</h2>
+            <p class="text-sm text-slate-500 mt-0.5">Auto-refreshes every 15 seconds. Participants send a heartbeat every 30 s.</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="liveLastUpdated" class="text-xs text-slate-400 font-semibold"></span>
+            <span id="livePulse" class="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>
+            <button onclick="loadLiveProgress()" class="btn-outline text-sm px-3 py-1.5">Refresh</button>
+          </div>
+        </div>
+
+        <!-- summary chips -->
+        <div id="liveStats" class="flex flex-wrap gap-2 mb-5"></div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-100">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wide">
+                <th class="px-4 py-3 text-left">#</th>
+                <th class="px-4 py-3 text-left">Participant</th>
+                <th class="px-4 py-3 text-left">Company</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-center">Started At</th>
+                <th class="px-4 py-3 text-center">Time Elapsed</th>
+                <th class="px-4 py-3 text-center">Time Remaining</th>
+                <th class="px-4 py-3 text-center">Progress</th>
+                <th class="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="liveProgressTable" class="divide-y divide-slate-50"></tbody>
+          </table>
+        </div>
+      </section>
+    </div><!-- /view-live -->
 
 
     <!-- ═══════════════════════════════════════════════════════

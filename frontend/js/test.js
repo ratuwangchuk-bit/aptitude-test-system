@@ -728,12 +728,13 @@ function autoSubmitViaBeacon() {
 }
 
 async function cancelAutoSubmit(participantId) {
+  const cid = localStorage.getItem('participant_cid') || '';
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 400));
     try {
       const res  = await fetch('/api/cancel-submission', {
         method:      'DELETE',
-        body:        JSON.stringify({ participant_id: participantId }),
+        body:        JSON.stringify({ participant_id: participantId, cid_number: cid }),
         headers:     { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
@@ -749,10 +750,9 @@ window.addEventListener('beforeunload', e => {
 });
 
 window.addEventListener('pagehide', () => {
-  // Fire beacon whenever questions are loaded — covers both normal close and
-  // page refresh. The questions.length guard prevents beaconing a blank
-  // submission if the page is closed before questions finish loading.
-  if (!submitted && questions.length > 0) autoSubmitViaBeacon();
+  // Guard on testStarted: if /api/start-test failed we should not auto-submit
+  // an empty set and permanently lock the participant out.
+  if (!submitted && testStarted && questions.length > 0) autoSubmitViaBeacon();
 });
 
 /* ── Entry point ───────────────────────────────────────────────────────────── */
@@ -908,6 +908,14 @@ async function initTest() {
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
     localStorage.setItem('test_start_time', seededStart.toString());
     testStarted = true; // beacon guard: only auto-submit if start-test succeeded
+
+    // Resume-from-where-left-off: admin set saved_answers after an accidental
+    // auto-submission. Pre-populate selectedAnswers before loadQuestions renders UI.
+    if (startData.saved_answers && typeof startData.saved_answers === 'object') {
+      Object.entries(startData.saved_answers).forEach(([qid, opt]) => {
+        if (opt) selectedAnswers[Number(qid)] = opt;
+      });
+    }
   } catch { /* Use localStorage value or start fresh. */ }
 
   loadQuestions(savedAnswersForRestore);
@@ -915,4 +923,33 @@ async function initTest() {
   startPasscodeWatcher();
   startSectionAvailabilityWatcher();
   startQuestionSyncWatcher();
+  startProgressHeartbeat();
+}
+
+// Sends the current answered-question count to the server every 30 seconds so
+// the admin live-progress view can show real-time progress without the server
+// needing to track every keystroke. Fire-and-forget — failures are silently ignored.
+function startProgressHeartbeat() {
+  const participantId = Number(localStorage.getItem('participant_id'));
+  if (!participantId) return;
+
+  let hbInterval;
+  const send = () => {
+    if (submitted || !testStarted) { clearInterval(hbInterval); return; }
+    const answered = Object.keys(selectedAnswers).length;
+    navigator.sendBeacon
+      ? navigator.sendBeacon('/api/progress', new Blob(
+          [JSON.stringify({ participant_id: participantId, answered })],
+          { type: 'application/json' }
+        ))
+      : fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participant_id: participantId, answered }),
+          keepalive: true,
+        }).catch(() => {});
+  };
+
+  send(); // immediate first ping so admin sees the participant straight away
+  hbInterval = setInterval(send, 30000);
 }

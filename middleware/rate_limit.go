@@ -15,6 +15,11 @@ import (
 // to enumerate valid CID numbers or guess passcodes. It is a simple in-memory
 // fixed-window counter per remote IP — adequate for a single-process internal
 // tool, not a substitute for a distributed rate limiter.
+//
+// The limit is intentionally generous (see routes.go) because many participants
+// in a group exam share the same network IP address. The limiter's purpose is to
+// stop automated enumeration, not to throttle legitimate concurrent logins.
+// Old bucket entries are swept every 5 minutes to prevent unbounded memory growth.
 func RateLimit(maxRequests int, window time.Duration) func(http.HandlerFunc) http.HandlerFunc {
 	type bucket struct {
 		count       int
@@ -22,6 +27,23 @@ func RateLimit(maxRequests int, window time.Duration) func(http.HandlerFunc) htt
 	}
 	var mu sync.Mutex
 	buckets := make(map[string]*bucket)
+
+	// Periodically delete buckets whose window has long expired so the map does
+	// not grow without bound on a long-running server.
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cutoff := time.Now().Add(-window)
+			mu.Lock()
+			for ip, b := range buckets {
+				if b.windowStart.Before(cutoff) {
+					delete(buckets, ip)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
 
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
