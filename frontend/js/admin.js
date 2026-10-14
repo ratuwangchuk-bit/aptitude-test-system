@@ -1348,9 +1348,10 @@ async function loadLiveProgress() {
     };
 
     const actionBtn = (r) => {
-      // No action if the participant answered every question — the test is genuinely
-      // complete and there is nothing to resume or block.
-      if (r.total_questions > 0 && r.answered >= r.total_questions) return '';
+      // No action when the test is genuinely complete: submitted AND all questions answered.
+      // This specifically guards the 100%-progress submitted state so buttons disappear only
+      // when the participant truly finished — not when they were auto-submitted early.
+      if (r.status === 'submitted' && r.total_questions > 0 && r.answered >= r.total_questions) return '';
 
       if (r.status === 'submitted') {
         // Use data-* attributes — embedding user-supplied strings directly inside
@@ -1374,13 +1375,18 @@ async function loadLiveProgress() {
 
     tbody.innerHTML = rows.length ? rows.map((r, i) => {
       const progressPct = r.total_questions > 0
-        ? Math.round((r.answered / r.total_questions) * 100)
+        ? Math.min(100, Math.round((r.answered / r.total_questions) * 100))
         : 0;
-      const progressBar = r.status === 'submitted'
-        ? `<div class="lp-bar-wrap"><div class="lp-bar lp-bar-done" style="width:100%"></div></div><span class="lp-pct">100%</span>`
-        : r.total_questions > 0
-          ? `<div class="lp-bar-wrap"><div class="lp-bar ${progressPct >= 70 ? 'lp-bar-hi' : progressPct >= 40 ? 'lp-bar-mid' : 'lp-bar-lo'}" style="width:${progressPct}%"></div></div><span class="lp-pct">${r.answered}/${r.total_questions}</span>`
-          : `<span class="text-slate-400 text-xs">—</span>`;
+      // Always show real answered/total so the visual matches the button logic.
+      // A submitted participant who answered 10/30 shows 33%, not a misleading 100%.
+      // The full green bar and hidden buttons only appear when genuinely at 100%.
+      const barClass = progressPct >= 100 ? 'lp-bar-done'
+                     : progressPct >= 70  ? 'lp-bar-hi'
+                     : progressPct >= 40  ? 'lp-bar-mid'
+                     :                      'lp-bar-lo';
+      const progressBar = r.total_questions > 0
+        ? `<div class="lp-bar-wrap"><div class="lp-bar ${barClass}" style="width:${progressPct}%"></div></div><span class="lp-pct">${r.answered}/${r.total_questions}</span>`
+        : `<span class="text-slate-400 text-xs">—</span>`;
 
       const remainingClass = r.remaining_seconds > 0 && r.remaining_seconds < 300 ? 'text-red-600 font-bold' : '';
       const startedAt = r.started_at ? formatDate(r.started_at) : '—';
