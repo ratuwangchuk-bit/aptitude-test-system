@@ -19,6 +19,12 @@ func RegisterRoutes(r *mux.Router) {
 	// Automated scanners that fire hundreds of requests are still stopped.
 	gateLimit := middleware.RateLimit(120, time.Minute)
 
+	// Throttles password guessing on admin login. Only a handful of admins exist,
+	// so 20 attempts per 15 minutes per IP leaves room for typos and several
+	// admins on one office network, while capping a brute-force run at ~1,900
+	// guesses a day instead of thousands per minute.
+	adminLoginLimit := middleware.RateLimit(20, 15*time.Minute)
+
 	// ── Participant-facing public routes ──────────────────────────────────────
 	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
 	r.HandleFunc("/api/image-proxy", handlers.ImageProxy).Methods("GET")
@@ -36,7 +42,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/result/{participantId}", middleware.AdminAuth(handlers.GetParticipantResult)).Methods("GET")
 
 	// ── Admin auth ────────────────────────────────────────────────────────────
-	r.HandleFunc("/api/admin/login", handlers.AdminLogin).Methods("POST")
+	r.HandleFunc("/api/admin/login", adminLoginLimit(handlers.AdminLogin)).Methods("POST")
 	r.HandleFunc("/api/admin/logout", handlers.AdminLogout).Methods("POST")
 	r.HandleFunc("/api/admin/me", middleware.AdminAuth(handlers.CheckAdminSession)).Methods("GET")
 
