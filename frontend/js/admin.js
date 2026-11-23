@@ -1548,7 +1548,10 @@ function renderQuestions(rows) {
   const useSections = allSections.filter(s => s.is_active);
 
   const cols = isSuperAdmin() ? 6 : 4;
-  if (!rows.length) {
+  // While searching, hide sections with no matches; otherwise keep every active
+  // section visible so deleting its last question doesn't make it look deleted.
+  const isSearching = !!document.getElementById('questionSearch')?.value.trim();
+  if (!rows.length && (isSearching || !useSections.length)) {
     tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center text-slate-500 py-8">No questions found.</td></tr>`;
     return;
   }
@@ -1567,13 +1570,16 @@ function renderQuestions(rows) {
   let num  = 1;
   allSec.forEach(sec => {
     const qs = rows.filter(q => q.section === sec.name);
-    if (!qs.length) return;
+    if (!qs.length && isSearching) return;
     const qPerTest = allSections.find(s => s.name === sec.name)?.questions_per_test ?? '?';
     html += `<tr class="q-section-header">
       <td colspan="${cols}">${escapeHtml(sec.label || sec.name)}
         <span>&nbsp;—&nbsp; ${qs.length} question${qs.length !== 1 ? 's' : ''} in bank &nbsp;·&nbsp; ${qPerTest} randomly shown per participant</span>
       </td>
     </tr>`;
+    if (!qs.length) {
+      html += `<tr><td colspan="${cols}" class="text-center text-slate-400 text-sm py-4">No questions in this section yet.</td></tr>`;
+    }
     qs.forEach(q => {
       const n           = num++;
       const isFillBlank = q.question_type === 'fill_blank';
