@@ -441,7 +441,11 @@ function startSectionAvailabilityWatcher() {
   const participantId = Number(localStorage.getItem('participant_id'));
   if (!participantId) return;
   startAvailabilityWatcher(async () => {
-    const res  = await fetch(`/api/test-availability?participant_id=${participantId}`);
+    const res  = await fetch(`/api/test-availability?participant_id=${participantId}`,
+                             { headers: participantAuthHeader('/api/test-availability') });
+    // 401: this session was replaced by a newer sign-in — not a disabled test,
+    // and an auto-submit from here would be refused anyway.
+    if (res.status === 401) return true;
     const data = await res.json().catch(() => ({}));
     return !!data.available;
   }, '⚠  This test has been disabled by the administrator. Your answers are being submitted automatically…');
@@ -663,6 +667,7 @@ async function submitTest(auto = false) {
 
     _isActiveTab = false;
     localStorage.removeItem('participant_id');
+    localStorage.removeItem('participant_token');
     localStorage.removeItem('participant_name');
     localStorage.removeItem('participant_cid');
     localStorage.removeItem('test_start_time');
@@ -687,6 +692,7 @@ async function submitTest(auto = false) {
     if (err.message && err.message.toLowerCase().includes('already submitted')) {
       _isActiveTab = false;
       localStorage.removeItem('participant_id');
+      localStorage.removeItem('participant_token');
     localStorage.removeItem('participant_name');
     localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
@@ -816,7 +822,11 @@ function autoSubmitViaBeacon() {
 
   sessionStorage.setItem('_testSession', JSON.stringify({ participantId, answers }));
 
-  const payload = JSON.stringify({ participant_id: participantId, answers });
+  // sendBeacon cannot set headers, so the session token travels in the body.
+  const payload = JSON.stringify({
+    participant_id: participantId, answers,
+    participant_token: localStorage.getItem('participant_token') || '',
+  });
   if (navigator.sendBeacon) {
     navigator.sendBeacon('/api/submit-test', new Blob([payload], { type: 'application/json' }));
   } else {
@@ -835,7 +845,7 @@ async function cancelAutoSubmit(participantId) {
       const res  = await fetch('/api/cancel-submission', {
         method:      'DELETE',
         body:        JSON.stringify({ participant_id: participantId, cid_number: cid }),
-        headers:     { 'Content-Type': 'application/json' },
+        headers:     { 'Content-Type': 'application/json', ...participantAuthHeader('/api/cancel-submission') },
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
@@ -919,6 +929,7 @@ async function initTest() {
       // Clear all three keys so the participant cannot skip the passcode gate on a
       // subsequent visit (passcode_id is missing here in the original code — bug fix).
       localStorage.removeItem('participant_id');
+      localStorage.removeItem('participant_token');
     localStorage.removeItem('participant_name');
     localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
@@ -995,6 +1006,7 @@ async function initTest() {
         </div>`;
       submitted = true;
       localStorage.removeItem('participant_id');
+      localStorage.removeItem('participant_token');
     localStorage.removeItem('participant_name');
     localStorage.removeItem('participant_cid');
       localStorage.removeItem('test_start_time');
@@ -1038,15 +1050,17 @@ function startProgressHeartbeat() {
   const send = () => {
     if (submitted || !testStarted) { clearInterval(hbInterval); return; }
     const answered = Object.keys(selectedAnswers).length;
+    // Token in the body: sendBeacon cannot set headers.
+    const body = JSON.stringify({
+      participant_id: participantId, answered,
+      participant_token: localStorage.getItem('participant_token') || '',
+    });
     navigator.sendBeacon
-      ? navigator.sendBeacon('/api/progress', new Blob(
-          [JSON.stringify({ participant_id: participantId, answered })],
-          { type: 'application/json' }
-        ))
+      ? navigator.sendBeacon('/api/progress', new Blob([body], { type: 'application/json' }))
       : fetch('/api/progress', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ participant_id: participantId, answered }),
+          body,
           keepalive: true,
         }).catch(() => {});
   };

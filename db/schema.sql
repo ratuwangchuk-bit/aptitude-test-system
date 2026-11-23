@@ -85,6 +85,9 @@ ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_question_ids INT[];
 -- question_id -> selected option), used to recover work after a crash or
 -- lost connection and to grade an attempt whose time ran out.
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS autosave_answers TEXT;
+-- SHA-256 hash of the participant's session token, issued when they pass the
+-- CID check and required by every test endpoint. Signing in again replaces it.
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS session_token_hash TEXT;
 
 
 -- ── Questions ─────────────────────────────────────────────────────────────────

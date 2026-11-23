@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"os"
 )
@@ -16,6 +17,13 @@ func GenerateToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// HashToken returns the hex SHA-256 of a token. Participant session tokens are
+// stored only in hashed form, so a database leak does not expose usable tokens.
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 // SessionSecure reports whether the admin_session cookie should be marked Secure.

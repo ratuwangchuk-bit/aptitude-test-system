@@ -126,6 +126,9 @@ func MigrateDB() {
 		// Server-side autosave: the test page saves the participant's in-progress
 		// answers here so a crash or lost connection never loses their work.
 		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS autosave_answers TEXT`,
+		// Participant session token (SHA-256 hash), issued by ValidateCID and
+		// required by every participant test endpoint.
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS session_token_hash TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := DB.Exec(m); err != nil {

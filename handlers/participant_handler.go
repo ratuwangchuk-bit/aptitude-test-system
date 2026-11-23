@@ -275,11 +275,27 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Issue a fresh session token for the test endpoints. Replacing the stored
+	// hash signs out any earlier session, so one CID is active on one device.
+	token, err := utils.GenerateToken()
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not start session")
+		return
+	}
+	if _, err := config.DB.Exec(
+		"UPDATE participants SET session_token_hash=$1 WHERE id=$2",
+		utils.HashToken(token), participantID,
+	); err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not start session")
+		return
+	}
+
 	utils.JSON(w, http.StatusOK, map[string]interface{}{
-		"message":        "CID verified successfully",
-		"participant_id": participantID,
-		"full_name":      fullName,
-		"cid_number":     cidNumber,
+		"message":           "CID verified successfully",
+		"participant_id":    participantID,
+		"full_name":         fullName,
+		"cid_number":        cidNumber,
+		"participant_token": token,
 	})
 }
 

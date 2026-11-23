@@ -25,20 +25,23 @@ func RegisterRoutes(r *mux.Router) {
 	// guesses a day instead of thousands per minute.
 	adminLoginLimit := middleware.RateLimit(20, 15*time.Minute)
 
+	// Test endpoints require the session token issued by /api/validate-cid.
+	participantAuth := middleware.ParticipantAuth
+
 	// ── Participant-facing public routes ──────────────────────────────────────
 	r.HandleFunc("/api/test-info", handlers.GetPublicTestInfo).Methods("GET")
 	r.HandleFunc("/api/image-proxy", handlers.ImageProxy).Methods("GET")
 	r.HandleFunc("/api/validate-passcode", gateLimit(handlers.ValidatePasscode)).Methods("POST")
 	r.HandleFunc("/api/passcode-status/{id}", handlers.CheckPasscodeStatus).Methods("GET")
 	r.HandleFunc("/api/validate-cid", gateLimit(handlers.ValidateCID)).Methods("POST")
-	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
-	r.HandleFunc("/api/progress", handlers.UpdateProgress).Methods("POST")
-	r.HandleFunc("/api/save-answers", handlers.SaveAnswers).Methods("POST")
-	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
-	r.HandleFunc("/api/questions", handlers.GetQuestions).Methods("GET")
-	r.HandleFunc("/api/test-availability", handlers.CheckTestAvailability).Methods("GET")
-	r.HandleFunc("/api/submit-test", handlers.SubmitTest).Methods("POST")
-	r.HandleFunc("/api/submission-status/{participantId}", handlers.CheckSubmission).Methods("GET")
+	r.HandleFunc("/api/start-test", participantAuth(handlers.StartTest)).Methods("POST")
+	r.HandleFunc("/api/progress", participantAuth(handlers.UpdateProgress)).Methods("POST")
+	r.HandleFunc("/api/save-answers", participantAuth(handlers.SaveAnswers)).Methods("POST")
+	r.HandleFunc("/api/cancel-submission", participantAuth(handlers.CancelRecentSubmission)).Methods("DELETE")
+	r.HandleFunc("/api/questions", participantAuth(handlers.GetQuestions)).Methods("GET")
+	r.HandleFunc("/api/test-availability", participantAuth(handlers.CheckTestAvailability)).Methods("GET")
+	r.HandleFunc("/api/submit-test", participantAuth(handlers.SubmitTest)).Methods("POST")
+	r.HandleFunc("/api/submission-status/{participantId}", participantAuth(handlers.CheckSubmission)).Methods("GET")
 	// Requires admin auth: returns full PII (name, CID, scores) for any participant.
 	r.HandleFunc("/api/result/{participantId}", middleware.AdminAuth(handlers.GetParticipantResult)).Methods("GET")
 
