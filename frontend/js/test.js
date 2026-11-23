@@ -86,6 +86,7 @@ function updateAnsweredProgress() {
 
   updateSidebarButtons();
   updateSectionTabs();
+  refreshNextButton();
 }
 
 /* ── Sidebar + section tab bar ─────────────────────────────────────────────── */
@@ -215,15 +216,38 @@ function showQuestion(idx) {
       <button class="q-nav-btn" onclick="goToQuestion(${idx - 1})" ${idx === 0 ? 'disabled' : ''}>
         &#8592; Previous
       </button>
-      <button class="q-nav-btn q-next" onclick="goToQuestion(${idx + 1})"
-              ${idx === questions.length - 1 ? 'disabled' : ''}>
-        Next &#8594;
-      </button>
+      <div id="qNextSlot">${nextButtonHtml(idx)}</div>
     </div>`;
 
   document.querySelector('.test-q-panel')?.scrollTo({ top: 0, behavior: 'smooth' });
   updateSidebarButtons();
   updateSectionTabs();
+}
+
+// nextButtonHtml returns the right-hand nav button. On the last question a
+// disabled "Next" left participants unsure how to finish, so it becomes
+// "Submit Test" once everything is answered, or a jump to the first
+// unanswered question otherwise.
+function nextButtonHtml(idx) {
+  if (idx < questions.length - 1) {
+    return `<button class="q-nav-btn q-next" onclick="goToQuestion(${idx + 1})">Next &#8594;</button>`;
+  }
+  const firstUnanswered = questions.findIndex(q => !selectedAnswers[q.id]);
+  if (firstUnanswered === -1) {
+    return `<button class="q-nav-btn q-submit" onclick="submitTest(false)">Submit Test &#10003;</button>`;
+  }
+  const remaining = questions.filter(q => !selectedAnswers[q.id]).length;
+  return `<button class="q-nav-btn q-next" onclick="goToQuestion(${firstUnanswered})">
+            ${remaining} unanswered &#8594;
+          </button>`;
+}
+
+// refreshNextButton re-renders the nav button in place so answering the final
+// question swaps it to "Submit Test" without rebuilding the form (which would
+// steal focus from a fill-in-the-blank input).
+function refreshNextButton() {
+  const slot = document.getElementById('qNextSlot');
+  if (slot) slot.innerHTML = nextButtonHtml(currentQuestionIdx);
 }
 
 function onOptionChange(qId, opt) {
