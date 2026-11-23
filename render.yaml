@@ -1,7 +1,12 @@
 services:
   - type: web
     name: daes
-    env: go
+    runtime: go
     buildCommand: go build -o server .
     startCommand: ./server
     healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # set manually in the Render dashboard (Neon/Supabase/Render Postgres URL)
+      - key: SESSION_SECURE
+        value: "true"
