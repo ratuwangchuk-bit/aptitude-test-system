@@ -115,10 +115,11 @@ func CancelRecentSubmission(w http.ResponseWriter, r *http.Request) {
 // authoritative number of seconds remaining.
 //
 // started_at is set once on the first call and preserved on reloads so the
-// timer never resets mid-session. Exception: if the previous session's timer
-// fully elapsed without a submission being created (browser crash, beacon
-// failure, etc.), started_at is reset to NOW() so the participant gets a
-// fresh attempt rather than being permanently locked out.
+// timer never resets mid-session. If the timer has fully elapsed without a
+// submission, started_at is kept and 0 seconds are returned: the test page
+// then submits, and SubmitTest grades the server-side autosaved answers. The
+// only exception is an admin-granted resume (saved_answers set by
+// AllowResume), which restarts the clock.
 func StartTest(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ParticipantID int `json:"participant_id"`
@@ -141,12 +142,16 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 				WHEN started_at IS NOT NULL
 				     AND EXTRACT(EPOCH FROM (NOW() - started_at))::int < $2
 				THEN started_at
-				-- Expired session with no submission: reset so the participant
-				-- is not permanently locked out by a beacon/network failure.
+				-- Expired, but the admin granted a resume: restart the clock.
 				WHEN started_at IS NOT NULL
 				     AND EXTRACT(EPOCH FROM (NOW() - started_at))::int >= $2
+				     AND saved_answers IS NOT NULL
 				     AND NOT EXISTS (SELECT 1 FROM submissions WHERE participant_id = $1)
 				THEN NOW()
+				-- Expired otherwise: time is up. Keep started_at so the attempt
+				-- is graded from its autosaved answers rather than restarted.
+				WHEN started_at IS NOT NULL
+				THEN started_at
 				-- First open (started_at IS NULL): record the start time.
 				ELSE NOW()
 			END
@@ -186,6 +191,12 @@ func StartTest(w http.ResponseWriter, r *http.Request) {
 		}
 		json.Unmarshal([]byte(raw.String), &savedAnswers) //nolint:errcheck
 	}()
+
+	// No admin restore state: fall back to the autosaved answers so a
+	// participant whose browser crashed mid-test continues with their work.
+	if savedAnswers == nil && secondsRemaining > 0 {
+		savedAnswers = loadAutosavedAnswers(req.ParticipantID)
+	}
 
 	if savedAnswers != nil {
 		utils.JSON(w, http.StatusOK, map[string]interface{}{
@@ -270,6 +281,81 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 		"full_name":      fullName,
 		"cid_number":     cidNumber,
 	})
+}
+
+// loadAutosavedAnswers returns the participant's autosaved answers as a
+// question_id -> selected option map, or nil if nothing has been saved.
+func loadAutosavedAnswers(participantID int) map[string]string {
+	var raw sql.NullString
+	if err := config.DB.QueryRow(
+		"SELECT autosave_answers FROM participants WHERE id=$1", participantID,
+	).Scan(&raw); err != nil || !raw.Valid || raw.String == "" {
+		return nil
+	}
+	var answers map[string]string
+	if json.Unmarshal([]byte(raw.String), &answers) != nil || len(answers) == 0 {
+		return nil
+	}
+	return answers
+}
+
+// SaveAnswers stores the participant's in-progress answers on the server.
+// The test page calls it shortly after every answer change and every 15
+// seconds, so a crash or lost connection never loses more than a few seconds
+// of work. Saves are refused once the test is submitted or its time (plus the
+// same 120-second grace SubmitTest allows) has run out, so answers cannot be
+// changed after the deadline.
+func SaveAnswers(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	var req models.SubmitTestRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ParticipantID == 0 {
+		utils.Error(w, http.StatusBadRequest, "Participant ID is required")
+		return
+	}
+
+	var assignedIDs []int64
+	if err := config.DB.QueryRow(
+		"SELECT assigned_question_ids FROM participants WHERE id=$1", req.ParticipantID,
+	).Scan(utils.IntArrayScanner(&assignedIDs)); err != nil || len(assignedIDs) == 0 {
+		utils.Error(w, http.StatusBadRequest, "No questions were assigned to this participant")
+		return
+	}
+	assignedSet := make(map[int]bool, len(assignedIDs))
+	for _, id := range assignedIDs {
+		assignedSet[int(id)] = true
+	}
+
+	answers := make(map[string]string, len(req.Answers))
+	for _, ans := range req.Answers {
+		if !assignedSet[ans.QuestionID] {
+			utils.Error(w, http.StatusBadRequest, "Answers contain a question that was not assigned to you")
+			return
+		}
+		if sel := strings.TrimSpace(ans.SelectedOption); sel != "" {
+			answers[fmt.Sprint(ans.QuestionID)] = ans.SelectedOption
+		}
+	}
+	answersJSON, _ := json.Marshal(answers)
+
+	res, err := config.DB.Exec(`
+		UPDATE participants
+		SET autosave_answers = $1, progress_answered = $2
+		WHERE id = $3
+		  AND passcode_id IS NOT NULL
+		  AND started_at IS NOT NULL
+		  AND NOW() <= started_at + make_interval(secs => $4)
+		  AND NOT EXISTS (SELECT 1 FROM submissions WHERE participant_id = $3)`,
+		string(answersJSON), len(answers), req.ParticipantID, testDurationSeconds()+120,
+	)
+	if err != nil {
+		utils.Error(w, http.StatusInternalServerError, "Could not save answers")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		utils.Error(w, http.StatusConflict, "Answers can no longer be saved for this test")
+		return
+	}
+	utils.JSON(w, http.StatusOK, map[string]bool{"saved": true})
 }
 
 // UpdateProgress is called by the test page every 30 seconds with a count of

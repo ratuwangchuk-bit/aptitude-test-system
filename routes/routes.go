@@ -33,6 +33,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/validate-cid", gateLimit(handlers.ValidateCID)).Methods("POST")
 	r.HandleFunc("/api/start-test", handlers.StartTest).Methods("POST")
 	r.HandleFunc("/api/progress", handlers.UpdateProgress).Methods("POST")
+	r.HandleFunc("/api/save-answers", handlers.SaveAnswers).Methods("POST")
 	r.HandleFunc("/api/cancel-submission", handlers.CancelRecentSubmission).Methods("DELETE")
 	r.HandleFunc("/api/questions", handlers.GetQuestions).Methods("GET")
 	r.HandleFunc("/api/test-availability", handlers.CheckTestAvailability).Methods("GET")

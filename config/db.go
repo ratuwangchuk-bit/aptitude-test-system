@@ -123,6 +123,9 @@ func MigrateDB() {
 		// their answers so they can resume after an accidental auto-submission.
 		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS saved_answers TEXT`,
+		// Server-side autosave: the test page saves the participant's in-progress
+		// answers here so a crash or lost connection never loses their work.
+		`ALTER TABLE participants ADD COLUMN IF NOT EXISTS autosave_answers TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := DB.Exec(m); err != nil {

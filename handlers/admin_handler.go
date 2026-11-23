@@ -182,8 +182,9 @@ func DeleteResult(w http.ResponseWriter, r *http.Request) {
 	// - started_at cleared            → the countdown timer resets to full duration
 	// - passcode_id cleared           → forces re-entry through the passcode gate
 	// - is_suspended cleared          → removes any lingering suspension flag
+	// - autosave_answers cleared      → the new attempt starts with no answers
 	if _, err := tx.Exec(
-		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL, passcode_id = NULL, is_suspended = FALSE WHERE id=$1",
+		"UPDATE participants SET assigned_question_ids = NULL, started_at = NULL, passcode_id = NULL, is_suspended = FALSE, autosave_answers = NULL WHERE id=$1",
 		participantID,
 	); err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Could not reset participant state")

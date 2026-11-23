@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS participants (
 -- GetQuestions, so a reload returns the same set and SubmitTest can reject
 -- answers for questions that were never actually served to them.
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS assigned_question_ids INT[];
+-- In-progress answers autosaved by the test page (JSON object of
+-- question_id -> selected option), used to recover work after a crash or
+-- lost connection and to grade an attempt whose time ran out.
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS autosave_answers TEXT;
 
 
 -- ── Questions ─────────────────────────────────────────────────────────────────

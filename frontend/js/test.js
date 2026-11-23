@@ -257,6 +257,7 @@ function onOptionChange(qId, opt) {
   });
   document.getElementById(`qopt_${qId}_${opt}`)?.classList.add('q-selected');
   updateAnsweredProgress();
+  scheduleAutosave();
 }
 
 function onFillChange(qId, value) {
@@ -267,6 +268,7 @@ function onFillChange(qId, value) {
     delete selectedAnswers[qId];
   }
   updateAnsweredProgress();
+  scheduleAutosave();
 }
 
 function goToQuestion(idx) {
@@ -278,6 +280,73 @@ function goToQuestion(idx) {
 function jumpToSection(section) {
   const idx = questions.findIndex(q => q.section === section);
   if (idx !== -1) goToQuestion(idx);
+}
+
+/* ── Server autosave ───────────────────────────────────────────────────────── */
+// Answers are saved to the server 2 seconds after each change, and any save
+// that failed is retried every 15 seconds and as soon as the browser is back
+// online. A crash or lost connection therefore loses at most a few seconds of
+// work, and if time runs out while offline the server grades the saved copy.
+
+let _autosaveTimer    = null;
+let _autosaveDirty    = false;
+let _autosaveInFlight = false;
+
+function setSaveStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  const states = {
+    saving:  ['Saving…',                         'rgba(255,255,255,.45)'],
+    saved:   ['✓ Saved',                         'rgba(94,234,212,.8)'],
+    offline: ['⚠ Offline — answers will sync',   '#fbbf24'],
+  };
+  const [text, color] = states[state] || ['', ''];
+  el.textContent = text;
+  el.style.color = color;
+}
+
+function scheduleAutosave() {
+  _autosaveDirty = true;
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(saveAnswersNow, 2000);
+}
+
+async function saveAnswersNow() {
+  if (submitted || !testStarted || !_autosaveDirty || _autosaveInFlight) return;
+  const participantId = Number(localStorage.getItem('participant_id'));
+  const answers = questions
+    .filter(q => selectedAnswers[q.id])
+    .map(q => ({ question_id: q.id, selected_option: selectedAnswers[q.id] }));
+
+  _autosaveDirty    = false;
+  _autosaveInFlight = true;
+  setSaveStatus('saving');
+  try {
+    await api('/api/save-answers', {
+      method: 'POST',
+      body:   JSON.stringify({ participant_id: participantId, answers }),
+    });
+    setSaveStatus(_autosaveDirty ? 'saving' : 'saved');
+  } catch (err) {
+    // A TypeError means the request never reached the server (offline).
+    // Anything else is the server refusing — e.g. time is up — so stop retrying.
+    if (err instanceof TypeError) {
+      _autosaveDirty = true;
+      setSaveStatus('offline');
+    } else {
+      setSaveStatus('');
+    }
+  } finally {
+    _autosaveInFlight = false;
+  }
+}
+
+function startAutosave() {
+  const interval = setInterval(() => {
+    if (submitted) { clearInterval(interval); return; }
+    saveAnswersNow();
+  }, 15000);
+  window.addEventListener('online', saveAnswersNow);
 }
 
 /* ── Mobile sidebar drawer ─────────────────────────────────────────────────── */
@@ -638,6 +707,13 @@ async function submitTest(auto = false) {
       return;
     }
     submitted = false;
+    // Time ran out while offline: keep retrying. Once the connection is back
+    // the server accepts it, grading the autosaved answers if it arrives late.
+    if (auto && err instanceof TypeError) {
+      setMessage('message', 'Connection lost — your test will be submitted automatically once you are back online.', true);
+      setTimeout(() => submitTest(true), 5000);
+      return;
+    }
     setMessage('message', err.message, true);
   }
 }
@@ -948,6 +1024,7 @@ async function initTest() {
   startSectionAvailabilityWatcher();
   startQuestionSyncWatcher();
   startProgressHeartbeat();
+  startAutosave();
 }
 
 // Sends the current answered-question count to the server every 30 seconds so
