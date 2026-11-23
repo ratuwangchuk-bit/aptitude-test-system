@@ -2,6 +2,8 @@ package routes
 
 import (
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -105,5 +107,15 @@ func RegisterRoutes(r *mux.Router) {
 
 	// ── Static frontend files ─────────────────────────────────────────────────
 	fs := http.FileServer(http.Dir("./frontend"))
-	r.PathPrefix("/").Handler(fs)
+	// The dashboard is only served to signed-in admins (the other admin page
+	// names are redirect stubs that point here). The match ignores case because
+	// some file systems do, and /ADMIN-DASHBOARD.html must not slip through.
+	adminPage := middleware.AdminPage(fs)
+	r.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.EqualFold(path.Clean(req.URL.Path), "/admin-dashboard.html") {
+			adminPage.ServeHTTP(w, req)
+			return
+		}
+		fs.ServeHTTP(w, req)
+	}))
 }

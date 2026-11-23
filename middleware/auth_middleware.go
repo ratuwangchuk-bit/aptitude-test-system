@@ -83,3 +83,19 @@ func SuperAdminOnly(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, r)
 	}
 }
+
+// AdminPage protects an admin HTML page. Without a valid session the browser is
+// redirected to the login page before any of the page is sent, so signed-out
+// visitors never see the dashboard, even briefly. no-store stops the browser
+// from showing a cached copy via the Back button after logout.
+func AdminPage(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		info, err := getSessionInfo(r)
+		if err != nil || !info.IsActive {
+			http.Redirect(w, r, "/admin-login.html", http.StatusFound)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
