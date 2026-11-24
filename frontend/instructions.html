@@ -7,11 +7,6 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .orb {
-      position: absolute; border-radius: 9999px;
-      filter: blur(80px); opacity: 0.16; pointer-events: none;
-    }
-
     /* Key facts: duration · questions · sections */
     .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-bottom: 1.5rem; }
     .fact {
@@ -59,129 +54,104 @@
   <link rel="stylesheet" href="css/tailwind.css">
 </head>
 
-<body class="min-h-screen bg-slate-50">
-<div class="min-h-screen flex flex-col lg:flex-row">
+<body class="page-bg min-h-screen text-slate-900">
+<div class="min-h-screen flex flex-col">
 
-  <!-- ══════════════════════════════════════════════════════════
-       LEFT — Branding panel (compact logo strip on phones)
-  ══════════════════════════════════════════════════════════════ -->
-  <div class="relative lg:w-[42%] xl:w-[38%] flex flex-col justify-between overflow-hidden
-              px-6 py-5 sm:px-12 lg:px-14 lg:py-16"
-       style="background: linear-gradient(150deg,#0b1220 0%,#1a2e6e 55%,#0a5c54 100%)">
+  <main class="flex-1 flex items-center justify-center px-4 py-8 sm:py-10">
+    <div class="w-full max-w-[28rem]">
+      <div class="access-card px-6 py-8 sm:px-10 sm:py-10">
 
-    <div class="orb w-96 h-96 -top-24 -right-24 bg-blue-400"></div>
-    <div class="orb w-80 h-80 bottom-0 -left-20 bg-teal-400"></div>
+        <img src="assets/logo-web.png" alt="DAES — Digital Aptitude Evaluation System"
+             class="h-20 sm:h-24 mx-auto object-contain">
 
-    <div class="relative z-10 flex flex-col items-center text-center">
-      <div class="flex justify-center lg:mb-8">
-        <div class="rounded-2xl p-2 lg:p-3 shadow-2xl" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14)">
-          <img src="assets/logo.png" alt="DAES" class="h-14 lg:h-36 object-contain block">
+        <!-- Progress through the participant flow -->
+        <ol class="stepper mt-7" aria-label="Progress">
+          <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span><span class="sr-only">(completed)</span></li>
+          <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Identity</span><span class="sr-only">(completed)</span></li>
+          <li class="current" aria-current="step"><span class="dot">3</span><span class="lbl">Instructions</span></li>
+          <li><span class="dot">4</span><span class="lbl">Test</span></li>
+        </ol>
+
+        <!-- Header -->
+        <div class="text-center mb-6">
+          <h1 id="greeting" class="text-2xl font-extrabold tracking-tight text-slate-900">Before you begin</h1>
+          <p class="text-sm text-slate-500 mt-2 leading-relaxed">Just four things to know. The timer has not started yet.</p>
         </div>
-      </div>
 
-      <h1 class="hidden lg:block text-3xl xl:text-4xl font-black text-white leading-tight tracking-tight">
-        You&rsquo;re almost<br>ready
-      </h1>
-      <p class="hidden lg:block text-white/60 font-semibold text-sm mt-4 leading-relaxed max-w-xs">
-        Take a moment, settle in, and start when you feel ready.
-        The timer has not started yet.
-      </p>
+        <!-- Key facts -->
+        <div class="facts" aria-label="Test overview">
+          <div class="fact"><b id="factDuration">–</b><span>Minutes</span></div>
+          <div class="fact"><b id="factQuestions">–</b><span>Questions</span></div>
+          <div class="fact"><b id="factSections">–</b><span>Sections</span></div>
+        </div>
+
+        <!-- The rules that matter -->
+        <div class="rules-list">
+          <div class="rule">
+            <span class="rule-icon bg-blue-50 text-blue-600"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <p>The timer starts when you press <b>Start Test</b> and <b>cannot be paused</b>.</p>
+          </div>
+          <div class="rule">
+            <span class="rule-icon bg-red-50 text-red-600"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></span>
+            <p><b>Stay in fullscreen and on this tab.</b> Leaving can submit your test automatically.</p>
+          </div>
+          <div class="rule">
+            <span class="rule-icon bg-green-50 text-green-600"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <p><b>Answer every question</b> to submit. 1 mark each, no negative marking.</p>
+          </div>
+          <div class="rule">
+            <span class="rule-icon bg-amber-50 text-amber-600"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+            <p>Unsure? <b>Mark it for review</b> and come back to it before you submit.</p>
+          </div>
+        </div>
+
+        <!-- Optional detail, collapsed by default -->
+        <details class="more">
+          <summary>
+            More details (optional)
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="more-body">
+            <h3>Sections</h3>
+            <div id="sectionList"><p>Loading…</p></div>
+
+            <h3>Automatic submission</h3>
+            <ul>
+              <li>When the time runs out, your answers are submitted for you.</li>
+              <li>Leaving fullscreen starts a 15-second countdown. Return to fullscreen to cancel it.</li>
+              <li>You get 3 warnings for switching tabs or windows. The next switch submits your test.</li>
+              <li>Do not refresh or close the page. Your answers are saved as you go.</li>
+            </ul>
+
+            <h3>Moving around</h3>
+            <ul>
+              <li>Use the section tabs, the question numbers, or Previous / Next.</li>
+              <li>&ldquo;Review all answers&rdquo; shows what is answered and what is marked for review.</li>
+              <li>Make the question text larger with the A+ button.</li>
+              <li>On a keyboard: <kbd>A</kbd>&ndash;<kbd>E</kbd> choose an option, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> move between questions, <kbd>F</kbd> marks for review.</li>
+            </ul>
+          </div>
+        </details>
+
+        <!-- Start Test -->
+        <button id="startTestBtn" type="button"
+                class="btn-primary">
+          I&rsquo;m ready &mdash; Start Test
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </button>
+        <p class="text-center text-xs font-semibold text-slate-400 mt-3">
+          You&rsquo;ll be asked to switch to fullscreen first. The timer starts after that.
+        </p>
+
+      </div>
     </div>
+  </main>
 
-    <p class="relative z-10 text-white/25 text-xs font-semibold text-center hidden lg:block">
-      © <span id="cpYear"></span> DHI · All rights reserved
-    </p>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════════
-       RIGHT — Instructions
-  ══════════════════════════════════════════════════════════════ -->
-  <div class="flex-1 flex flex-col justify-center items-center bg-white px-6 py-8 sm:px-14 sm:py-12">
-    <div class="w-full max-w-[30rem]">
-
-      <!-- Progress through the participant flow -->
-      <ol class="stepper" aria-label="Progress">
-        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span><span class="sr-only">(completed)</span></li>
-        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Identity</span><span class="sr-only">(completed)</span></li>
-        <li class="current" aria-current="step"><span class="dot">3</span><span class="lbl">Instructions</span></li>
-        <li><span class="dot">4</span><span class="lbl">Test</span></li>
-      </ol>
-
-      <!-- Header -->
-      <div class="text-center mb-6">
-        <h2 id="greeting" class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">Before you begin</h2>
-        <p class="text-slate-500 font-semibold text-sm mt-2">Just four things to know.</p>
-      </div>
-
-      <!-- Key facts -->
-      <div class="facts" aria-label="Test overview">
-        <div class="fact"><b id="factDuration">–</b><span>Minutes</span></div>
-        <div class="fact"><b id="factQuestions">–</b><span>Questions</span></div>
-        <div class="fact"><b id="factSections">–</b><span>Sections</span></div>
-      </div>
-
-      <!-- The rules that matter -->
-      <div class="rules-list">
-        <div class="rule">
-          <span class="rule-icon bg-blue-50 text-blue-600"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
-          <p>The timer starts when you press <b>Start Test</b> and <b>cannot be paused</b>.</p>
-        </div>
-        <div class="rule">
-          <span class="rule-icon bg-red-50 text-red-600"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></span>
-          <p><b>Stay in fullscreen and on this tab.</b> Leaving can submit your test automatically.</p>
-        </div>
-        <div class="rule">
-          <span class="rule-icon bg-green-50 text-green-600"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-          <p><b>Answer every question</b> to submit. 1 mark each, no negative marking.</p>
-        </div>
-        <div class="rule">
-          <span class="rule-icon bg-amber-50 text-amber-600"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
-          <p>Unsure? <b>Mark it for review</b> and come back to it before you submit.</p>
-        </div>
-      </div>
-
-      <!-- Optional detail, collapsed by default -->
-      <details class="more">
-        <summary>
-          More details (optional)
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        </summary>
-        <div class="more-body">
-          <h3>Sections</h3>
-          <div id="sectionList"><p>Loading…</p></div>
-
-          <h3>Automatic submission</h3>
-          <ul>
-            <li>When the time runs out, your answers are submitted for you.</li>
-            <li>Leaving fullscreen starts a 15-second countdown. Return to fullscreen to cancel it.</li>
-            <li>You get 3 warnings for switching tabs or windows. The next switch submits your test.</li>
-            <li>Do not refresh or close the page. Your answers are saved as you go.</li>
-          </ul>
-
-          <h3>Moving around</h3>
-          <ul>
-            <li>Use the section tabs, the question numbers, or Previous / Next.</li>
-            <li>&ldquo;Review all answers&rdquo; shows what is answered and what is marked for review.</li>
-            <li>Make the question text larger with the A+ button.</li>
-            <li>On a keyboard: <kbd>A</kbd>&ndash;<kbd>E</kbd> choose an option, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> move between questions, <kbd>F</kbd> marks for review.</li>
-          </ul>
-        </div>
-      </details>
-
-      <!-- Start Test -->
-      <button id="startTestBtn" type="button"
-              class="btn w-full py-4 text-base flex items-center justify-center gap-2">
-        I&rsquo;m ready &mdash; Start Test
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="5 3 19 12 5 21 5 3"/>
-        </svg>
-      </button>
-      <p class="text-center text-xs font-semibold text-slate-400 mt-3">
-        You&rsquo;ll be asked to switch to fullscreen first. The timer starts after that.
-      </p>
-
-    </div>
-  </div>
+  <footer class="text-center text-xs text-slate-400 pb-6 px-4">
+    © <span id="cpYear"></span> DHI · All rights reserved
+  </footer>
 
 </div>
 

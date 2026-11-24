@@ -21,6 +21,11 @@
   --shadow:       0 1px 4px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.08);
   --shadow-md:    0 2px 8px rgba(15,23,42,.07), 0 16px 40px rgba(15,23,42,.10);
   --shadow-lg:    0 4px 16px rgba(15,23,42,.08), 0 24px 64px rgba(15,23,42,.13);
+
+  /* Brand colours from the DAES logo — used across the participant pages. */
+  --brand:        #1f4fa8;
+  --brand-dark:   #173d86;
+  --brand-teal:   #2bb3b1;
 }
 
 /* ── Base / reset ──────────────────────────────────────────── */
@@ -838,18 +843,18 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
   content: ''; position: absolute; top: .85rem; right: 50%; width: 100%; height: 2px;
   background: #e2e8f0; z-index: 0;
 }
-.stepper li.done + li::before, .stepper li.done + li.current::before { background: linear-gradient(90deg, #14b8a6, #2563eb); }
+.stepper li.done + li::before, .stepper li.done + li.current::before { background: linear-gradient(90deg, var(--brand-teal), var(--brand)); }
 .stepper .dot {
   position: relative; z-index: 1;
   width: 1.75rem; height: 1.75rem; border-radius: 999px;
   display: grid; place-items: center; font-size: .72rem; font-weight: 900;
   background: #fff; border: 2px solid #e2e8f0; color: #94a3b8;
 }
-.stepper li.done .dot    { background: #14b8a6; border-color: #14b8a6; color: #fff; }
-.stepper li.current .dot { border-color: #2563eb; color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+.stepper li.done .dot    { background: var(--brand-teal); border-color: var(--brand-teal); color: #fff; }
+.stepper li.current .dot { border-color: var(--brand); color: var(--brand); box-shadow: 0 0 0 4px rgba(31,79,168,.12); }
 .stepper .lbl { font-size: .66rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; }
-.stepper li.done .lbl    { color: #0f766e; }
-.stepper li.current .lbl { color: #1d4ed8; }
+.stepper li.done .lbl    { color: #1f8f8d; }
+.stepper li.current .lbl { color: var(--brand); }
 
 
 /* ── Test end screens (submitted / already submitted / expired / tab open) ── */
@@ -888,6 +893,38 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
   font-size: .82rem; font-weight: 600; color: #475569; line-height: 1.5;
 }
 .end-logo { display: block; height: 2.75rem; margin: 1.6rem auto 0; opacity: .85; }
+.end-action { margin-top: 1.5rem; }
+.end-info { background: rgba(31,79,168,.1); color: var(--brand); box-shadow: 0 0 0 8px rgba(31,79,168,.06); }
 @media (max-width: 400px) {
   .stepper .lbl { font-size: .56rem; letter-spacing: .02em; }
 }
+
+/* ── Participant pages: shared page, card and primary button ──
+   Used by the passcode, CID, instructions and test start/end screens so the
+   whole participant flow looks like one product. */
+.page-bg {
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, rgba(31,79,168,.08), transparent 70%),
+    radial-gradient(40rem 20rem at 100% 100%, rgba(43,179,177,.07), transparent 70%),
+    #f8fafc;
+}
+.access-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.12);
+}
+.btn-primary {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .9rem 1rem; border: 0; border-radius: .75rem;
+  background: var(--brand); color: #fff; cursor: pointer;
+  font-family: inherit; font-weight: 700; font-size: .95rem; line-height: 1.2;
+  text-decoration: none;
+  transition: background .15s, transform .05s;
+}
+.btn-primary:hover  { background: var(--brand-dark); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(31,79,168,.25); }
+.btn-primary:disabled { opacity: .7; cursor: not-allowed; }
+.btn-primary.is-success { background: linear-gradient(135deg, #16a34a, #1f8f8d); }

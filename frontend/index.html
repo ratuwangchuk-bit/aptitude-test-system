@@ -7,21 +7,6 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Brand colours taken from the DAES logo. */
-    :root { --brand: #1f4fa8; --brand-dark: #173d86; --accent: #2bb3b1; }
-
-    .page-bg {
-      background:
-        radial-gradient(60rem 30rem at 50% -10%, rgba(31,79,168,.08), transparent 70%),
-        radial-gradient(40rem 20rem at 100% 100%, rgba(43,179,177,.07), transparent 70%),
-        #f8fafc;
-    }
-    .access-card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1.25rem;
-      box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.12);
-    }
     /* ── Passcode field ──────────────────────────────────────
        One real <input> (so paste, autofill and screen readers work) sits
        invisibly on top of 8 character slots that display what was typed.
@@ -65,7 +50,7 @@
       background: var(--brand); animation: caretBlink 1s steps(1) infinite;
     }
     @keyframes caretBlink { 50% { opacity: 0; } }
-    .code-field.is-complete .slot { border-color: var(--accent); }
+    .code-field.is-complete .slot { border-color: var(--brand-teal); }
     .code-field.field-error .slot { border-color: #dc2626; background: #fef2f2; }
     /* The slots show the error; no ring around the whole block. */
     .code-field.field-error { box-shadow: none !important; }
@@ -80,17 +65,6 @@
     #code::selection { background: transparent; }
     .code-hint { margin-top: .7rem; text-align: center; font-size: .74rem; font-weight: 500; color: #94a3b8; }
 
-    .btn-primary {
-      width: 100%;
-      display: flex; align-items: center; justify-content: center; gap: .5rem;
-      padding: .9rem 1rem; border-radius: .75rem;
-      background: var(--brand); color: #fff;
-      font-weight: 700; font-size: .95rem;
-      transition: background .15s, transform .05s;
-    }
-    .btn-primary:hover  { background: var(--brand-dark); }
-    .btn-primary:active { transform: translateY(1px); }
-    .btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(31,79,168,.25); }
   </style>
   <!-- Pre-built Tailwind utilities (see tailwind.config.js). Kept last in <head>
        so it overrides page styles the same way the former Tailwind CDN did. -->
@@ -180,21 +154,21 @@
       <!-- Trust row -->
       <ul class="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-slate-500">
         <li class="inline-flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-[color:var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
           Secure &amp; proctored
         </li>
         <li class="inline-flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-[color:var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
           Timed
         </li>
         <li class="inline-flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-[color:var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
