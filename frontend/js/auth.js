@@ -137,14 +137,68 @@ if (passcodeForm) {
 // is stored in localStorage (used by the test page to identify the participant
 // for submission), any previous timer is cleared, and the browser moves to the
 // instructions page.
+const CID_DIGITS = 11; // standard Bhutanese CID length (other ID formats are still accepted)
+
 const cidForm = document.getElementById('cidForm');
 if (cidForm) {
   // Send the participant back to step 1 now, rather than after they have
   // typed their CID, if they arrived here without passing the passcode gate.
   if (!localStorage.getItem('passcode_id')) window.location.replace('index.html');
 
-  const cidInput = document.getElementById('cid_number');
+  const cidInput   = document.getElementById('cid_number');
+  const cidField   = document.getElementById('cidField');
+  const cidCounter = document.getElementById('cidCounter');
+  const cidClear   = document.getElementById('cidClear');
+  const cidHint    = document.getElementById('cidHint');
+  const defaultHint = cidHint?.textContent || '';
+
+  // Live feedback: spaces are removed as they are typed (a CID never contains
+  // them), and a digit counter shows progress toward the usual 11 digits.
+  // Non-numeric IDs (e.g. permit numbers) are allowed; the counter just hides.
+  const updateCidUi = () => {
+    const v = cidInput.value;
+    const numeric = /^\d*$/.test(v);
+    if (cidCounter) {
+      cidCounter.hidden = !numeric;
+      cidCounter.textContent = `${v.length}/${CID_DIGITS}`;
+      cidCounter.classList.toggle('ok',   numeric && v.length === CID_DIGITS);
+      cidCounter.classList.toggle('over', numeric && v.length > CID_DIGITS);
+    }
+    cidField?.classList.toggle('is-valid', numeric && v.length === CID_DIGITS);
+    if (cidClear) cidClear.hidden = v.length === 0;
+    if (cidHint) {
+      const tooLong = numeric && v.length > CID_DIGITS;
+      cidHint.textContent = tooLong ? `That is ${v.length} digits — Bhutanese CID numbers have ${CID_DIGITS}. Please check.` : defaultHint;
+      cidHint.classList.toggle('warn', tooLong);
+    }
+  };
+
+  cidInput.addEventListener('input', () => {
+    const cleaned = cidInput.value.replace(/\s+/g, '');
+    if (cleaned !== cidInput.value) cidInput.value = cleaned;
+    updateCidUi();
+  });
+  // A short numeric CID is flagged only when the participant leaves the field,
+  // not while they are still typing.
+  cidInput.addEventListener('blur', () => {
+    const v = cidInput.value;
+    if (cidHint && /^\d+$/.test(v) && v.length < CID_DIGITS) {
+      cidHint.textContent = `That is ${v.length} digit${v.length === 1 ? '' : 's'} — Bhutanese CID numbers have ${CID_DIGITS}. Please check.`;
+      cidHint.classList.add('warn');
+    }
+  });
+  cidClear?.addEventListener('click', () => {
+    cidInput.value = '';
+    cidInput.dispatchEvent(new Event('input'));
+    cidInput.focus();
+  });
+  // "Start over" forgets the passcode so the participant can enter a new one.
+  document.getElementById('startOver')?.addEventListener('click', () => {
+    localStorage.removeItem('passcode_id');
+  });
+
   clearErrorOnInput(cidInput);
+  updateCidUi();
   cidInput?.focus();
 
   cidForm.addEventListener('submit', async (e) => {
@@ -155,7 +209,8 @@ if (cidForm) {
     const cid = cidInput.value.trim();
     if (!cid) { flagFieldError(cidInput, 'Please enter your CID number.'); return; }
 
-    await withBusy(e.submitter || cidForm.querySelector('[type=submit]'), async () => {
+    const button = e.submitter || cidForm.querySelector('[type=submit]');
+    await withBusy(button, async () => {
       try {
         const data = await api('/api/validate-cid', {
           method: 'POST',
@@ -169,8 +224,14 @@ if (cidForm) {
         // Clear any leftover timer from a previous session so the clock starts fresh
         // when the participant reaches the test page.
         localStorage.removeItem('test_start_time');
-        setMessage('message', `Welcome${data.full_name ? ', ' + data.full_name : ''}! Redirecting…`);
-        window.location.href = 'instructions.html';
+
+        // Confirm who was recognised for a moment before moving on, so a
+        // participant who typed someone else's CID notices.
+        const name = data.full_name ? `, ${data.full_name}` : '';
+        button.innerHTML = '<span aria-hidden="true">&#10003;</span><span>Verified</span>';
+        button.style.background = 'linear-gradient(135deg, #16a34a, #0d9488)';
+        setMessage('message', `Welcome${name}! Taking you to the instructions…`);
+        setTimeout(() => { window.location.href = 'instructions.html'; }, 900);
         return withBusy.KEEP;
       } catch (err) {
         flagFieldError(cidInput, err instanceof TypeError

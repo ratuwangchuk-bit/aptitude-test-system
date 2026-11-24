@@ -387,6 +387,77 @@
       font-size: .6rem; font-weight: 900; line-height: 1.2; text-align: center;
     }
 
+
+    /* ── Navigator tools: review button + text size ───────── */
+    .sb-tools { display: grid; gap: .6rem; padding-bottom: .9rem; margin-bottom: .2rem;
+                border-bottom: 1px solid rgba(255,255,255,.05); }
+    .sb-review-btn {
+      display: flex; align-items: center; justify-content: center; gap: .45rem;
+      width: 100%; padding: .6rem .7rem; border-radius: .6rem;
+      background: rgba(45,212,191,.1); border: 1px solid rgba(45,212,191,.35);
+      color: #5eead4; font-size: .74rem; font-weight: 800; cursor: pointer; transition: all .15s;
+    }
+    .sb-review-btn:hover { background: rgba(45,212,191,.18); color: #fff; }
+    .sb-textsize { display: flex; align-items: center; gap: .3rem; font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.4); }
+    .sb-textsize span { flex: 1; }
+    .sb-textsize button {
+      min-width: 2rem; padding: .3rem .4rem; border-radius: .4rem;
+      border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
+      color: rgba(255,255,255,.7); font-weight: 800; font-size: .72rem; cursor: pointer;
+    }
+    .sb-textsize button:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+    /* ── Adjustable question text size (--q-scale set by test.js) ── */
+    #testForm { --q-scale: 1; --q-text: 1rem; }
+    @media (max-width: 767px) { #testForm { --q-text: .95rem; } }
+    #testForm .q-text-card  { font-size: calc(var(--q-text) * var(--q-scale)); }
+    #testForm .q-opt        { font-size: calc(.9rem * var(--q-scale)); }
+    #testForm .q-table      { font-size: calc(.88rem * var(--q-scale)); }
+    #testForm .q-fill-input { font-size: max(16px, calc(1rem * var(--q-scale))); }
+
+    /* ── Review screen ────────────────────────────────────── */
+    .rv-overlay { position: fixed; inset: 0; z-index: 9500; display: grid; place-items: center; padding: 1rem; }
+    .rv-backdrop { position: absolute; inset: 0; background: rgba(2,6,15,.72); backdrop-filter: blur(6px); }
+    .rv-panel {
+      position: relative; width: min(100%, 40rem); max-height: calc(100vh - 2rem);
+      display: flex; flex-direction: column;
+      background: #0f1a30; border: 1px solid rgba(255,255,255,.1); border-radius: 1.1rem;
+      box-shadow: 0 30px 80px rgba(0,0,0,.55); color: #e2e8f0;
+      animation: qEnter .2s ease-out;
+    }
+    .rv-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.3rem .6rem; }
+    .rv-head h2 { font-size: 1.15rem; font-weight: 900; color: #fff; }
+    .rv-close { width: 2rem; height: 2rem; border-radius: .5rem; border: 1px solid rgba(255,255,255,.1);
+                background: rgba(255,255,255,.04); color: rgba(255,255,255,.7); font-size: 1.2rem; cursor: pointer; }
+    .rv-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .rv-stats { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 1.3rem .9rem; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .rv-stat { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .65rem; border-radius: 999px;
+               background: rgba(255,255,255,.05); font-size: .72rem; font-weight: 800; color: rgba(255,255,255,.75); }
+    .rv-body { overflow-y: auto; padding: .9rem 1.3rem; display: grid; gap: 1rem; }
+    .rv-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .5rem;
+                       font-size: .7rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #fb923c; }
+    .rv-section-head em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 700; color: rgba(255,255,255,.45); margin-left: .3rem; }
+    .rv-section-count { color: rgba(255,255,255,.5); letter-spacing: .04em; }
+    .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr)); gap: .4rem; }
+    .rv-q {
+      position: relative; aspect-ratio: 1; border-radius: .5rem; cursor: pointer;
+      font-size: .8rem; font-weight: 800; transition: transform .12s, background .12s;
+    }
+    .rv-q:hover { transform: translateY(-1px); }
+    .rv-answered { background: rgba(37,99,235,.22); border: 1px solid rgba(59,130,246,.55); color: #bfdbfe; }
+    .rv-open     { background: rgba(255,255,255,.04); border: 1px dashed rgba(255,255,255,.25); color: rgba(255,255,255,.55); }
+    .rv-flagged::after {
+      content: ''; position: absolute; top: 3px; right: 3px; width: .45rem; height: .45rem;
+      border-radius: 999px; background: #facc15; box-shadow: 0 0 0 2px #0f1a30;
+    }
+    .rv-foot { padding: .9rem 1.3rem 1.1rem; border-top: 1px solid rgba(255,255,255,.06); }
+    .rv-note { font-size: .8rem; font-weight: 600; color: rgba(255,255,255,.7); margin-bottom: .8rem; line-height: 1.5; }
+    .rv-note-warn { color: #fcd34d; }
+    .rv-note-ok   { color: #86efac; }
+    .rv-actions { display: flex; justify-content: space-between; gap: .6rem; flex-wrap: wrap; }
+    .rv-actions .q-nav-btn:disabled,
+    .rv-actions .q-nav-btn.q-submit:disabled:hover { opacity: .35; cursor: not-allowed; background: #16a34a; border-color: #16a34a; }
+
     /* ── Phone layout ─────────────────────────────────────── */
     @media (max-width: 767px) {
       .sb-shortcuts { display: none; }

@@ -26,13 +26,43 @@
       background: linear-gradient(90deg, #2dd4bf, #60a5fa);
       width: 50%; /* Step 2 of 4 */
     }
-    #cid_number {
-      font-size: 1.15rem;
-      letter-spacing: 0.12em;
-      font-weight: 900;
-      text-align: center;
-      padding: 1rem 1rem;
+    /* ── CID field: icon · input · digit counter · clear button ── */
+    .cid-field {
+      display: flex; align-items: center; gap: .6rem;
+      padding: 0 .7rem 0 .9rem; min-height: 3.75rem;
+      border: 1.5px solid #dde3ea; border-radius: .95rem; background: #fff;
+      transition: border-color .15s, box-shadow .15s;
     }
+    .cid-field:focus-within { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+    .cid-field.is-valid { border-color: #14b8a6; }
+    .cid-icon { flex-shrink: 0; width: 2.1rem; height: 2.1rem; border-radius: .6rem;
+                display: grid; place-items: center; background: #eff6ff; color: #2563eb; }
+    .cid-field.is-valid .cid-icon { background: #f0fdfa; color: #0d9488; }
+    #cid_number {
+      flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 1.15rem; font-weight: 800; letter-spacing: .1em; color: #0f172a;
+      padding: .9rem 0;
+    }
+    #cid_number::placeholder { font-family: inherit; letter-spacing: .04em; font-weight: 500; font-size: .95rem; color: #a0aec0; }
+    .cid-counter {
+      flex-shrink: 0; font-size: .7rem; font-weight: 800; color: #94a3b8;
+      font-variant-numeric: tabular-nums; padding: .2rem .45rem; border-radius: 999px; background: #f1f5f9;
+    }
+    .cid-counter.ok   { color: #0f766e; background: #ccfbf1; }
+    .cid-counter.over { color: #b45309; background: #fef3c7; }
+    .cid-clear {
+      flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 999px; border: 0;
+      background: #f1f5f9; color: #64748b; font-size: 1rem; line-height: 1; cursor: pointer;
+    }
+    .cid-clear:hover { background: #e2e8f0; color: #0f172a; }
+    .cid-hint { margin-top: .5rem; font-size: .76rem; font-weight: 600; color: #64748b; }
+    .cid-hint.warn { color: #b45309; }
+
+    /* Mobile-only "Before you continue" notes */
+    .rules summary { cursor: pointer; list-style: none; }
+    .rules summary::-webkit-details-marker { display: none; }
+    .rules[open] .rules-chevron { transform: rotate(180deg); }
   </style>
   <!-- Pre-built Tailwind utilities (see tailwind.config.js). Kept last in <head>
        so it overrides page styles the same way the former Tailwind CDN did. -->
@@ -46,7 +76,7 @@
        LEFT — Branding panel
   ════════════════════════════════════════════════════════════ -->
   <div class="relative lg:w-[46%] xl:w-[42%] flex flex-col justify-between overflow-hidden
-              px-8 py-12 sm:px-12 lg:px-14 lg:py-16"
+              px-6 py-5 sm:px-12 lg:px-14 lg:py-16"
        style="background: linear-gradient(150deg,#0b1220 0%,#1a2e6e 55%,#0a5c54 100%)">
 
     <!-- Decorative orbs -->
@@ -58,15 +88,15 @@
     <div class="relative z-10 flex flex-col items-center text-center">
 
       <!-- Logo -->
-      <div class="flex justify-center mb-8">
-        <div class="rounded-2xl p-3 shadow-2xl" style="background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.15)">
+      <div class="flex justify-center lg:mb-8">
+        <div class="rounded-2xl p-2 lg:p-3 shadow-2xl" style="background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.15)">
           <img src="assets/logo.png" alt="Digital Aptitude Evaluation System"
-               class="h-32 sm:h-36 object-contain block">
+               class="h-14 lg:h-36 object-contain block">
         </div>
       </div>
 
       <!-- Step badge -->
-      <span class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/15"
+      <span class="hidden lg:inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/15"
             style="background:rgba(255,255,255,.08)">
         <svg class="w-3.5 h-3.5 text-teal-300" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -79,20 +109,20 @@
       </span>
 
       <!-- Step progress bar -->
-      <div class="step-bar w-48 mb-6">
+      <div class="step-bar w-48 mb-6 hidden lg:block">
         <div class="step-bar-fill"></div>
       </div>
 
-      <h1 class="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
+      <h1 class="hidden lg:block text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
         Verify Your<br>Identity
       </h1>
-      <p class="text-white/55 font-semibold text-base mt-3 leading-relaxed max-w-xs">
+      <p class="hidden lg:block text-white/55 font-semibold text-base mt-3 leading-relaxed max-w-xs">
         Enter your CID number to confirm your identity. You must be pre-registered by the administrator.
       </p>
     </div>
 
     <!-- Middle: Info card -->
-    <div class="relative z-10 my-10 lg:my-0">
+    <div class="relative z-10 my-10 lg:my-0 hidden lg:block">
       <div class="rounded-2xl p-5 space-y-4"
            style="background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12)">
         <p class="text-white font-black text-sm flex items-center gap-2">
@@ -131,44 +161,58 @@
     </div>
 
     <!-- Bottom: Copyright -->
-    <p class="relative z-10 text-white/25 text-xs font-semibold text-center">
-      © 2026–<span id="cpYear"></span> OCTO · All rights reserved
+    <p class="relative z-10 text-white/25 text-xs font-semibold text-center hidden lg:block">
+      © <span id="cpYear"></span> DHI · All rights reserved
     </p>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
        RIGHT — CID verification form
   ════════════════════════════════════════════════════════════ -->
-  <div class="flex-1 flex flex-col justify-center items-center bg-white px-8 py-14 sm:px-14">
-    <div class="w-full max-w-[22rem]">
+  <div class="flex-1 flex flex-col justify-center items-center bg-white px-6 py-8 sm:px-14 sm:py-14">
+    <div class="w-full max-w-[24rem]">
+
+      <!-- Progress through the participant flow -->
+      <ol class="stepper" aria-label="Progress">
+        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span><span class="sr-only">(completed)</span></li>
+        <li class="current" aria-current="step"><span class="dot">2</span><span class="lbl">Identity</span></li>
+        <li><span class="dot">3</span><span class="lbl">Instructions</span></li>
+        <li><span class="dot">4</span><span class="lbl">Test</span></li>
+      </ol>
 
       <!-- Page header -->
-      <div class="flex flex-col items-center text-center mb-8">
-        <span class="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[0.7rem]
-                     font-black uppercase tracking-widest px-3 py-1.5 rounded-full
-                     border border-teal-100 mb-6">
-          <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
-          Identity Verification
-        </span>
-        <h2 class="text-3xl font-black text-slate-900 leading-tight">Enter Your CID</h2>
+      <div class="text-center mb-7">
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">Verify your identity</h2>
         <p class="text-slate-500 font-semibold text-sm mt-2 leading-relaxed">
-          Enter your Citizenship Identity Number to proceed to the test.
+          Enter your Citizenship Identity (CID) number. It must match the one registered by the administrator.
         </p>
       </div>
 
       <!-- CID form -->
-      <form id="cidForm" class="space-y-5">
+      <form id="cidForm" class="space-y-5" novalidate>
         <div>
-          <label class="block mb-1.5 text-sm font-extrabold text-slate-700" for="cid_number">
-            CID Number
-          </label>
-          <input id="cid_number" class="input w-full"
-                 minlength="5"
-                 inputmode="numeric"
-                 placeholder="e.g. 11512000000"
-                 autocomplete="off"
-                 aria-describedby="message"
-                 required>
+          <label class="block mb-1.5 text-sm font-extrabold text-slate-700" for="cid_number">CID number</label>
+          <div id="cidField" class="cid-field" data-field-frame>
+            <span class="cid-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2.5"/>
+                <path d="M14 10h4"/><path d="M14 14h4"/>
+              </svg>
+            </span>
+            <input id="cid_number"
+                   inputmode="numeric"
+                   placeholder="e.g. 11512000000"
+                   autocomplete="off"
+                   autocorrect="off"
+                   spellcheck="false"
+                   maxlength="50"
+                   aria-describedby="cidHint message"
+                   required>
+            <span id="cidCounter" class="cid-counter" aria-hidden="true">0/11</span>
+            <button type="button" id="cidClear" class="cid-clear" aria-label="Clear CID number" hidden>&times;</button>
+          </div>
+          <p id="cidHint" class="cid-hint">Bhutanese CID numbers have 11 digits.</p>
         </div>
 
         <button class="btn w-full py-4 text-base flex items-center justify-center gap-2" type="submit">
@@ -183,6 +227,25 @@
       <!-- Inline message (success / error) -->
       <p id="message" class="mt-4" role="alert" aria-live="assertive"></p>
 
+      <!-- Notes (shown in the side panel on large screens) -->
+      <details class="rules lg:hidden mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <summary class="flex items-center justify-between text-sm font-extrabold text-slate-700">
+          Before you continue
+          <svg class="rules-chevron w-4 h-4 text-slate-400 transition-transform" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <ul class="mt-3 space-y-2 text-xs font-semibold text-slate-600 leading-relaxed">
+          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Your CID must be pre-registered by the administrator.</li>
+          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Each CID can be used once. After submitting you cannot retake the test.</li>
+          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>If your CID is not found, contact the administrator immediately.</li>
+        </ul>
+      </details>
+
+      <p class="mt-6 text-center text-xs font-semibold text-slate-400">
+        Wrong passcode?
+        <a href="index.html" id="startOver" class="text-blue-600 hover:text-blue-800 underline underline-offset-2">Start over</a>
+      </p>
+
     </div>
   </div>
 
@@ -190,6 +253,12 @@
 
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
-<script>document.getElementById('cpYear').textContent = new Date().getFullYear();</script>
+<script>
+  // Show "2026" in the first year, "2026–2027" afterwards.
+  (function () {
+    const start = 2026, now = new Date().getFullYear();
+    document.getElementById('cpYear').textContent = now > start ? `${start}–${now}` : `${start}`;
+  })();
+</script>
 </body>
 </html>

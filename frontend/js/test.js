@@ -113,7 +113,22 @@ function buildSidebarAndTabs() {
   const sections = activeSectionsInOrder();
   let globalIdx  = 0;
   let tabsHtml   = '';
-  let sideHtml   = '';
+  let sideHtml   = `
+    <div class="sb-tools">
+      <button type="button" class="sb-review-btn" onclick="openReview()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Review all answers
+      </button>
+      <div class="sb-textsize" role="group" aria-label="Text size">
+        <span>Text size</span>
+        <button type="button" onclick="changeTextSize(-1)" aria-label="Smaller text">A&minus;</button>
+        <button type="button" onclick="changeTextSize(0)"  aria-label="Default text size">A</button>
+        <button type="button" onclick="changeTextSize(1)"  aria-label="Larger text">A+</button>
+      </div>
+    </div>`;
 
   sections.forEach(sectionName => {
     const sq   = questions.filter(q => q.section === sectionName);
@@ -354,6 +369,113 @@ function toggleFlag(qId) {
   updateSidebarButtons();
 }
 
+/* ── Review screen ─────────────────────────────────────────────────────────── */
+// An overview of every question (answered / not answered / for review),
+// grouped by section. Clicking a number jumps to it; submitting from here is
+// the final confirmation. Submit stays locked until every question is answered.
+
+function openReview() {
+  if (submitted || !questions.length) return;
+  closeMobileSidebar();
+  closeReview();
+
+  const total    = questions.length;
+  const answered = questions.filter(q => selectedAnswers[q.id]).length;
+  const open     = total - answered;
+  const flagged  = questions.filter(q => flaggedQuestions.has(q.id)).length;
+
+  let gi = 0;
+  const sectionsHtml = activeSectionsInOrder().map(name => {
+    const sq = questions.filter(q => q.section === name);
+    const done = sq.filter(q => selectedAnswers[q.id]).length;
+    const buttons = sq.map((q, li) => {
+      const idx = gi++;
+      const cls = (selectedAnswers[q.id] ? 'rv-answered' : 'rv-open') + (flaggedQuestions.has(q.id) ? ' rv-flagged' : '');
+      const state = (selectedAnswers[q.id] ? 'answered' : 'not answered') + (flaggedQuestions.has(q.id) ? ', marked for review' : '');
+      return `<button type="button" class="rv-q ${cls}" onclick="closeReview(); goToQuestion(${idx})"
+                      aria-label="Question ${li + 1}, ${state}">${li + 1}</button>`;
+    }).join('');
+    return `
+      <section class="rv-section">
+        <div class="rv-section-head">
+          <span>${escapeHtml(getSectionMeta(name).label)}${getSectionMeta(name).label !== name ? ` <em>${escapeHtml(name)}</em>` : ''}</span>
+          <span class="rv-section-count">${done}/${sq.length}</span>
+        </div>
+        <div class="rv-grid">${buttons}</div>
+      </section>`;
+  }).join('');
+
+  const note = open > 0
+    ? `<p class="rv-note rv-note-warn">Answer the remaining <b>${open}</b> question${open === 1 ? '' : 's'} to submit. Tap a grey number to go to it.</p>`
+    : flagged > 0
+      ? `<p class="rv-note">All questions answered. <b>${flagged}</b> ${flagged === 1 ? 'is' : 'are'} marked for review &mdash; check ${flagged === 1 ? 'it' : 'them'} before submitting if you wish.</p>`
+      : `<p class="rv-note rv-note-ok">All questions answered. Answers cannot be changed after you submit.</p>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'reviewOverlay';
+  overlay.className = 'rv-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'rvTitle');
+  overlay.innerHTML = `
+    <div class="rv-backdrop" onclick="closeReview()"></div>
+    <div class="rv-panel">
+      <div class="rv-head">
+        <h2 id="rvTitle">Review your answers</h2>
+        <button type="button" class="rv-close" onclick="closeReview()" aria-label="Close review">&times;</button>
+      </div>
+      <div class="rv-stats">
+        <span class="rv-stat"><i class="lg lg-answered"></i>${answered} answered</span>
+        <span class="rv-stat"><i class="lg lg-open"></i>${open} not answered</span>
+        <span class="rv-stat"><i class="lg lg-flagged"></i>${flagged} for review</span>
+      </div>
+      <div class="rv-body">${sectionsHtml}</div>
+      <div class="rv-foot">
+        ${note}
+        <div class="rv-actions">
+          <button type="button" class="q-nav-btn" onclick="closeReview()">&#8592; Back to test</button>
+          <button type="button" id="rvSubmitBtn" class="q-nav-btn q-submit" ${open > 0 ? 'disabled' : ''}
+                  onclick="submitTest(false, true)">Submit Test &#10003;</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  (open > 0 ? overlay.querySelector('.rv-q.rv-open') : overlay.querySelector('#rvSubmitBtn'))?.focus();
+}
+
+function closeReview() {
+  document.getElementById('reviewOverlay')?.remove();
+}
+
+// Escape closes the review screen.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('reviewOverlay')) closeReview();
+});
+
+/* ── Text size ─────────────────────────────────────────────────────────────── */
+// Participants can enlarge question and option text. Remembered per browser.
+
+const TEXT_SCALES = [0.9, 1, 1.15, 1.3, 1.45];
+let textScaleIdx = 1;
+
+function applyTextSize() {
+  document.getElementById('testForm')?.style.setProperty('--q-scale', TEXT_SCALES[textScaleIdx]);
+}
+
+function changeTextSize(step) {
+  textScaleIdx = step === 0 ? 1 : Math.min(TEXT_SCALES.length - 1, Math.max(0, textScaleIdx + step));
+  try { localStorage.setItem('test_text_scale', String(textScaleIdx)); } catch {}
+  applyTextSize();
+}
+
+(function restoreTextSize() {
+  try {
+    const saved = Number(localStorage.getItem('test_text_scale'));
+    if (Number.isInteger(saved) && saved >= 0 && saved < TEXT_SCALES.length) textScaleIdx = saved;
+  } catch {}
+  applyTextSize();
+})();
+
 /* ── Keyboard navigation ───────────────────────────────────────────────────── */
 // A–E / 1–5 choose an option, ←/→ move between questions, F flags the
 // question. Ignored while typing in a fill-in-the-blank box or while any
@@ -364,6 +486,7 @@ function overlayIsOpen() {
     document.getElementById('fullscreenPrompt') ||
     !document.getElementById('screenshotShield')?.classList.contains('hidden') ||
     document.getElementById('_antiCheatOverlay') ||
+    document.getElementById('reviewOverlay') ||
     (document.getElementById('appModal') && !document.getElementById('appModal').classList.contains('hidden'))
   );
 }
@@ -776,19 +899,14 @@ function startTimer() {
 
 /* ── Submission ────────────────────────────────────────────────────────────── */
 
-async function submitTest(auto = false) {
+// submitTest(auto, confirmed):
+//   auto      — time up / fullscreen exit / admin action: submit immediately.
+//   confirmed — the participant pressed Submit on the review screen.
+// Any other (manual) call opens the review screen instead of submitting.
+async function submitTest(auto = false, confirmed = false) {
   if (submitted) return;
-  if (!auto) {
-    const answered = questions.filter(q => selectedAnswers[q.id]).length;
-    const flagged  = questions.filter(q => flaggedQuestions.has(q.id)).length;
-    const ok = await showConfirm(
-      `You have answered ${answered} of ${questions.length} questions.` +
-      (flagged ? ` ${flagged} question${flagged === 1 ? ' is' : 's are'} still marked for review.` : '') +
-      ' You cannot change answers after submission. Submit now?',
-      'Submit Test', 'Submit'
-    );
-    if (!ok) return;
-  }
+  if (!auto && !confirmed) { openReview(); return; }
+  closeReview();
   submitted = true;
   clearInterval(timerInterval); // stop the countdown tick — a manual/early submit doesn't go through tick()'s own clearInterval
 
