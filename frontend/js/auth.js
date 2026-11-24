@@ -95,11 +95,18 @@ if (passcodeForm) {
   codeInput.addEventListener('keyup', caretToEnd);
 
   clearErrorOnInput(codeInput);
+
+  // Coming back from the CID page because the passcode was missing, invalid
+  // or expired: explain why and ask for it again.
+  let notice = null;
+  try { notice = sessionStorage.getItem('passcode_notice'); sessionStorage.removeItem('passcode_notice'); } catch {}
+
   // The browser may restore a previous value (back button / autofill).
   codeInput.value = normalizePasscode(codeInput.value);
   codeInput.dataset.prevLen = codeInput.value.length;
   renderSlots();
   codeInput.focus();
+  if (notice) flagFieldError(codeInput, notice);
 
   passcodeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -137,23 +144,43 @@ if (passcodeForm) {
 // is stored in localStorage (used by the test page to identify the participant
 // for submission), any previous timer is cleared, and the browser moves to the
 // instructions page.
-const CID_DIGITS = 11; // standard Bhutanese CID length (other ID formats are still accepted)
+const CID_DIGITS = 11; // standard CID length, used only for the digit counter
+
+// sendBackToPasscode returns the participant to the passcode page with a
+// message, forgetting the stored passcode so they must enter it again.
+function sendBackToPasscode(message) {
+  localStorage.removeItem('passcode_id');
+  try { sessionStorage.setItem('passcode_notice', message); } catch { /* storage blocked */ }
+  window.location.replace('index.html');
+}
 
 const cidForm = document.getElementById('cidForm');
 if (cidForm) {
-  // Send the participant back to step 1 now, rather than after they have
-  // typed their CID, if they arrived here without passing the passcode gate.
-  if (!localStorage.getItem('passcode_id')) window.location.replace('index.html');
+  // The passcode must be verified before the CID page can be used. Without
+  // one, go straight back; with one, confirm with the server that it is still
+  // valid (not expired or deleted) before the participant types their CID.
+  // The server enforces the same rule again when the CID is submitted.
+  const storedPasscodeId = Number(localStorage.getItem('passcode_id'));
+  if (!storedPasscodeId) {
+    sendBackToPasscode('Please enter your passcode first.');
+  } else {
+    fetch(`/api/passcode-status/${storedPasscodeId}?active=1`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.valid === false) {
+          sendBackToPasscode('Your passcode is invalid or has expired. Please enter it again.');
+        }
+      })
+      .catch(() => { /* Offline or server error: the check repeats on submit. */ });
+  }
 
   const cidInput   = document.getElementById('cid_number');
   const cidField   = document.getElementById('cidField');
   const cidCounter = document.getElementById('cidCounter');
   const cidClear   = document.getElementById('cidClear');
-  const cidHint    = document.getElementById('cidHint');
-  const defaultHint = cidHint?.textContent || '';
 
   // Live feedback: spaces are removed as they are typed (a CID never contains
-  // them), and a digit counter shows progress toward the usual 11 digits.
+  // them), and a digit counter shows how many digits have been entered.
   // Non-numeric IDs (e.g. permit numbers) are allowed; the counter just hides.
   const updateCidUi = () => {
     const v = cidInput.value;
@@ -166,11 +193,6 @@ if (cidForm) {
     }
     cidField?.classList.toggle('is-valid', numeric && v.length === CID_DIGITS);
     if (cidClear) cidClear.hidden = v.length === 0;
-    if (cidHint) {
-      const tooLong = numeric && v.length > CID_DIGITS;
-      cidHint.textContent = tooLong ? `That is ${v.length} digits — Bhutanese CID numbers have ${CID_DIGITS}. Please check.` : defaultHint;
-      cidHint.classList.toggle('warn', tooLong);
-    }
   };
 
   cidInput.addEventListener('input', () => {
@@ -178,23 +200,10 @@ if (cidForm) {
     if (cleaned !== cidInput.value) cidInput.value = cleaned;
     updateCidUi();
   });
-  // A short numeric CID is flagged only when the participant leaves the field,
-  // not while they are still typing.
-  cidInput.addEventListener('blur', () => {
-    const v = cidInput.value;
-    if (cidHint && /^\d+$/.test(v) && v.length < CID_DIGITS) {
-      cidHint.textContent = `That is ${v.length} digit${v.length === 1 ? '' : 's'} — Bhutanese CID numbers have ${CID_DIGITS}. Please check.`;
-      cidHint.classList.add('warn');
-    }
-  });
   cidClear?.addEventListener('click', () => {
     cidInput.value = '';
     cidInput.dispatchEvent(new Event('input'));
     cidInput.focus();
-  });
-  // "Start over" forgets the passcode so the participant can enter a new one.
-  document.getElementById('startOver')?.addEventListener('click', () => {
-    localStorage.removeItem('passcode_id');
   });
 
   clearErrorOnInput(cidInput);
@@ -234,6 +243,10 @@ if (cidForm) {
         setTimeout(() => { window.location.href = 'instructions.html'; }, 900);
         return withBusy.KEEP;
       } catch (err) {
+        if (err.data?.code === 'passcode_invalid') {
+          sendBackToPasscode(err.message);
+          return withBusy.KEEP;
+        }
         flagFieldError(cidInput, err instanceof TypeError
           ? 'Unable to reach the server. Please check your connection and try again.'
           : err.message);

@@ -448,6 +448,13 @@ async function api(url, options = {}) {
     window.location.href = 'admin-login.html';
     throw new Error('Session expired');
   }
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    // Keep the HTTP status and the response body (e.g. an error "code") so
+    // callers can react to specific failures, not just show the message.
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    err.data   = data;
+    throw err;
+  }
   return data;
 }

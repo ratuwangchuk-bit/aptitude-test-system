@@ -56,8 +56,6 @@
       background: #f1f5f9; color: #64748b; font-size: 1rem; line-height: 1; cursor: pointer;
     }
     .cid-clear:hover { background: #e2e8f0; color: #0f172a; }
-    .cid-hint { margin-top: .5rem; font-size: .76rem; font-weight: 600; color: #64748b; }
-    .cid-hint.warn { color: #b45309; }
 
     /* Mobile-only "Before you continue" notes */
     .rules summary { cursor: pointer; list-style: none; }
@@ -207,12 +205,11 @@
                    autocorrect="off"
                    spellcheck="false"
                    maxlength="50"
-                   aria-describedby="cidHint message"
+                   aria-describedby="message"
                    required>
             <span id="cidCounter" class="cid-counter" aria-hidden="true">0/11</span>
             <button type="button" id="cidClear" class="cid-clear" aria-label="Clear CID number" hidden>&times;</button>
           </div>
-          <p id="cidHint" class="cid-hint">Bhutanese CID numbers have 11 digits.</p>
         </div>
 
         <button class="btn w-full py-4 text-base flex items-center justify-center gap-2" type="submit">
@@ -240,11 +237,6 @@
           <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>If your CID is not found, contact the administrator immediately.</li>
         </ul>
       </details>
-
-      <p class="mt-6 text-center text-xs font-semibold text-slate-400">
-        Wrong passcode?
-        <a href="index.html" id="startOver" class="text-blue-600 hover:text-blue-800 underline underline-offset-2">Start over</a>
-      </p>
 
     </div>
   </div>
