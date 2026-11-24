@@ -110,11 +110,11 @@ func RegisterRoutes(r *mux.Router) {
 	// names are redirect stubs that point here). The match ignores case because
 	// some file systems do, and /ADMIN-DASHBOARD.html must not slip through.
 	adminPage := middleware.AdminPage(fs)
-	r.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	r.PathPrefix("/").Handler(middleware.StaticAssets(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if strings.EqualFold(path.Clean(req.URL.Path), "/admin-dashboard.html") {
 			adminPage.ServeHTTP(w, req)
 			return
 		}
 		fs.ServeHTTP(w, req)
-	}))
+	})))
 }
