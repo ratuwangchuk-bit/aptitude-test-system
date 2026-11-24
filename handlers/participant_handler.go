@@ -230,6 +230,29 @@ func ValidateCID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The passcode gate is enforced here as well as on the passcode page:
+	// without this check, calling this endpoint directly would skip the
+	// passcode entirely. It runs before the CID lookup so that, without a
+	// valid passcode, the response does not reveal whether a CID exists.
+	// The "code" field lets the page send the participant back to re-enter it.
+	var passcodeOK bool
+	if req.PasscodeID > 0 {
+		if err := config.DB.QueryRow(
+			"SELECT EXISTS(SELECT 1 FROM passcodes WHERE id=$1 AND expires_at > NOW())",
+			req.PasscodeID,
+		).Scan(&passcodeOK); err != nil {
+			utils.Error(w, http.StatusInternalServerError, "Could not verify passcode")
+			return
+		}
+	}
+	if !passcodeOK {
+		utils.JSON(w, http.StatusForbidden, map[string]string{
+			"error": "Your passcode is invalid or has expired. Please enter it again.",
+			"code":  "passcode_invalid",
+		})
+		return
+	}
+
 	var participantID int
 	var fullName, cidNumber string
 	var isSuspended bool
