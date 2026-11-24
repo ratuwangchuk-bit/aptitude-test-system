@@ -897,6 +897,80 @@ function startTimer() {
   timerInterval = setInterval(tick, 1000);
 }
 
+/* ── End screens ───────────────────────────────────────────────────────────── */
+// One consistent full-page screen for every way the test page can finish:
+// submitted, already submitted, time expired, or open in another tab.
+// Leaves fullscreen, since the participant no longer needs it.
+
+const END_SCREENS = {
+  submitted: {
+    tone: 'success', stepper: true,
+    title: 'Test submitted',
+    message: 'Thank you for taking part. Your answers have been received.',
+    note: 'Your result will be shared by the administrator. You may now close this window.',
+    action: { label: 'Back to home', href: 'index.html' },
+  },
+  alreadySubmitted: {
+    tone: 'info',
+    title: 'You have already completed this test',
+    message: 'This test has already been submitted for your CID and cannot be taken again.',
+    note: 'Your result will be shared by the administrator.',
+    action: { label: 'Back to home', href: 'index.html' },
+  },
+  expired: {
+    tone: 'warn',
+    title: 'Time is up',
+    message: 'Your test time has ended. Any answers saved before the deadline have been recorded.',
+    note: 'Your result will be shared by the administrator.',
+    action: { label: 'Back to home', href: 'index.html' },
+  },
+  tabOpen: {
+    tone: 'warn',
+    title: 'Test already open',
+    message: 'This test is open in another tab or window. Please continue there and close this one.',
+    note: 'If you have closed the other tab, try again.',
+    action: { label: 'Try again', reload: true },
+  },
+};
+
+const END_ICONS = {
+  success: '<polyline points="20 6 9 17 4 12"/>',
+  info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  warn:    '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+};
+
+function showEndScreen(kind) {
+  const c = END_SCREENS[kind];
+  if (!c) return;
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+
+  const stepper = c.stepper ? `
+      <ol class="stepper" aria-label="Progress">
+        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span></li>
+        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Identity</span></li>
+        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Instructions</span></li>
+        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Test</span></li>
+      </ol>` : '';
+  const action = c.action.reload
+    ? `<button type="button" class="btn w-full mt-6" onclick="location.reload()">${c.action.label}</button>`
+    : `<a href="${c.action.href}" class="btn w-full mt-6">${c.action.label}</a>`;
+
+  document.body.innerHTML = `
+    <main class="end-screen">
+      <div class="end-card" role="status">
+        ${stepper}
+        <span class="end-icon end-${c.tone}" aria-hidden="true">
+          <svg viewBox="0 0 24 24">${END_ICONS[c.tone]}</svg>
+        </span>
+        <h1 class="end-title">${c.title}</h1>
+        <p class="end-message">${c.message}</p>
+        <p class="end-note">${c.note}</p>
+        ${action}
+        <img src="assets/logo-web.png" alt="DAES" class="end-logo">
+      </div>
+    </main>`;
+}
+
 /* ── Submission ────────────────────────────────────────────────────────────── */
 
 // submitTest(auto, confirmed):
@@ -924,39 +998,14 @@ async function submitTest(auto = false, confirmed = false) {
 
     _isActiveTab = false;
     clearParticipantStorage();
-
-    document.body.innerHTML = `
-      <div class="min-h-screen flex items-center justify-center p-6"
-           style="background:#0f172a">
-        <div class="glass-card p-8 max-w-lg text-center">
-          <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
-          <h1 class="text-3xl font-black text-green-700 mt-5">Thank You for Participating</h1>
-          <p class="text-slate-600 mt-3 leading-relaxed">Your answers have been submitted successfully. Please wait for good news from the administrator.</p>
-          <div class="rounded-2xl bg-green-50 border border-green-100 p-4 mt-6 text-green-800 font-bold">
-            Your result will be reviewed and announced by the administrator.
-          </div>
-          <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
-        </div>
-      </div>`;
+    showEndScreen('submitted');
   } catch (err) {
     // 409 means the beacon already submitted on a prior refresh/close — treat
     // it as a success so the participant sees the thank-you screen.
     if (err.message && err.message.toLowerCase().includes('already submitted')) {
       _isActiveTab = false;
       clearParticipantStorage();
-      document.body.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-6"
-             style="background:#0f172a">
-          <div class="glass-card p-8 max-w-lg text-center">
-            <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
-            <h1 class="text-3xl font-black text-green-700 mt-5">Thank You for Participating</h1>
-            <p class="text-slate-600 mt-3 leading-relaxed">Your answers have been submitted successfully. Please wait for good news from the administrator.</p>
-            <div class="rounded-2xl bg-green-50 border border-green-100 p-4 mt-6 text-green-800 font-bold">
-              Your result will be reviewed and announced by the administrator.
-            </div>
-            <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
-          </div>
-        </div>`;
+      showEndScreen('submitted');
       return;
     }
     submitted = false;
@@ -1176,15 +1225,8 @@ async function initTest() {
       // Clear all three keys so the participant cannot skip the passcode gate on a
       // subsequent visit (passcode_id is missing here in the original code — bug fix).
       clearParticipantStorage();
-      document.getElementById('testForm').innerHTML = `
-        <div class="card p-8 text-center">
-          <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
-          <h2 class="text-2xl font-black text-red-600 mt-4">Test Already Submitted</h2>
-          <p class="text-slate-500 mt-3 leading-relaxed">You have already completed this test. Please wait for the administrator to announce results.</p>
-          <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
-        </div>`;
-      document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
       submitted = true;
+      showEndScreen('alreadySubmitted');
       return;
     }
   } catch { /* Status check failed — fall through. */ }
@@ -1192,16 +1234,8 @@ async function initTest() {
   // Block duplicate tabs.
   const tabAllowed = await acquireTabLock();
   if (!tabAllowed) {
-    document.getElementById('testForm').innerHTML = `
-      <div class="card p-8 text-center">
-        <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
-        <h2 class="text-2xl font-black text-red-600 mt-4">Test Already Open</h2>
-        <p class="text-slate-500 mt-3 leading-relaxed">This test is already open in another tab. Please close this tab and continue in your original tab.</p>
-        <p class="text-slate-400 text-sm mt-2">If your original tab was closed, click below to try again.</p>
-        <button class="btn inline-flex mt-6" onclick="location.reload()">Try Again</button>
-      </div>`;
-    document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
     submitted = true;
+    showEndScreen('tabOpen');
     return;
   }
 
@@ -1236,16 +1270,6 @@ async function initTest() {
     // Guard: if the server says time has already elapsed, show an expiry screen
     // and record a zero-score submission to prevent re-attempts.
     if (startData.seconds_remaining <= 0) {
-      document.getElementById('submitBtn')?.setAttribute('disabled', 'true');
-      document.getElementById('testForm').innerHTML = `
-        <div class="card p-8 text-center">
-          <img src="assets/logo-icon.png" alt="" class="logo-icon mx-auto">
-          <h2 class="text-2xl font-black text-red-600 mt-4">Time Has Expired</h2>
-          <p class="text-slate-500 mt-3 leading-relaxed">
-            Your allotted test time has elapsed. Your attempt has been recorded.
-          </p>
-          <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
-        </div>`;
       submitted = true;
       // An empty submission makes the server grade the answers autosaved
       // before the deadline. It must be sent while the session token is still
@@ -1254,6 +1278,7 @@ async function initTest() {
         method: 'POST',
         body: JSON.stringify({ participant_id: Number(participantId), answers: [] }),
       }).catch(() => {}).finally(clearParticipantStorage);
+      showEndScreen('expired');
       return;
     }
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;

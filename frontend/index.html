@@ -121,7 +121,15 @@
         <img src="assets/logo-web.png" alt="DAES — Digital Aptitude Evaluation System"
              class="h-20 sm:h-24 mx-auto object-contain">
 
-        <div class="text-center mt-8 mb-7">
+        <!-- Progress through the participant flow -->
+        <ol class="stepper mt-7" aria-label="Progress">
+          <li class="current" aria-current="step"><span class="dot">1</span><span class="lbl">Passcode</span></li>
+          <li><span class="dot">2</span><span class="lbl">Identity</span></li>
+          <li><span class="dot">3</span><span class="lbl">Instructions</span></li>
+          <li><span class="dot">4</span><span class="lbl">Test</span></li>
+        </ol>
+
+        <div class="text-center mb-7">
           <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Start your assessment</h1>
           <p class="text-sm text-slate-500 mt-2 leading-relaxed">
             Enter the passcode provided by your administrator.
