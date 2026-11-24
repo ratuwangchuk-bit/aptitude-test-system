@@ -94,12 +94,19 @@ func ConnectDB() {
 	}
 
 	// 40 open connections balances throughput with database resource limits.
-	// 10 idle connections are kept alive to avoid reconnection overhead on bursts.
-	// Connections are recycled every 5 minutes to avoid stale state from network
-	// interruptions or PostgreSQL idle-timeout settings.
+	//
+	// Opening a connection to a hosted database (TLS + authentication) costs
+	// several network round trips, so connections are kept and reused:
+	//   - up to 20 stay idle, so a burst of participants (e.g. everyone
+	//     starting or submitting at once) does not wait for new connections;
+	//   - a connection idle for 4 minutes is closed, just before Neon's
+	//     default 5-minute auto-suspend would drop it on the server side;
+	//   - busy connections are still recycled every 30 minutes to clear any
+	//     stale state after network interruptions.
 	db.SetMaxOpenConns(40)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxIdleConns(20)
+	db.SetConnMaxIdleTime(4 * time.Minute)
+	db.SetConnMaxLifetime(30 * time.Minute)
 
 	DB = db
 	log.Println("Database connected successfully")

@@ -2,6 +2,10 @@ services:
   - type: web
     name: daes
     runtime: go
+    # Same region as the Neon database (AWS ap-southeast-1, Singapore), so each
+    # database query stays inside one region. Note: Render cannot move an
+    # existing service; this applies when the service is created from this file.
+    region: singapore
     buildCommand: go build -o server .
     startCommand: ./server
     healthCheckPath: /api/health
