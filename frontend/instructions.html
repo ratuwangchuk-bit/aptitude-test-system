@@ -28,6 +28,15 @@
     .rule p b { color: #0f172a; }
 
     /* Optional extra detail */
+    /* Tablets and laptops: wider card, rules as 2-column tiles, bigger facts. */
+    @media (min-width: 768px) {
+      .facts { gap: .9rem; }
+      .fact  { padding: 1.1rem .5rem; }
+      .fact b { font-size: 1.9rem; }
+      .rules-list { grid-template-columns: 1fr 1fr; gap: .75rem; }
+      .rule { background: #f8fafc; border: 1px solid #e8edf2; padding: .9rem; }
+    }
+
     .more { border: 1px solid #e8edf2; border-radius: .9rem; margin-bottom: 1.5rem; }
     .more summary {
       cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
@@ -58,8 +67,8 @@
 <div class="min-h-screen flex flex-col">
 
   <main class="flex-1 flex items-center justify-center px-4 py-8 sm:py-10">
-    <div class="w-full max-w-[28rem]">
-      <div class="access-card px-6 py-8 sm:px-10 sm:py-10">
+    <div class="w-full max-w-[28rem] md:max-w-[44rem]">
+      <div class="access-card px-6 py-8 sm:px-10 sm:py-10 md:px-12">
 
         <img src="assets/logo-web.png" alt="DAES — Digital Aptitude Evaluation System"
              class="h-20 sm:h-24 mx-auto object-contain">
