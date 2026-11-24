@@ -22,17 +22,63 @@
       border-radius: 1.25rem;
       box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.12);
     }
-    #code {
-      width: 100%;
-      font-size: 1.35rem; letter-spacing: .32em; font-weight: 700;
-      text-align: center; text-transform: uppercase;
-      padding: .9rem 1rem;
-      border: 1px solid #cbd5e1; border-radius: .75rem;
-      background: #fff; color: #0f172a;
-      transition: border-color .15s, box-shadow .15s;
+    /* ── Passcode field ──────────────────────────────────────
+       One real <input> (so paste, autofill and screen readers work) sits
+       invisibly on top of 8 character slots that display what was typed.
+       Codes are always "DAES-" + 8 hex characters, so the prefix is fixed. */
+    .code-label {
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      font-size: .8rem; font-weight: 600; color: #64748b; margin-bottom: .75rem;
     }
-    #code::placeholder { letter-spacing: .12em; font-size: .95rem; font-weight: 500; color: #94a3b8; text-transform: none; }
-    #code:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 4px rgba(31,79,168,.12); }
+    .code-prefix {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 800; letter-spacing: .08em; font-size: .8rem;
+      color: var(--brand); background: rgba(31,79,168,.08);
+      border: 1px solid rgba(31,79,168,.16);
+      padding: .2rem .55rem; border-radius: .5rem;
+    }
+    .code-slots {
+      position: relative;
+      display: grid; align-items: center;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) .8rem repeat(4, minmax(0, 1fr));
+      gap: .4rem;
+    }
+    .slot {
+      aspect-ratio: 4 / 5; max-height: 3.4rem;
+      display: grid; place-items: center; position: relative;
+      border: 1.5px solid #e2e8f0; border-radius: .7rem; background: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(1rem, 4.5vw, 1.3rem); font-weight: 800; color: #0f172a;
+      transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
+    }
+    .slot.filled { background: #fff; border-color: rgba(31,79,168,.35); }
+    .slot.filled.pop { animation: slotPop .18s ease-out; }
+    @keyframes slotPop { 50% { transform: scale(1.08); } }
+    .slot-sep { text-align: center; color: #cbd5e1; font-weight: 800; }
+    .code-field.is-focused .slot.active {
+      border-color: var(--brand); background: #fff;
+      box-shadow: 0 0 0 4px rgba(31,79,168,.12);
+    }
+    /* Blinking caret in the active empty slot. */
+    .code-field.is-focused .slot.active:not(.filled)::after {
+      content: ''; width: 2px; height: 45%; border-radius: 2px;
+      background: var(--brand); animation: caretBlink 1s steps(1) infinite;
+    }
+    @keyframes caretBlink { 50% { opacity: 0; } }
+    .code-field.is-complete .slot { border-color: var(--accent); }
+    .code-field.field-error .slot { border-color: #dc2626; background: #fef2f2; }
+    /* The slots show the error; no ring around the whole block. */
+    .code-field.field-error { box-shadow: none !important; }
+
+    #code {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: 0; outline: none; background: transparent;
+      color: transparent; caret-color: transparent;
+      font-size: 16px; /* >= 16px stops iOS zooming in on focus */
+      letter-spacing: 1em; cursor: text;
+    }
+    #code::selection { background: transparent; }
+    .code-hint { margin-top: .7rem; text-align: center; font-size: .74rem; font-weight: 500; color: #94a3b8; }
 
     .btn-primary {
       width: 100%;
@@ -83,16 +129,31 @@
         </div>
 
         <form id="passcodeForm" class="space-y-4">
-          <div>
-            <label class="sr-only" for="code">Access passcode</label>
-            <input id="code"
-                   placeholder="Enter passcode"
-                   autocomplete="one-time-code"
-                   autocapitalize="characters"
-                   spellcheck="false"
-                   minlength="3"
-                   aria-describedby="message"
-                   required>
+          <div id="codeField" class="code-field" data-field-frame>
+            <label class="code-label" for="code">
+              <span class="code-prefix">DAES&ndash;</span>
+              <span>followed by 8 characters</span>
+            </label>
+            <div class="code-slots">
+              <span class="slot" data-slot="0" aria-hidden="true"></span>
+              <span class="slot" data-slot="1" aria-hidden="true"></span>
+              <span class="slot" data-slot="2" aria-hidden="true"></span>
+              <span class="slot" data-slot="3" aria-hidden="true"></span>
+              <span class="slot-sep" aria-hidden="true">&ndash;</span>
+              <span class="slot" data-slot="4" aria-hidden="true"></span>
+              <span class="slot" data-slot="5" aria-hidden="true"></span>
+              <span class="slot" data-slot="6" aria-hidden="true"></span>
+              <span class="slot" data-slot="7" aria-hidden="true"></span>
+              <input id="code"
+                     aria-label="Passcode: the 8 characters after DAES-"
+                     autocomplete="one-time-code"
+                     autocapitalize="characters"
+                     autocorrect="off"
+                     spellcheck="false"
+                     aria-describedby="codeHint message"
+                     required>
+            </div>
+            <p id="codeHint" class="code-hint">Numbers 0&ndash;9 and letters A&ndash;F &middot; you can paste the full code</p>
           </div>
 
           <button class="btn-primary" type="submit">
