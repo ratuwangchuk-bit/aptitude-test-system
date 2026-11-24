@@ -415,15 +415,34 @@ function participantAuthHeader(url) {
   return token && !url.startsWith('/api/admin/') ? { 'X-Participant-Token': token } : {};
 }
 
+// Requests that get no response within this time are abandoned, so buttons
+// showing a spinner never hang indefinitely on a stalled connection.
+const API_TIMEOUT_MS = 30000;
+
 async function api(url, options = {}) {
-  const res  = await fetch(url, {
-    credentials: 'include',
-    // X-Requested-With can only be set by same-origin script (a plain cross-site
-    // <form> CSRF submission cannot add it), so the server uses its presence as
-    // a defense-in-depth CSRF check on top of the SameSite=Lax session cookie.
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'DAES', ...participantAuthHeader(url), ...(options.headers || {}) },
-    ...options,
-  });
+  const { timeout = API_TIMEOUT_MS, headers: extraHeaders, ...rest } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  let res;
+  try {
+    res = await fetch(url, {
+      credentials: 'include',
+      signal: controller.signal,
+      ...rest,
+      // X-Requested-With can only be set by same-origin script (a plain cross-site
+      // <form> CSRF submission cannot add it), so the server uses its presence as
+      // a defense-in-depth CSRF check on top of the SameSite=Lax session cookie.
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'DAES', ...participantAuthHeader(url), ...(extraHeaders || {}) },
+    });
+  } catch (err) {
+    // A timeout is reported as a TypeError, the same as being offline, so
+    // callers that retry on connection loss (test autosave and submission)
+    // also retry after a timeout.
+    if (err?.name === 'AbortError') throw new TypeError('The server took too long to respond. Please try again.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && url.startsWith('/api/admin/') && !window.location.pathname.endsWith('admin-login.html')) {
     window.location.href = 'admin-login.html';

@@ -1129,11 +1129,13 @@ async function initTest() {
           <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
         </div>`;
       submitted = true;
-      clearParticipantStorage();
+      // An empty submission makes the server grade the answers autosaved
+      // before the deadline. It must be sent while the session token is still
+      // stored (the endpoint requires it); only then clear local storage.
       api('/api/submit-test', {
         method: 'POST',
         body: JSON.stringify({ participant_id: Number(participantId), answers: [] }),
-      }).catch(() => {});
+      }).catch(() => {}).finally(clearParticipantStorage);
       return;
     }
     const seededStart = Date.now() - (DURATION - startData.seconds_remaining) * 1000;
