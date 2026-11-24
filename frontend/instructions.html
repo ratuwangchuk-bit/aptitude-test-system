@@ -259,6 +259,9 @@
 </div>
 
 <script>
+// Participants must verify their CID first; send them back to the start if not.
+if (!localStorage.getItem('participant_id')) window.location.replace('index.html');
+
 document.getElementById('cpYear').textContent = new Date().getFullYear();
 
 (async () => {

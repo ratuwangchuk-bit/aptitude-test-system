@@ -108,19 +108,48 @@ function applyRoleUI() {
 
 document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  try {
-    await api('/api/admin/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        username: document.getElementById('username').value,
-        password: document.getElementById('password').value,
-      }),
-    });
-    window.location.href = 'admin-dashboard.html';
-  } catch (err) {
-    showError(err.message, 'Login Failed');
-  }
+  const form = e.currentTarget;
+  const pwd  = document.getElementById('password');
+  await withBusy(e.submitter || form.querySelector('[type=submit]'), async () => {
+    try {
+      await api('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: pwd.value,
+        }),
+      });
+      window.location.href = 'admin-dashboard.html';
+      return withBusy.KEEP;
+    } catch (err) {
+      // Show the error inline and return focus to the password field, so the
+      // admin can retype without dismissing a dialog first.
+      setMessage('message', err instanceof TypeError
+        ? 'Unable to reach the server. Please check your connection.'
+        : err.message, true);
+      pwd.value = '';
+      pwd.classList.add('field-error');
+      pwd.focus();
+    }
+  }, 'Signing in…');
 });
+
+// Admin login: clear error styling on typing and warn when Caps Lock is on.
+(function initLoginFieldHelpers() {
+  const pwd  = document.getElementById('password');
+  const hint = document.getElementById('capsLockHint');
+  if (!pwd || !document.getElementById('adminLoginForm')) return;
+  document.getElementById('username')?.focus();
+  pwd.addEventListener('input', () => pwd.classList.remove('field-error'));
+  const checkCaps = (e) => {
+    if (hint && typeof e.getModifierState === 'function') {
+      hint.classList.toggle('hidden', !e.getModifierState('CapsLock'));
+    }
+  };
+  pwd.addEventListener('keydown', checkCaps);
+  pwd.addEventListener('keyup', checkCaps);
+  pwd.addEventListener('blur', () => hint?.classList.add('hidden'));
+})();
 
 async function logout() {
   const ok = await showConfirm('Do you want to securely exit the admin panel?', 'Logout', 'Logout');
@@ -409,7 +438,27 @@ async function loadTestConfigForm() {
   } catch { /* leave defaults */ }
 }
 
-document.getElementById('titleForm')?.addEventListener('submit', async (e) => {
+/* ── Form submit helper ───────────────────────────────────── */
+// onBusySubmit wires an async submit handler so that, while it runs, the
+// clicked button shows a spinner and further submits are ignored. This gives
+// immediate feedback on slow saves (e.g. image uploads) and prevents duplicate
+// records from double-clicks.
+function onBusySubmit(formId, handler, busyLabel = 'Saving…') {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (form.getAttribute('aria-busy') === 'true') return;
+    const btn = e.submitter
+      || form.querySelector('[type=submit]')
+      || document.querySelector(`[type=submit][form="${formId}"]`);
+    form.setAttribute('aria-busy', 'true');
+    withBusy(btn, () => handler(e), busyLabel)
+      .finally(() => form.removeAttribute('aria-busy'));
+  });
+}
+
+onBusySubmit('titleForm', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('titleMsg');
   try {
@@ -429,7 +478,7 @@ document.getElementById('titleForm')?.addEventListener('submit', async (e) => {
   }
 });
 
-document.getElementById('configForm')?.addEventListener('submit', async (e) => {
+onBusySubmit('configForm', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('configMsg');
   try {
@@ -449,7 +498,7 @@ document.getElementById('configForm')?.addEventListener('submit', async (e) => {
   }
 });
 
-document.getElementById('sectionForm')?.addEventListener('submit', async (e) => {
+onBusySubmit('sectionForm', async (e) => {
   e.preventDefault();
   const id   = document.getElementById('section_id_edit').value;
   const body = {
@@ -580,7 +629,13 @@ document.getElementById('resultSearch')?.addEventListener('input', () => renderR
 function startDashboardAutoRefresh() {
   if (!document.getElementById('summary')) return;
   if (dashboardTimer) clearInterval(dashboardTimer);
-  dashboardTimer = setInterval(() => loadDashboard(false), 15000);
+  // Only poll while the dashboard view is on screen and the browser tab is
+  // visible — refreshing a hidden view wastes requests and slows other pages.
+  dashboardTimer = setInterval(() => {
+    const view = document.getElementById('view-dashboard');
+    if (document.hidden || !view || view.classList.contains('hidden')) return;
+    loadDashboard(false);
+  }, 15000);
 }
 
 /* ── Charts ────────────────────────────────────────────────── */
@@ -1275,26 +1330,6 @@ async function printAllResults() {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-async function exportAllResults() {
-  try {
-    const res = await fetch('/api/admin/results/export', {
-      credentials: 'include',
-    });
-    if (!res.ok) { showError('Could not export results. Please try again.', 'Export Failed'); return; }
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'DAES_Results.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  } catch {
-    showError('Could not export results. Please try again.', 'Export Failed');
-  }
-}
-
 /* ── Live Progress ─────────────────────────────────────────── */
 
 function _fmtElapsed(secs) {
@@ -1462,10 +1497,10 @@ async function _lpAllowResume(btn) {
   if (!ok) return;
   try {
     const res = await api(`/api/admin/participants/${id}/allow-resume`, { method: 'POST' });
-    await showSuccess(
-      `Resume enabled for ${name}. ${res.answers_saved} answer(s) restored. Ask the participant to return to the home page and re-enter their passcode and CID to continue.`,
-      'Resume Enabled',
-    );
+    await showModal({
+      type: 'success', title: 'Resume Enabled', confirmText: 'OK',
+      message: `Resume enabled for ${name}. ${res.answers_saved} answer(s) restored. Ask the participant to return to the home page and re-enter their passcode and CID to continue.`,
+    });
     loadLiveProgress();
   } catch (err) {
     await showError(err?.message || 'Unknown error', 'Allow Resume Failed');
@@ -1924,7 +1959,7 @@ function resetQuestionForm(keepSection = false) {
   pendingSaveMode = 'save';
 }
 
-document.getElementById('questionForm')?.addEventListener('submit', async (e) => {
+onBusySubmit('questionForm', async (e) => {
   e.preventDefault();
   const mode = pendingSaveMode;
   pendingSaveMode = 'save';
@@ -2249,7 +2284,7 @@ function closeUploadParticipantsModal() {
   document.body.classList.remove('modal-open');
 }
 
-document.getElementById('participantForm')?.addEventListener('submit', async (e) => {
+onBusySubmit('participantForm', async (e) => {
   e.preventDefault();
   try {
     await api('/api/admin/participants', {
@@ -2383,7 +2418,7 @@ function closeAdminUserModal() {
   document.body.classList.remove('modal-open');
 }
 
-document.getElementById('adminUserForm')?.addEventListener('submit', async (e) => {
+onBusySubmit('adminUserForm', async (e) => {
   e.preventDefault();
   try {
     await api('/api/admin/users', {
@@ -2510,8 +2545,17 @@ function showView(raw) {
   document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
   document.getElementById('view-' + name)?.classList.remove('hidden');
   document.querySelectorAll('.nav-link[data-view]').forEach(a => {
-    a.classList.toggle('active', a.dataset.view === name);
+    const isActive = a.dataset.view === name;
+    a.classList.toggle('active', isActive);
+    if (isActive) {
+      a.setAttribute('aria-current', 'page');
+      // On narrow screens the nav scrolls sideways; keep the active tab visible.
+      a.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    } else {
+      a.removeAttribute('aria-current');
+    }
   });
+  window.scrollTo({ top: 0 });
   if (name !== 'passcodes' && passcodesTimer) { clearInterval(passcodesTimer); passcodesTimer = null; }
   if (name !== 'live' && liveTimer) { clearInterval(liveTimer); liveTimer = null; }
   switch (name) {

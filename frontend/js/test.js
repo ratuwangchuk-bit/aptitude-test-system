@@ -4,6 +4,7 @@ let testStarted         = false; // true only after /api/start-test succeeds
 let currentQuestionIdx  = 0;
 let timerInterval       = null; // the countdown tick() interval — cleared on submit so it doesn't keep running on the post-submit screen
 const selectedAnswers   = {}; // { [question_id]: 'A'|'B'|'C'|'D' }
+const flaggedQuestions  = new Set(); // question ids the participant marked for review
 
 // These are set dynamically from /api/test-info before the test starts.
 let DURATION     = 60 * 60; // fallback — overwritten by initTest()
@@ -41,6 +42,17 @@ function acquireTabLock() {
   });
 }
 
+/* ── Participant storage ───────────────────────────────────────────────────── */
+
+// clearParticipantStorage removes everything this browser holds about the
+// participant's session, so the next visit must start at the passcode gate.
+function clearParticipantStorage() {
+  const pid = localStorage.getItem('participant_id');
+  if (pid) localStorage.removeItem(`flagged_${pid}`);
+  ['participant_id', 'participant_token', 'participant_name', 'participant_cid',
+   'test_start_time', 'passcode_id'].forEach(k => localStorage.removeItem(k));
+}
+
 /* ── Section helpers ────────────────────────────────────────────────────────── */
 
 function getSectionMeta(sectionName) {
@@ -75,6 +87,8 @@ function updateAnsweredProgress() {
   const submitBtn   = document.getElementById('submitBtn');
 
   if (answeredEl)  answeredEl.textContent = `${answered}/${total}`;
+  const fabBadge = document.getElementById('navFabBadge');
+  if (fabBadge) fabBadge.textContent = `${answered}/${total}`;
   if (progressBar) progressBar.style.width = total ? `${(answered / total) * 100}%` : '0%';
 
   if (submitBtn) {
@@ -128,6 +142,24 @@ function buildSidebarAndTabs() {
     sideHtml += '</div>';
   });
 
+  // Legend so the colours in the grid are self-explanatory, plus the keyboard
+  // shortcuts (desktop only — hidden on touch-sized screens).
+  sideHtml += `
+    <div class="sb-legend">
+      <span><i class="lg lg-current"></i>Current</span>
+      <span><i class="lg lg-answered"></i>Answered</span>
+      <span><i class="lg lg-open"></i>Not answered</span>
+      <span><i class="lg lg-flagged"></i>For review</span>
+    </div>
+    <div class="sb-shortcuts">
+      <p>Keyboard shortcuts</p>
+      <ul>
+        <li><kbd>A</kbd>–<kbd>E</kbd> or <kbd>1</kbd>–<kbd>5</kbd> select an option</li>
+        <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next question</li>
+        <li><kbd>F</kbd> mark for review</li>
+      </ul>
+    </div>`;
+
   tabBar.innerHTML  = tabsHtml;
   sidebar.innerHTML = sideHtml;
 }
@@ -138,7 +170,11 @@ function updateSidebarButtons() {
     if (!btn) return;
     const isCurrent  = gi === currentQuestionIdx;
     const isAnswered = Boolean(selectedAnswers[q.id]);
-    btn.className = 'sb-q' + (isCurrent ? ' sq-current' : isAnswered ? ' sq-answered' : '');
+    const isFlagged  = flaggedQuestions.has(q.id);
+    btn.className = 'sb-q' + (isCurrent ? ' sq-current' : isAnswered ? ' sq-answered' : '')
+                           + (isFlagged ? ' sq-flagged' : '');
+    btn.setAttribute('aria-label', `Question ${gi + 1}${isAnswered ? ', answered' : ', not answered'}${isFlagged ? ', marked for review' : ''}`);
+    if (isCurrent) btn.setAttribute('aria-current', 'step'); else btn.removeAttribute('aria-current');
   });
 }
 
@@ -183,11 +219,20 @@ function showQuestion(idx) {
         ? `${escapeHtml(meta.label)}<span style="opacity:.65;font-weight:700;letter-spacing:.05em;text-transform:none;font-size:.95em">: ${escapeHtml(q.section)}</span>`
         : escapeHtml(q.section)}
     </button>
-    <p class="q-meta">
+    <div class="q-meta">
       <span>Question ${localIdx + 1} of ${sectionQs.length}</span>
       <span class="sep">|</span>
       <span>Overall ${idx + 1} of ${questions.length}</span>
-    </p>
+      <button type="button" id="flagBtn" class="q-flag-btn${flaggedQuestions.has(q.id) ? ' is-flagged' : ''}"
+              onclick="toggleFlag(${q.id})" aria-pressed="${flaggedQuestions.has(q.id)}"
+              title="Mark this question to come back to it later (F)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+        <span>${flaggedQuestions.has(q.id) ? 'Marked for review' : 'Mark for review'}</span>
+      </button>
+    </div>
     <div class="q-text-card">${renderQuestionText(q.question_text)}</div>
     ${q.image_url ? `<div class="q-img-wrap"><img src="${escapeHtml(toDirectImageUrl(q.image_url))}" alt="Question image" class="q-img" onerror="this.closest('.q-img-wrap').style.display='none'"></div>` : ''}
     ${(q.question_type === 'fill_blank' || (!q.option_a && !q.option_b && !q.option_c && !q.option_d))
@@ -199,12 +244,13 @@ function showQuestion(idx) {
                   oninput="onFillChange(${q.id}, this.value)"
                   autocomplete="off">
          </div>`
-      : `<div class="q-options">
+      : `<div class="q-options" role="radiogroup" aria-label="Answer options">
            ${['A','B','C','D','E'].filter(opt => q['option_' + opt.toLowerCase()]).map(opt => {
              const text   = (q['option_' + opt.toLowerCase()] || '').trim();
              const selCls = saved === opt ? ' q-selected' : '';
              return `
                <label class="q-opt${selCls}" id="qopt_${q.id}_${opt}"
+                      role="radio" tabindex="0" aria-checked="${saved === opt}"
                       onclick="onOptionChange(${q.id},'${opt}')">
                  <span class="q-opt-badge">${opt}</span>
                  <span>${escapeHtml(text)}</span>
@@ -218,6 +264,11 @@ function showQuestion(idx) {
       </button>
       <div id="qNextSlot">${nextButtonHtml(idx)}</div>
     </div>`;
+
+  // Brief fade-in so the change of question is noticeable.
+  form.classList.remove('q-enter');
+  void form.offsetWidth;
+  form.classList.add('q-enter');
 
   document.querySelector('.test-q-panel')?.scrollTo({ top: 0, behavior: 'smooth' });
   updateSidebarButtons();
@@ -253,9 +304,10 @@ function refreshNextButton() {
 function onOptionChange(qId, opt) {
   selectedAnswers[qId] = opt;
   ['A','B','C','D','E'].forEach(o => {
-    document.getElementById(`qopt_${qId}_${o}`)?.classList.remove('q-selected');
+    const el = document.getElementById(`qopt_${qId}_${o}`);
+    el?.classList.toggle('q-selected', o === opt);
+    el?.setAttribute('aria-checked', String(o === opt));
   });
-  document.getElementById(`qopt_${qId}_${opt}`)?.classList.add('q-selected');
   updateAnsweredProgress();
   scheduleAutosave();
 }
@@ -270,6 +322,84 @@ function onFillChange(qId, value) {
   updateAnsweredProgress();
   scheduleAutosave();
 }
+
+/* ── Mark for review ───────────────────────────────────────────────────────── */
+// Purely a participant aid: flagged questions are highlighted in the navigator
+// and counted in the submit confirmation. Kept in localStorage so a reload
+// does not lose them; never sent to the server.
+
+function flagStorageKey() {
+  return `flagged_${localStorage.getItem('participant_id') || ''}`;
+}
+
+function restoreFlags() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(flagStorageKey()) || '[]');
+    ids.forEach(id => { if (questions.some(q => q.id === id)) flaggedQuestions.add(id); });
+  } catch { /* Corrupt value — start with no flags. */ }
+}
+
+function toggleFlag(qId) {
+  if (flaggedQuestions.has(qId)) flaggedQuestions.delete(qId);
+  else flaggedQuestions.add(qId);
+  try { localStorage.setItem(flagStorageKey(), JSON.stringify([...flaggedQuestions])); } catch {}
+
+  const btn = document.getElementById('flagBtn');
+  if (btn && questions[currentQuestionIdx]?.id === qId) {
+    const on = flaggedQuestions.has(qId);
+    btn.classList.toggle('is-flagged', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.querySelector('span').textContent = on ? 'Marked for review' : 'Mark for review';
+  }
+  updateSidebarButtons();
+}
+
+/* ── Keyboard navigation ───────────────────────────────────────────────────── */
+// A–E / 1–5 choose an option, ←/→ move between questions, F flags the
+// question. Ignored while typing in a fill-in-the-blank box or while any
+// overlay (fullscreen prompt, warning, dialog) is covering the question.
+
+function overlayIsOpen() {
+  return Boolean(
+    document.getElementById('fullscreenPrompt') ||
+    !document.getElementById('screenshotShield')?.classList.contains('hidden') ||
+    document.getElementById('_antiCheatOverlay') ||
+    (document.getElementById('appModal') && !document.getElementById('appModal').classList.contains('hidden'))
+  );
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!testStarted || submitted || !questions.length) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (overlayIsOpen()) return;
+
+  const target = e.target;
+  // Enter / Space on a focused option selects it (keyboard-only users).
+  if (target?.classList?.contains('q-opt') && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    target.click();
+    return;
+  }
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
+  const q = questions[currentQuestionIdx];
+  const key = e.key.toUpperCase();
+  const optionKeys = { A: 'A', B: 'B', C: 'C', D: 'D', E: 'E', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E' };
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    goToQuestion(currentQuestionIdx + 1);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    goToQuestion(currentQuestionIdx - 1);
+  } else if (key === 'F') {
+    e.preventDefault();
+    toggleFlag(q.id);
+  } else if (optionKeys[key] && document.getElementById(`qopt_${q.id}_${optionKeys[key]}`)) {
+    e.preventDefault();
+    onOptionChange(q.id, optionKeys[key]);
+  }
+});
 
 function goToQuestion(idx) {
   if (idx < 0 || idx >= questions.length) return;
@@ -386,6 +516,7 @@ async function loadQuestions(savedAnswers = null) {
       });
     }
 
+    restoreFlags();
     updateAnsweredProgress();
     showQuestion(0);
   } catch (err) {
@@ -613,7 +744,11 @@ function startTimer() {
     const timer     = document.getElementById('timer');
     if (timer) {
       timer.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-      if (remaining <= 300) timer.parentElement.classList.add('animate-pulse');
+      // Colour the timer amber in the last 10 minutes and red in the last 5.
+      const pill = timer.parentElement;
+      pill.classList.toggle('timer-warn',   remaining <= 600 && remaining > 300);
+      pill.classList.toggle('timer-danger', remaining <= 300);
+      if (remaining <= 300) pill.classList.add('animate-pulse');
     }
     if (!fiveMinWarningShown && remaining <= 300 && remaining > 0) {
       fiveMinWarningShown = true;
@@ -644,8 +779,12 @@ function startTimer() {
 async function submitTest(auto = false) {
   if (submitted) return;
   if (!auto) {
+    const answered = questions.filter(q => selectedAnswers[q.id]).length;
+    const flagged  = questions.filter(q => flaggedQuestions.has(q.id)).length;
     const ok = await showConfirm(
-      'Submit your test now? You cannot change answers after submission.',
+      `You have answered ${answered} of ${questions.length} questions.` +
+      (flagged ? ` ${flagged} question${flagged === 1 ? ' is' : 's are'} still marked for review.` : '') +
+      ' You cannot change answers after submission. Submit now?',
       'Submit Test', 'Submit'
     );
     if (!ok) return;
@@ -666,12 +805,7 @@ async function submitTest(auto = false) {
     });
 
     _isActiveTab = false;
-    localStorage.removeItem('participant_id');
-    localStorage.removeItem('participant_token');
-    localStorage.removeItem('participant_name');
-    localStorage.removeItem('participant_cid');
-    localStorage.removeItem('test_start_time');
-    localStorage.removeItem('passcode_id');
+    clearParticipantStorage();
 
     document.body.innerHTML = `
       <div class="min-h-screen flex items-center justify-center p-6"
@@ -691,12 +825,7 @@ async function submitTest(auto = false) {
     // it as a success so the participant sees the thank-you screen.
     if (err.message && err.message.toLowerCase().includes('already submitted')) {
       _isActiveTab = false;
-      localStorage.removeItem('participant_id');
-      localStorage.removeItem('participant_token');
-    localStorage.removeItem('participant_name');
-    localStorage.removeItem('participant_cid');
-      localStorage.removeItem('test_start_time');
-      localStorage.removeItem('passcode_id');
+      clearParticipantStorage();
       document.body.innerHTML = `
         <div class="min-h-screen flex items-center justify-center p-6"
              style="background:#0f172a">
@@ -928,12 +1057,7 @@ async function initTest() {
     if (status.submitted) {
       // Clear all three keys so the participant cannot skip the passcode gate on a
       // subsequent visit (passcode_id is missing here in the original code — bug fix).
-      localStorage.removeItem('participant_id');
-      localStorage.removeItem('participant_token');
-    localStorage.removeItem('participant_name');
-    localStorage.removeItem('participant_cid');
-      localStorage.removeItem('test_start_time');
-      localStorage.removeItem('passcode_id');
+      clearParticipantStorage();
       document.getElementById('testForm').innerHTML = `
         <div class="card p-8 text-center">
           <img src="assets/logo-icon.png" alt="DAES logo" class="logo-icon mx-auto">
@@ -1005,12 +1129,7 @@ async function initTest() {
           <a href="index.html" class="btn inline-flex mt-6">Back to Home</a>
         </div>`;
       submitted = true;
-      localStorage.removeItem('participant_id');
-      localStorage.removeItem('participant_token');
-    localStorage.removeItem('participant_name');
-    localStorage.removeItem('participant_cid');
-      localStorage.removeItem('test_start_time');
-      localStorage.removeItem('passcode_id');
+      clearParticipantStorage();
       api('/api/submit-test', {
         method: 'POST',
         body: JSON.stringify({ participant_id: Number(participantId), answers: [] }),
