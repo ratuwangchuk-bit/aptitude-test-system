@@ -238,7 +238,7 @@ if (cidForm) {
         // participant who typed someone else's CID notices.
         const name = data.full_name ? `, ${data.full_name}` : '';
         button.innerHTML = '<span aria-hidden="true">&#10003;</span><span>Verified</span>';
-        button.style.background = 'linear-gradient(135deg, #16a34a, #0d9488)';
+        button.classList.add('is-success');
         setMessage('message', `Welcome${name}! Taking you to the instructions…`);
         setTimeout(() => { window.location.href = 'instructions.html'; }, 900);
         return withBusy.KEEP;

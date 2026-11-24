@@ -7,49 +7,30 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .orb {
-      position: absolute;
-      border-radius: 9999px;
-      filter: blur(72px);
-      opacity: 0.18;
-      pointer-events: none;
-    }
-    .step-bar {
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.15);
-      overflow: hidden;
-    }
-    .step-bar-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #2dd4bf, #60a5fa);
-      width: 50%; /* Step 2 of 4 */
-    }
     /* ── CID field: icon · input · digit counter · clear button ── */
     .cid-field {
       display: flex; align-items: center; gap: .6rem;
-      padding: 0 .7rem 0 .9rem; min-height: 3.75rem;
-      border: 1.5px solid #dde3ea; border-radius: .95rem; background: #fff;
+      padding: 0 .7rem 0 .8rem; min-height: 3.6rem;
+      border: 1px solid #cbd5e1; border-radius: .75rem; background: #fff;
       transition: border-color .15s, box-shadow .15s;
     }
-    .cid-field:focus-within { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
-    .cid-field.is-valid { border-color: #14b8a6; }
-    .cid-icon { flex-shrink: 0; width: 2.1rem; height: 2.1rem; border-radius: .6rem;
-                display: grid; place-items: center; background: #eff6ff; color: #2563eb; }
-    .cid-field.is-valid .cid-icon { background: #f0fdfa; color: #0d9488; }
+    .cid-field:focus-within { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(31,79,168,.12); }
+    .cid-field.is-valid { border-color: var(--brand-teal); }
+    .cid-icon { flex-shrink: 0; width: 2.1rem; height: 2.1rem; border-radius: .55rem;
+                display: grid; place-items: center; background: rgba(31,79,168,.08); color: var(--brand); }
+    .cid-field.is-valid .cid-icon { background: rgba(43,179,177,.12); color: #1f8f8d; }
     #cid_number {
       flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 1.15rem; font-weight: 800; letter-spacing: .1em; color: #0f172a;
-      padding: .9rem 0;
+      padding: .85rem 0;
     }
-    #cid_number::placeholder { font-family: inherit; letter-spacing: .04em; font-weight: 500; font-size: .95rem; color: #a0aec0; }
+    #cid_number::placeholder { font-family: inherit; letter-spacing: .04em; font-weight: 500; font-size: .95rem; color: #94a3b8; }
     .cid-counter {
       flex-shrink: 0; font-size: .7rem; font-weight: 800; color: #94a3b8;
       font-variant-numeric: tabular-nums; padding: .2rem .45rem; border-radius: 999px; background: #f1f5f9;
     }
-    .cid-counter.ok   { color: #0f766e; background: #ccfbf1; }
+    .cid-counter.ok   { color: #1f8f8d; background: rgba(43,179,177,.14); }
     .cid-counter.over { color: #b45309; background: #fef3c7; }
     .cid-clear {
       flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 999px; border: 0;
@@ -57,7 +38,7 @@
     }
     .cid-clear:hover { background: #e2e8f0; color: #0f172a; }
 
-    /* Mobile-only "Before you continue" notes */
+    /* "Before you continue" notes */
     .rules summary { cursor: pointer; list-style: none; }
     .rules summary::-webkit-details-marker { display: none; }
     .rules[open] .rules-chevron { transform: rotate(180deg); }
@@ -67,179 +48,90 @@
   <link rel="stylesheet" href="css/tailwind.css">
 </head>
 
-<body class="min-h-screen bg-slate-50">
-<div class="min-h-screen flex flex-col lg:flex-row">
+<body class="page-bg min-h-screen text-slate-900">
+<div class="min-h-screen flex flex-col">
 
-  <!-- ═══════════════════════════════════════════════════════
-       LEFT — Branding panel
-  ════════════════════════════════════════════════════════════ -->
-  <div class="relative lg:w-[46%] xl:w-[42%] flex flex-col justify-between overflow-hidden
-              px-6 py-5 sm:px-12 lg:px-14 lg:py-16"
-       style="background: linear-gradient(150deg,#0b1220 0%,#1a2e6e 55%,#0a5c54 100%)">
+  <main class="flex-1 flex items-center justify-center px-4 py-8 sm:py-10">
+    <div class="w-full max-w-[26rem]">
+      <div class="access-card px-6 py-8 sm:px-10 sm:py-10">
 
-    <!-- Decorative orbs -->
-    <div class="orb w-96 h-96 -top-24 -right-24 bg-blue-400"></div>
-    <div class="orb w-80 h-80 bottom-0 -left-20 bg-teal-400"></div>
-    <div class="orb w-48 h-48 top-1/2 right-10 bg-indigo-400"></div>
+        <img src="assets/logo-web.png" alt="DAES — Digital Aptitude Evaluation System"
+             class="h-20 sm:h-24 mx-auto object-contain">
 
-    <!-- Top: Logo + step indicator -->
-    <div class="relative z-10 flex flex-col items-center text-center">
+        <!-- Progress through the participant flow -->
+        <ol class="stepper mt-7" aria-label="Progress">
+          <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span><span class="sr-only">(completed)</span></li>
+          <li class="current" aria-current="step"><span class="dot">2</span><span class="lbl">Identity</span></li>
+          <li><span class="dot">3</span><span class="lbl">Instructions</span></li>
+          <li><span class="dot">4</span><span class="lbl">Test</span></li>
+        </ol>
 
-      <!-- Logo -->
-      <div class="flex justify-center lg:mb-8">
-        <div class="rounded-2xl p-2 lg:p-3 shadow-2xl" style="background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.15)">
-          <img src="assets/logo.png" alt="Digital Aptitude Evaluation System"
-               class="h-14 lg:h-36 object-contain block">
+        <div class="text-center mb-7">
+          <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Verify your identity</h1>
+          <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+            Enter your Citizenship Identity (CID) number, as registered by the administrator.
+          </p>
         </div>
-      </div>
 
-      <!-- Step badge -->
-      <span class="hidden lg:inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-white/15"
-            style="background:rgba(255,255,255,.08)">
-        <svg class="w-3.5 h-3.5 text-teal-300" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="16" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8"  y1="2" x2="8"  y2="6"/>
-          <line x1="3"  y1="10" x2="21" y2="10"/>
-        </svg>
-        <span class="text-white/70 text-xs font-black uppercase tracking-widest">Step 2 of 4</span>
-      </span>
-
-      <!-- Step progress bar -->
-      <div class="step-bar w-48 mb-6 hidden lg:block">
-        <div class="step-bar-fill"></div>
-      </div>
-
-      <h1 class="hidden lg:block text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
-        Verify Your<br>Identity
-      </h1>
-      <p class="hidden lg:block text-white/55 font-semibold text-base mt-3 leading-relaxed max-w-xs">
-        Enter your CID number to confirm your identity. You must be pre-registered by the administrator.
-      </p>
-    </div>
-
-    <!-- Middle: Info card -->
-    <div class="relative z-10 my-10 lg:my-0 hidden lg:block">
-      <div class="rounded-2xl p-5 space-y-4"
-           style="background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12)">
-        <p class="text-white font-black text-sm flex items-center gap-2">
-          <svg class="w-4 h-4 text-yellow-400 flex-shrink-0" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          Before you continue
-        </p>
-        <ul class="space-y-2.5">
-          <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span class="text-white/65 text-xs font-semibold leading-relaxed">Your CID must be pre-registered by the administrator before you can access the test.</span>
-          </li>
-          <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span class="text-white/65 text-xs font-semibold leading-relaxed">Each CID can only be used once. If you have already submitted, you cannot retake the test.</span>
-          </li>
-          <li class="flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-teal-300 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span class="text-white/65 text-xs font-semibold leading-relaxed">If your CID is not found, please contact the administrator immediately.</span>
-          </li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom: Copyright -->
-    <p class="relative z-10 text-white/25 text-xs font-semibold text-center hidden lg:block">
-      © <span id="cpYear"></span> DHI · All rights reserved
-    </p>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════
-       RIGHT — CID verification form
-  ════════════════════════════════════════════════════════════ -->
-  <div class="flex-1 flex flex-col justify-center items-center bg-white px-6 py-8 sm:px-14 sm:py-14">
-    <div class="w-full max-w-[24rem]">
-
-      <!-- Progress through the participant flow -->
-      <ol class="stepper" aria-label="Progress">
-        <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Passcode</span><span class="sr-only">(completed)</span></li>
-        <li class="current" aria-current="step"><span class="dot">2</span><span class="lbl">Identity</span></li>
-        <li><span class="dot">3</span><span class="lbl">Instructions</span></li>
-        <li><span class="dot">4</span><span class="lbl">Test</span></li>
-      </ol>
-
-      <!-- Page header -->
-      <div class="text-center mb-7">
-        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">Verify your identity</h2>
-        <p class="text-slate-500 font-semibold text-sm mt-2 leading-relaxed">
-          Enter your Citizenship Identity (CID) number. It must match the one registered by the administrator.
-        </p>
-      </div>
-
-      <!-- CID form -->
-      <form id="cidForm" class="space-y-5" novalidate>
-        <div>
-          <label class="block mb-1.5 text-sm font-extrabold text-slate-700" for="cid_number">CID number</label>
-          <div id="cidField" class="cid-field" data-field-frame>
-            <span class="cid-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2.5"/>
-                <path d="M14 10h4"/><path d="M14 14h4"/>
-              </svg>
-            </span>
-            <input id="cid_number"
-                   inputmode="numeric"
-                   placeholder="e.g. 11512000000"
-                   autocomplete="off"
-                   autocorrect="off"
-                   spellcheck="false"
-                   maxlength="50"
-                   aria-describedby="message"
-                   required>
-            <span id="cidCounter" class="cid-counter" aria-hidden="true">0/11</span>
-            <button type="button" id="cidClear" class="cid-clear" aria-label="Clear CID number" hidden>&times;</button>
+        <!-- CID form -->
+        <form id="cidForm" class="space-y-4" novalidate>
+          <div>
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700" for="cid_number">CID number</label>
+            <div id="cidField" class="cid-field" data-field-frame>
+              <span class="cid-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2.5"/>
+                  <path d="M14 10h4"/><path d="M14 14h4"/>
+                </svg>
+              </span>
+              <input id="cid_number"
+                     inputmode="numeric"
+                     placeholder="e.g. 11512000000"
+                     autocomplete="off"
+                     autocorrect="off"
+                     spellcheck="false"
+                     maxlength="50"
+                     aria-describedby="message"
+                     required>
+              <span id="cidCounter" class="cid-counter" aria-hidden="true">0/11</span>
+              <button type="button" id="cidClear" class="cid-clear" aria-label="Clear CID number" hidden>&times;</button>
+            </div>
           </div>
-        </div>
 
-        <button class="btn w-full py-4 text-base flex items-center justify-center gap-2" type="submit">
-          Verify &amp; Continue
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-          </svg>
-        </button>
-      </form>
+          <button class="btn-primary !mt-6" type="submit">
+            Verify &amp; continue
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </form>
 
-      <!-- Inline message (success / error) -->
-      <p id="message" class="mt-4" role="alert" aria-live="assertive"></p>
+        <!-- Inline message (success / error) -->
+        <p id="message" class="mt-3" role="alert" aria-live="assertive"></p>
 
-      <!-- Notes (shown in the side panel on large screens) -->
-      <details class="rules lg:hidden mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <summary class="flex items-center justify-between text-sm font-extrabold text-slate-700">
-          Before you continue
-          <svg class="rules-chevron w-4 h-4 text-slate-400 transition-transform" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </summary>
-        <ul class="mt-3 space-y-2 text-xs font-semibold text-slate-600 leading-relaxed">
-          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Your CID must be pre-registered by the administrator.</li>
-          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Each CID can be used once. After submitting you cannot retake the test.</li>
-          <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>If your CID is not found, contact the administrator immediately.</li>
-        </ul>
-      </details>
+        <!-- Notes, collapsed by default -->
+        <details class="rules mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <summary class="flex items-center justify-between text-sm font-semibold text-slate-700">
+            Before you continue
+            <svg class="rules-chevron w-4 h-4 text-slate-400 transition-transform" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <ul class="mt-3 space-y-2 text-xs font-medium text-slate-600 leading-relaxed">
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Your CID must be pre-registered by the administrator.</li>
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Each CID can be used once. After submitting you cannot retake the test.</li>
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-[color:var(--brand-teal)] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>If your CID is not found, contact the administrator immediately.</li>
+          </ul>
+        </details>
 
+      </div>
     </div>
-  </div>
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 pb-6 px-4">
+    © <span id="cpYear"></span> DHI · All rights reserved
+  </footer>
 
 </div>
 

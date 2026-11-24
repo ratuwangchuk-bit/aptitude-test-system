@@ -331,7 +331,7 @@
       box-shadow: 0 30px 80px rgba(0,0,0,.35);
     }
     .fs-icon { width: 3.5rem; height: 3.5rem; margin: 0 auto 1rem; border-radius: 1rem;
-               display: grid; place-items: center; background: #f0fdfa; color: #0d9488; }
+               display: grid; place-items: center; background: rgba(43,179,177,.12); color: #1f8f8d; }
     .fs-icon svg { width: 1.6rem; height: 1.6rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .fs-title { font-size: 1.4rem; font-weight: 900; color: #0f172a; }
     .fs-text  { margin-top: .5rem; font-size: .9rem; font-weight: 500; color: #475569; line-height: 1.55; }
@@ -341,9 +341,9 @@
       font-size: .82rem; font-weight: 600; color: #334155;
     }
     .fs-points li { display: flex; gap: .5rem; align-items: flex-start; }
-    .fs-points li::before { content: '\2713'; color: #0d9488; font-weight: 900; }
+    .fs-points li::before { content: '\2713'; color: var(--brand-teal); font-weight: 900; }
     .fs-back { display: inline-block; margin-top: 1rem; font-size: .8rem; font-weight: 700; color: #64748b; }
-    .fs-back:hover { color: #1d4ed8; }
+    .fs-back:hover { color: var(--brand); }
 
     /* ── Interaction aids ─────────────────────────────────── */
     /* Timer colour stages (set by tick() in test.js). */
@@ -539,7 +539,7 @@
         <li>Stay in fullscreen until you submit.</li>
         <li>Don&rsquo;t switch tabs or refresh the page.</li>
       </ul>
-      <button id="enterFsBtn" type="button" class="btn w-full py-4 text-base">
+      <button id="enterFsBtn" type="button" class="btn-primary">
         Enter fullscreen &amp; start test
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

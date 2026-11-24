@@ -952,8 +952,8 @@ function showEndScreen(kind) {
         <li class="done"><span class="dot" aria-hidden="true">&#10003;</span><span class="lbl">Test</span></li>
       </ol>` : '';
   const action = c.action.reload
-    ? `<button type="button" class="btn w-full mt-6" onclick="location.reload()">${c.action.label}</button>`
-    : `<a href="${c.action.href}" class="btn w-full mt-6">${c.action.label}</a>`;
+    ? `<button type="button" class="btn-primary end-action" onclick="location.reload()">${c.action.label}</button>`
+    : `<a href="${c.action.href}" class="btn-primary end-action">${c.action.label}</a>`;
 
   document.body.innerHTML = `
     <main class="end-screen">
