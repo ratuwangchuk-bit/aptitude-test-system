@@ -187,15 +187,27 @@ function runModal({ title = 'Message', message = '', type = 'info', confirmText 
     else _modalActive = false;
   };
 
-  // Keyboard shortcuts: Enter confirms, Escape cancels.
+  // Keyboard shortcuts: Enter confirms, Escape cancels. Enter while the Cancel
+  // button has focus must cancel, not confirm, or a keyboard user who tabbed
+  // to Cancel would trigger the destructive action.
   const onKey = (e) => {
-    if (e.key === 'Escape') cleanup(false);
-    if (e.key === 'Enter')  cleanup(true);
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(false); }
+    else if (e.key === 'Enter') { e.preventDefault(); cleanup(document.activeElement !== cancelBtn); }
+    else if (e.key === 'Tab') {
+      // Keep focus inside the dialog.
+      const items = [cancelBtn, confirmBtn].filter(b => !b.classList.contains('hidden'));
+      const i = items.indexOf(document.activeElement);
+      e.preventDefault();
+      items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length]?.focus();
+    }
   };
   document.addEventListener('keydown', onKey);
 
   confirmBtn.onclick = () => cleanup(true);
   cancelBtn.onclick  = () => cleanup(false);
+  // Clicking outside a confirmation dialog cancels it (informational ones
+  // with only "OK" still require the button so they are not missed).
+  modal.querySelector('.app-modal-backdrop').onclick = cancelText ? () => cleanup(false) : null;
 
   // Focus the confirm button after a short delay so the user can press Enter
   // immediately without needing to click.
@@ -207,10 +219,124 @@ function showInfo(message, title = 'Information') {
   return showModal({ title, message, type: 'info', confirmText: 'OK' });
 }
 
-/** Shows a success modal with only an "OK" button. */
+/**
+ * Shows a success notification as a non-blocking toast. Routine confirmations
+ * ("Saved", "Deleted", "Copied") no longer interrupt the admin with a modal
+ * they must click away. Returns a resolved promise so existing
+ * `await showSuccess(...)` callers continue immediately.
+ */
 function showSuccess(message, title = 'Success') {
-  return showModal({ title, message, type: 'success', confirmText: 'OK' });
+  showToast(message, 'success', title);
+  return Promise.resolve(true);
 }
+
+/* ── Toast notifications ──────────────────────────────────────────────────── */
+
+function ensureToastHost() {
+  let host = document.getElementById('toastHost');
+  if (host) return host;
+  host = document.createElement('div');
+  host.id = 'toastHost';
+  host.className = 'toast-host';
+  host.setAttribute('role', 'status');
+  host.setAttribute('aria-live', 'polite');
+  document.body.appendChild(host);
+  return host;
+}
+
+/**
+ * Shows a small notification in the corner that disappears on its own.
+ * @param {string} message
+ * @param {'success'|'error'|'warning'|'info'} type
+ * @param {string} title     Optional bold heading.
+ * @param {number} duration  Milliseconds before auto-dismiss (0 = sticky).
+ */
+function showToast(message, type = 'info', title = '', duration = 3500) {
+  const host  = ensureToastHost();
+  const icons = { success: '✓', error: '!', warning: '!', info: 'i' };
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${icons[type] || 'i'}</span>
+    <div class="toast-body">
+      ${title ? `<p class="toast-title">${escapeHtml(title)}</p>` : ''}
+      <p class="toast-msg">${escapeHtml(message)}</p>
+    </div>
+    <button type="button" class="toast-close" aria-label="Dismiss">&times;</button>`;
+
+  let timer = null;
+  const dismiss = () => {
+    clearTimeout(timer);
+    toast.classList.add('toast-leave');
+    setTimeout(() => toast.remove(), 200);
+  };
+  const arm = () => { if (duration > 0) timer = setTimeout(dismiss, duration); };
+  toast.querySelector('.toast-close').onclick = dismiss;
+  // Pause the countdown while the pointer is over the toast so it can be read.
+  toast.addEventListener('mouseenter', () => clearTimeout(timer));
+  toast.addEventListener('mouseleave', arm);
+
+  host.appendChild(toast);
+  // Keep at most 4 toasts on screen.
+  while (host.children.length > 4) host.firstElementChild.remove();
+  arm();
+  return dismiss;
+}
+
+/* ── Button busy state ────────────────────────────────────────────────────── */
+
+/**
+ * Puts a button into a loading state (spinner + disabled) while `task` runs,
+ * preventing double submissions and showing the user that something is
+ * happening. Restores the original content afterwards, even on error.
+ */
+async function withBusy(button, task, busyLabel = 'Please wait…') {
+  if (!button) return task();
+  let keep = false;
+  if (button.dataset.busy === '1') return;
+  const original = button.innerHTML;
+  const wasDisabled = button.disabled;
+  button.dataset.busy = '1';
+  button._idleState = { html: original, disabled: wasDisabled };
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${escapeHtml(busyLabel)}</span>`;
+  try {
+    const result = await task();
+    // A task that is navigating to another page returns withBusy.KEEP so the
+    // spinner stays up instead of flicking back to the idle label.
+    keep = result === withBusy.KEEP;
+    return result;
+  } finally {
+    // The page may have navigated away / replaced the button; guard access.
+    if (button.isConnected && !keep) {
+      button.innerHTML = original;
+      button.disabled = wasDisabled;
+      button.removeAttribute('aria-busy');
+    }
+    if (!keep) delete button.dataset.busy;
+  }
+}
+withBusy.KEEP = Symbol('keep-busy');
+
+// Pages restored from the back/forward cache keep their last DOM, so a button
+// left busy by a navigating task would still be spinning. Reset those.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  document.querySelectorAll('button[data-busy="1"]').forEach(btn => {
+    if (btn._idleState) { btn.innerHTML = btn._idleState.html; btn.disabled = btn._idleState.disabled; }
+    btn.removeAttribute('aria-busy');
+    delete btn.dataset.busy;
+  });
+});
+
+/* ── Connection status ────────────────────────────────────────────────────── */
+// Tell the user straight away when their connection drops or comes back,
+// instead of letting the next action fail with a generic error.
+window.addEventListener('offline', () =>
+  showToast('You are offline. Changes will fail until the connection returns.', 'warning', 'Connection lost', 6000));
+window.addEventListener('online', () =>
+  showToast('Your connection has been restored.', 'success', 'Back online'));
 
 /** Shows an error modal with only an "OK" button. */
 function showError(message, title = 'Error') {

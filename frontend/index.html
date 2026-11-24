@@ -89,6 +89,7 @@
                    autocapitalize="characters"
                    spellcheck="false"
                    minlength="3"
+                   aria-describedby="message"
                    required>
           </div>
 
@@ -102,7 +103,7 @@
         </form>
 
         <!-- Inline message (success / error) -->
-        <p id="message" class="mt-3"></p>
+        <p id="message" class="mt-3" role="alert" aria-live="assertive"></p>
       </div>
 
       <!-- Trust row -->

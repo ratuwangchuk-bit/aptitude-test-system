@@ -162,7 +162,10 @@
           </label>
           <input id="cid_number" class="input w-full"
                  minlength="5"
+                 inputmode="numeric"
+                 placeholder="e.g. 11512000000"
                  autocomplete="off"
+                 aria-describedby="message"
                  required>
         </div>
 
@@ -176,7 +179,7 @@
       </form>
 
       <!-- Inline message (success / error) -->
-      <p id="message" class="mt-4"></p>
+      <p id="message" class="mt-4" role="alert" aria-live="assertive"></p>
 
     </div>
   </div>
